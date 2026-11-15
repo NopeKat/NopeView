@@ -33,25 +33,26 @@ public sealed partial class MainWindow : Window
     private async Task LoadAndRenderAsync()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "native", "x64", "test.png");
+        var context = IntPtr.Zero;
         try
         {
-            DetailText.Text = $"DLL path: {path}";
-            var version = PngFormat.Version();
+            DetailText.Text = $"File: {path}";
+            var version = RouterApi.Version();
 
-            if (!PngFormat.TryQuery(out var info))
+            if (!RouterApi.TryCreate(null, out context))
             {
-                StatusText.Text = "Format query failed";
-                WriteResult("FAIL query");
+                StatusText.Text = "Router create failed";
+                WriteResult("FAIL router create");
                 return;
             }
 
-            var formatId = Marshal.PtrToStringUTF8(info.FormatId) ?? "?";
-            var canDecode = (info.Capabilities & 0x1u) != 0u;
+            var formats = RouterApi.ListFormats(context);
+            var formatList = formats.Count == 0 ? "(none)" : string.Join(", ", formats);
 
-            if (!PngFormat.TryDecodeFile(path, out var image))
+            if (!RouterApi.TryDecodeFile(context, path, out var image, out var decodeStatus))
             {
-                StatusText.Text = $"Format ABI v{version} - decode failed";
-                WriteResult($"FAIL decode v{version}");
+                StatusText.Text = $"Router ABI v{version} - decode failed ({decodeStatus})";
+                WriteResult($"FAIL decode v{version} status={decodeStatus} formats={formatList}");
                 return;
             }
 
@@ -62,7 +63,7 @@ public sealed partial class MainWindow : Window
             }
             finally
             {
-                PngFormat.ImageFree(ref image);
+                RouterApi.FreeImage(ref image);
             }
 
             await _source.SetBitmapAsync(bitmap);
@@ -70,14 +71,18 @@ public sealed partial class MainWindow : Window
             await SaveDiagnosticPngAsync(bitmap);
 
             StatusText.Text = $"Rendered OK: {bitmap.PixelWidth} x {bitmap.PixelHeight}";
-            DetailText.Text = $"Format ABI v{version} - {formatId}, decode={canDecode}";
-            WriteResult($"RENDER OK v{version} {bitmap.PixelWidth}x{bitmap.PixelHeight} format={formatId} decode={canDecode}");
+            DetailText.Text = $"Router ABI v{version} - formats: {formatList}";
+            WriteResult($"RENDER OK v{version} {bitmap.PixelWidth}x{bitmap.PixelHeight} formats={formatList}");
         }
         catch (Exception ex)
         {
             StatusText.Text = "Error: " + ex.Message;
             DetailText.Text = ex.ToString();
             WriteResult("EXCEPTION " + ex);
+        }
+        finally
+        {
+            RouterApi.Close(context);
         }
     }
 
@@ -86,7 +91,7 @@ public sealed partial class MainWindow : Window
     /// Uses DataWriter.DetachBuffer so the buffer is fully managed and no COM
     /// byte-access interface is required.
     /// </summary>
-    private static SoftwareBitmap ToSoftwareBitmap(ref NvFormatImage image)
+    private static SoftwareBitmap ToSoftwareBitmap(ref NvRouterImage image)
     {
         var pixelCount = image.Width * image.Height * 4;
         var bgra = new byte[pixelCount];
