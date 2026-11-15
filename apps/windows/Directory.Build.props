@@ -1,0 +1,10 @@
+﻿<Project>
+  <!--
+    Scoped to the Windows app only, so other .NET modules keep their own
+    artifact folders. Produces:
+      apps/windows/artifacts/bin/<ProjectName>/<Configuration>_<RuntimeIdentifier>/
+  -->
+  <PropertyGroup>
+    <ArtifactsPath>$(MSBuildThisFileDirectory)artifacts</ArtifactsPath>
+  </PropertyGroup>
+</Project>

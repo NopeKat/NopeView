@@ -11,6 +11,7 @@
     <RootNamespace>NopeView.App</RootNamespace>
     <AssemblyName>NopeView.App</AssemblyName>
     <StartupObject>NopeView.Program</StartupObject>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
 
   <ItemGroup>
