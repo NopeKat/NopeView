@@ -36,11 +36,21 @@ public sealed partial class MainWindow : Window
         try
         {
             DetailText.Text = $"DLL path: {path}";
-            var version = PngCodec.Version();
+            var version = PngFormat.Version();
 
-            if (!PngCodec.TryDecode(path, out var image))
+            if (!PngFormat.TryQuery(out var info))
             {
-                StatusText.Text = $"C ABI v{version} - decode failed";
+                StatusText.Text = "Format query failed";
+                WriteResult("FAIL query");
+                return;
+            }
+
+            var formatId = Marshal.PtrToStringUTF8(info.FormatId) ?? "?";
+            var canDecode = (info.Capabilities & 0x1u) != 0u;
+
+            if (!PngFormat.TryDecodeFile(path, out var image))
+            {
+                StatusText.Text = $"Format ABI v{version} - decode failed";
                 WriteResult($"FAIL decode v{version}");
                 return;
             }
@@ -52,7 +62,7 @@ public sealed partial class MainWindow : Window
             }
             finally
             {
-                PngCodec.ImageFree(ref image);
+                PngFormat.ImageFree(ref image);
             }
 
             await _source.SetBitmapAsync(bitmap);
@@ -60,8 +70,8 @@ public sealed partial class MainWindow : Window
             await SaveDiagnosticPngAsync(bitmap);
 
             StatusText.Text = $"Rendered OK: {bitmap.PixelWidth} x {bitmap.PixelHeight}";
-            DetailText.Text = $"C ABI v{version} - decoded and displayed";
-            WriteResult($"RENDER OK v{version} {bitmap.PixelWidth}x{bitmap.PixelHeight}");
+            DetailText.Text = $"Format ABI v{version} - {formatId}, decode={canDecode}";
+            WriteResult($"RENDER OK v{version} {bitmap.PixelWidth}x{bitmap.PixelHeight} format={formatId} decode={canDecode}");
         }
         catch (Exception ex)
         {
@@ -76,7 +86,7 @@ public sealed partial class MainWindow : Window
     /// Uses DataWriter.DetachBuffer so the buffer is fully managed and no COM
     /// byte-access interface is required.
     /// </summary>
-    private static SoftwareBitmap ToSoftwareBitmap(ref NvImage image)
+    private static SoftwareBitmap ToSoftwareBitmap(ref NvFormatImage image)
     {
         var pixelCount = image.Width * image.Height * 4;
         var bgra = new byte[pixelCount];
