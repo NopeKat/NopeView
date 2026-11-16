@@ -37,9 +37,8 @@ public sealed partial class MainWindow : Window
             AppWindow.SetIcon(iconPath);
         }
 
-        // The app draws its own title bar row; the system caption buttons
-        // overlay it with transparent backgrounds. This also forwards to
-        // AppWindowTitleBar, so the title bar options are not set twice.
+        // Extend content into the title bar so the custom XAML row can own the
+        // drag region. The native strip is collapsed later in RootGrid_Loaded.
         ExtendsContentIntoTitleBar = true;
 
         ConfigureStartupWindow();
@@ -155,8 +154,6 @@ public sealed partial class MainWindow : Window
         // is gone. AppTitleBar owns the whole caption area.
         SetTitleBar(AppTitleBar);
 
-        UpdateTitleBarTheme();
-
         // Keep the maximize/restore glyph in sync with the window state, both
         // on button clicks and on state changes from elsewhere (double click,
         // snap layouts, keyboard).
@@ -169,41 +166,6 @@ public sealed partial class MainWindow : Window
         Win32Window.SuppressSystemMenu(Handle);
 
         UpdateCaptionAppearance();
-    }
-
-    /// <summary>
-    /// The system-drawn caption buttons do not follow the app theme on their
-    /// own, so their colors are applied explicitly. Everything the system would
-    /// paint behind them stays transparent so the custom row shows through.
-    /// </summary>
-    private void UpdateTitleBarTheme()
-    {
-        if (!AppWindowTitleBar.IsCustomizationSupported())
-        {
-            return;
-        }
-
-        var dark = RootGrid.ActualTheme == ElementTheme.Dark;
-        var bar = AppWindow.TitleBar;
-
-        var foreground = dark ? Colors.White : Colors.Black;
-        var inactive = dark
-            ? ColorHelper.FromArgb(255, 128, 128, 128)
-            : ColorHelper.FromArgb(255, 153, 153, 153);
-        var hover = dark
-            ? ColorHelper.FromArgb(60, 255, 255, 255)
-            : ColorHelper.FromArgb(45, 0, 0, 0);
-
-        bar.BackgroundColor = Colors.Transparent;
-        bar.ForegroundColor = Colors.Transparent;
-        bar.ButtonBackgroundColor = Colors.Transparent;
-        bar.ButtonForegroundColor = foreground;
-        bar.ButtonHoverBackgroundColor = hover;
-        bar.ButtonHoverForegroundColor = foreground;
-        bar.ButtonPressedBackgroundColor = hover;
-        bar.ButtonPressedForegroundColor = foreground;
-        bar.ButtonInactiveBackgroundColor = Colors.Transparent;
-        bar.ButtonInactiveForegroundColor = inactive;
     }
 
     private void AppWindow_Changed(AppWindow sender, AppWindowChangedEventArgs args)

@@ -8,11 +8,9 @@
     <Grid x:Name="RootGrid" Loaded="RootGrid_Loaded">
         <Grid.Resources>
             <!-- Caption buttons are drawn in XAML so their tooltips can be omitted.
-                 Geometry and colors reproduce the system caption buttons exactly.
-                 Measurements: Minimize/Restore glyph #FFF dark / #000 light;
-                 Close glyph #DFDFDF dark / #202020 light; Minimize/Restore have
-                 no hover background change; Close hover #E81123 with #FCE1E3
-                 glyph in both themes. -->
+                 Geometry and colors follow the system caption buttons.
+                 Minimize and Restore use theme hover/pressed backgrounds;
+                 Close keeps the native danger colors on hover and press. -->
             <Style x:Key="CaptionButtonStyle" TargetType="Button">
                 <Setter Property="Width" Value="46" />
                 <Setter Property="Height" Value="32" />
@@ -163,8 +161,8 @@
                         AutomationProperties.AutomationId="Close"
                         AutomationProperties.Name="Close"
                         Click="CloseButton_Click">
-                    <!-- Fluent UI System Icons dismiss_16_regular, scaled 0.9 so
-                         its box matches the system caption glyph (20x20 px). -->
+                    <!-- Fluent UI System Icons dismiss_16_regular. The path data
+                         is pre-scaled to match the 20x20 px caption glyph. -->
                     <PathIcon Width="16" Height="16"
                               RenderTransformOrigin="0.5,0.5"
                               Data="M3.1297 3.2441L3.1818 3.1818C3.3380 3.0256 3.5805 3.0082 3.7559 3.1297L3.8182 3.1818L8 7.3637L12.1818 3.1818C12.3575 3.0061 12.6425 3.0061 12.8182 3.1818C12.9939 3.3575 12.9939 3.6425 12.8182 3.8182L8.6363 8L12.8182 12.1818C12.9744 12.3380 12.9918 12.5805 12.8703 12.7559L12.8182 12.8182C12.6620 12.9744 12.4195 12.9918 12.2441 12.8703L12.1818 12.8182L8 8.6363L3.8182 12.8182C3.6425 12.9939 3.3575 12.9939 3.1818 12.8182C3.0061 12.6425 3.0061 12.3575 3.1818 12.1818L7.3637 8L3.1818 3.8182C3.0256 3.6620 3.0082 3.4195 3.1297 3.2441L3.1818 3.1818L3.1297 3.2441Z">
