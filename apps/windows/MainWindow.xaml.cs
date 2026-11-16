@@ -25,6 +25,16 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
 
+        // Set the window icon explicitly. For an unpackaged WinUI 3 app the
+        // executable's ApplicationIcon alone does not reach Explorer, so the
+        // taskbar button, Alt-Tab and thumbnails show a default icon until the
+        // running window is given one through AppWindow.SetIcon.
+        var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "nopeview.ico");
+        if (File.Exists(iconPath))
+        {
+            AppWindow.SetIcon(iconPath);
+        }
+
         // The app draws its own title bar row; the system caption buttons
         // overlay it with transparent backgrounds. This also forwards to
         // AppWindowTitleBar, so the title bar options are not set twice.

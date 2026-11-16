@@ -13,7 +13,7 @@ A fast, lightweight, and extensible cross-platform image viewer.
 ## Current progress
 
 - **Codecs**: the router core and the decoders for PNG, JPG, GIF, and BMP are implemented. The encode entry point exists, but all four formats return "unsupported".
-- **Windows app**: WinUI 3, with content extended into the title bar, the native minimize / maximize / close buttons kept, and PerMonitorV2 declared. The content area is currently empty.
+- **Windows app**: WinUI 3, with content extended into the title bar, the native minimize / maximize / close buttons kept, PerMonitorV2 declared, and the NopeView brand logo shown at the left of the title bar. The app icon is embedded in the executable for Explorer, taskbar, Alt-Tab and Start. The content area is currently empty.
 - **Three ABI boundaries**: router (`nv_router_abi.h`), format (`nv_format_abi.h`), and application plugin (`nv_plugin_abi.h`) are all in place, each versioned `0.0.0.0` (the `x.y.z.n` scheme).
 - **Other modules**: the CLI, application plugins, and the platform capability layer contain only directories and notes; nothing is implemented.
 
@@ -65,6 +65,7 @@ The project is a single monorepo:
 ```
 apps/
 ├── windows/                    Windows app (WinUI 3)
+│   ├── Assets/                 brand logo (SVG source, ICO, title-bar PNG)
 │   └── native/                 P/Invoke bindings and test images
 ├── cli/                        command-line entry point (notes only)
 ├── plugins/                    application plugins

@@ -13,6 +13,8 @@
     <StartupObject>NopeView.Program</StartupObject>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Application icon shown in Explorer, taskbar, Alt-Tab and Start. -->
+    <ApplicationIcon>Assets\nopeview.ico</ApplicationIcon>
     <!-- Project version uses the x.y.z.n scheme and starts at 0.0.0.0. The third
          segment z is the default increment; the fourth segment n stays 0 and is
          reserved for nightly builds. Keep app.manifest's assemblyIdentity in
@@ -23,6 +25,11 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.6.5" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4654" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\nopeview.svg" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\nopeview-title.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

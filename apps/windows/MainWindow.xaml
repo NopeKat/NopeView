@@ -16,10 +16,17 @@
              SetTitleBar. The design-time height is replaced on load with the
              real caption strip height. -->
         <Grid x:Name="AppTitleBar" Grid.Row="0" Height="32" Background="Transparent">
-            <TextBlock Text="NopeView"
-                       FontSize="12" VerticalAlignment="Center"
-                       HorizontalAlignment="Left"
-                       Margin="16,0,0,0" x:Name="TitleText" />
+            <StackPanel Orientation="Horizontal"
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Left"
+                        Margin="12,0,0,0">
+                <Image x:Name="AppLogo"
+                       Source="ms-appx:///Assets/nopeview-title.png"
+                       Width="16" Height="16" />
+                <TextBlock Text="NopeView"
+                           FontSize="12" VerticalAlignment="Center"
+                           Margin="8,0,0,0" x:Name="TitleText" />
+            </StackPanel>
         </Grid>
 
         <Grid x:Name="ContentRoot" Grid.Row="1" />
