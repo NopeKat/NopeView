@@ -1,6 +1,7 @@
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 using NopeView.App.Native;
 using Windows.Graphics;
 using WinRT.Interop;
@@ -20,6 +21,7 @@ public sealed partial class MainWindow : Window
     private const double RestoreAreaRatio = 0.9;
 
     private bool _titleBarInitialized;
+    private bool _windowActive = true;
 
     public MainWindow()
     {
@@ -41,6 +43,45 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
 
         ConfigureStartupWindow();
+
+        // The caption glyphs turn grey when the window loses focus, exactly as
+        // the native title bar buttons do. Both activation and theme changes
+        // re-evaluate the glyph color.
+        Activated += MainWindow_Activated;
+        RootGrid.ActualThemeChanged += (_, _) => UpdateCaptionAppearance();
+    }
+
+    private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
+    {
+        _windowActive = args.WindowActivationState != WindowActivationState.Deactivated;
+        UpdateCaptionAppearance();
+    }
+
+    /// <summary>
+    /// Applies the active/inactive glyph color to the self-drawn caption
+    /// buttons and the title text. Native values: white/black while active,
+    /// #808080 (dark) or #999999 (light) while inactive. Hover and pressed
+    /// states override this through the button templates.
+    /// </summary>
+    private void UpdateCaptionAppearance()
+    {
+        if (!_titleBarInitialized)
+        {
+            return;
+        }
+
+        var dark = RootGrid.ActualTheme == ElementTheme.Dark;
+        var color = _windowActive
+            ? (dark ? Colors.White : Colors.Black)
+            : (dark
+                ? ColorHelper.FromArgb(255, 128, 128, 128)
+                : ColorHelper.FromArgb(255, 153, 153, 153));
+        var brush = new SolidColorBrush(color);
+
+        MinimizeButton.Foreground = brush;
+        RestoreButton.Foreground = brush;
+        CloseButton.Foreground = brush;
+        TitleText.Foreground = brush;
     }
 
     private nint Handle => WindowNative.GetWindowHandle(this);
@@ -104,33 +145,30 @@ public sealed partial class MainWindow : Window
         // extended title bar itself was enabled in the constructor.
         if (AppWindowTitleBar.IsCustomizationSupported())
         {
-            // Keep the native caption buttons at their standard height.
-            AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Standard;
-
-            // Explicitly drop the caption icon and its system menu entry. Leaving
-            // this to the extended title bar alone relies on undocumented layout
-            // behavior, which could change between Windows App SDK versions.
-            AppWindow.TitleBar.IconShowOptions = IconShowOptions.HideIconAndSystemMenu;
+            // Collapse the system title bar entirely. This removes the native
+            // caption buttons and their tooltips; the XAML buttons below replace
+            // them and reproduce their geometry and colors.
+            AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Collapsed;
         }
 
-        // Register the custom row as the drag region; the caption buttons keep
-        // overlaying the top-right corner.
+        // Register the custom row as the drag region now that the system strip
+        // is gone. AppTitleBar owns the whole caption area.
         SetTitleBar(AppTitleBar);
 
-        // Match the row to the real caption strip. XAML carries the design-time
-        // default, so this is skipped while the height is still unavailable.
-        var captionHeight = AppWindow.TitleBar.Height;
-        if (captionHeight > 0)
-        {
-            AppTitleBar.Height = captionHeight / Scale;
-        }
-
         UpdateTitleBarTheme();
+
+        // Keep the maximize/restore glyph in sync with the window state, both
+        // on button clicks and on state changes from elsewhere (double click,
+        // snap layouts, keyboard).
+        UpdateCaptionIcons();
+        AppWindow.Changed += AppWindow_Changed;
 
         // The native system menu is unwanted on the custom title bar. Filter the
         // messages that open it instead of clearing WS_SYSMENU, which would also
         // shift the caption buttons off the visible right edge.
         Win32Window.SuppressSystemMenu(Handle);
+
+        UpdateCaptionAppearance();
     }
 
     /// <summary>
@@ -166,5 +204,63 @@ public sealed partial class MainWindow : Window
         bar.ButtonPressedForegroundColor = foreground;
         bar.ButtonInactiveBackgroundColor = Colors.Transparent;
         bar.ButtonInactiveForegroundColor = inactive;
+    }
+
+    private void AppWindow_Changed(AppWindow sender, AppWindowChangedEventArgs args)
+    {
+        // Presenter state (maximized/restored/minimized) changes are reported
+        // here, including ones not caused by our own caption buttons. The check
+        // is cheap, so refresh on every change rather than inspecting args.
+        UpdateCaptionIcons();
+    }
+
+    /// <summary>
+    /// Shows the restore glyph while maximized and the maximize glyph while
+    /// restored, matching the native caption button behavior.
+    /// </summary>
+    private void UpdateCaptionIcons()
+    {
+        bool maximized = AppWindow.Presenter is OverlappedPresenter presenter &&
+            presenter.State == OverlappedPresenterState.Maximized;
+        RestoreGlyph.Visibility = maximized ? Visibility.Visible : Visibility.Collapsed;
+        MaximizeGlyph.Visibility = maximized ? Visibility.Collapsed : Visibility.Visible;
+
+        // A maximized window sits at an odd screen offset, which shifts the
+        // half-pixel glyph nudge used to align with the native glyphs. Keep the
+        // nudge only in the restored state so both states stay pixel-aligned.
+        // The minimize glyph sits one pixel lower than the other two, so it
+        // needs an extra half-pixel nudge.
+        var offset = maximized ? 0.0 : -0.5;
+        MinimizeOffset.Y = offset - 0.5;
+        CloseOffset.Y = offset;
+    }
+
+    private void MinimizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (AppWindow.Presenter is OverlappedPresenter presenter)
+        {
+            presenter.Minimize();
+        }
+    }
+
+    private void RestoreButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (AppWindow.Presenter is OverlappedPresenter presenter)
+        {
+            if (presenter.State == OverlappedPresenterState.Maximized)
+            {
+                presenter.Restore();
+            }
+            else
+            {
+                presenter.Maximize();
+            }
+            UpdateCaptionIcons();
+        }
+    }
+
+    private void CloseButton_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
     }
 }
