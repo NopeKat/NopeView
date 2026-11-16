@@ -1,166 +1,160 @@
-using System.Runtime.InteropServices;
+using Microsoft.UI;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media.Imaging;
 using NopeView.App.Native;
-using Windows.Graphics.Imaging;
-using Windows.Storage.Streams;
+using Windows.Graphics;
+using WinRT.Interop;
 
 namespace NopeView.App;
 
 public sealed partial class MainWindow : Window
 {
-    private readonly SoftwareBitmapSource _source = new();
-    private bool _loaded;
+    // Restore size used when the window is un-maximized. The window opens
+    // maximized, so this is what restore actions return to.
+    private const int PreferredWidth = 1280;
+    private const int PreferredHeight = 840;
+
+    // The restore size is also capped to this fraction of the work area so that
+    // un-maximizing always produces a visibly smaller window, even on a display
+    // where the preferred size would cover the whole screen.
+    private const double RestoreAreaRatio = 0.9;
+
+    private bool _titleBarInitialized;
 
     public MainWindow()
     {
         InitializeComponent();
-        ImageView.Source = _source;
-        Activated += MainWindow_Activated;
+
+        // The app draws its own title bar row; the system caption buttons
+        // overlay it with transparent backgrounds. This also forwards to
+        // AppWindowTitleBar, so the title bar options are not set twice.
+        ExtendsContentIntoTitleBar = true;
+
+        ConfigureStartupWindow();
     }
 
-    private async void MainWindow_Activated(object sender, WindowActivatedEventArgs e)
+    private nint Handle => WindowNative.GetWindowHandle(this);
+
+    /// <summary>
+    /// Rasterization scale of the window. XamlRoot is authoritative once the
+    /// content is loaded; before that, the monitor DPI is the only source.
+    /// </summary>
+    private double Scale
     {
-        if (_loaded)
+        get
+        {
+            var scale = RootGrid.XamlRoot?.RasterizationScale ?? 0;
+            return scale > 0 ? scale : Win32Window.GetScaleFactor(Handle);
+        }
+    }
+
+    /// <summary>
+    /// Centers the window at the preferred size, then maximizes it so the
+    /// content gets the whole work area. The centered size stays as the restore
+    /// size. Running this before the window is shown means it opens maximized
+    /// with no visible resize flash.
+    /// </summary>
+    private void ConfigureStartupWindow()
+    {
+        var appWindow = AppWindow;
+        var scale = Scale;
+        var workArea = DisplayArea
+            .GetFromWindowId(appWindow.Id, DisplayAreaFallback.Primary)
+            .WorkArea;
+
+        // Keep the restore size comfortably inside the work area: on a high-DPI
+        // display the preferred size can match the full screen, which would make
+        // un-maximizing look like nothing changed.
+        var widthDip = Math.Min(PreferredWidth, workArea.Width / scale * RestoreAreaRatio);
+        var heightDip = Math.Min(PreferredHeight, workArea.Height / scale * RestoreAreaRatio);
+        var width = (int)Math.Round(widthDip * scale);
+        var height = (int)Math.Round(heightDip * scale);
+
+        appWindow.MoveAndResize(new RectInt32(
+            workArea.X + ((workArea.Width - width) / 2),
+            workArea.Y + ((workArea.Height - height) / 2),
+            width,
+            height));
+
+        if (appWindow.Presenter is OverlappedPresenter presenter)
+        {
+            presenter.Maximize();
+        }
+    }
+
+    private void RootGrid_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (_titleBarInitialized)
         {
             return;
         }
-        _loaded = true;
-        await LoadAndRenderAsync();
-    }
+        _titleBarInitialized = true;
 
-    private async Task LoadAndRenderAsync()
-    {
-        var path = Path.Combine(AppContext.BaseDirectory, "native", "x64", "test.png");
-        var context = IntPtr.Zero;
-        try
+        // Only the options that differ from the defaults are set here; the
+        // extended title bar itself was enabled in the constructor.
+        if (AppWindowTitleBar.IsCustomizationSupported())
         {
-            DetailText.Text = $"File: {path}";
-            var version = RouterApi.Version();
+            // Keep the native caption buttons at their standard height.
+            AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Standard;
 
-            if (!RouterApi.TryCreate(null, out context))
-            {
-                StatusText.Text = "Router create failed";
-                WriteResult("FAIL router create");
-                return;
-            }
-
-            var formats = RouterApi.ListFormats(context);
-            var formatList = formats.Count == 0 ? "(none)" : string.Join(", ", formats);
-
-            if (!RouterApi.TryDecodeFile(context, path, out var image, out var decodeStatus))
-            {
-                StatusText.Text = $"Router ABI v{version} - decode failed ({decodeStatus})";
-                WriteResult($"FAIL decode v{version} status={decodeStatus} formats={formatList}");
-                return;
-            }
-
-            SoftwareBitmap bitmap;
-            try
-            {
-                bitmap = ToSoftwareBitmap(ref image);
-            }
-            finally
-            {
-                RouterApi.FreeImage(ref image);
-            }
-
-            await _source.SetBitmapAsync(bitmap);
-
-            await SaveDiagnosticPngAsync(bitmap);
-
-            StatusText.Text = $"Rendered OK: {bitmap.PixelWidth} x {bitmap.PixelHeight}";
-            DetailText.Text = $"Router ABI v{version} - formats: {formatList}";
-            WriteResult($"RENDER OK v{version} {bitmap.PixelWidth}x{bitmap.PixelHeight} formats={formatList}");
+            // Explicitly drop the caption icon and its system menu entry. Leaving
+            // this to the extended title bar alone relies on undocumented layout
+            // behavior, which could change between Windows App SDK versions.
+            AppWindow.TitleBar.IconShowOptions = IconShowOptions.HideIconAndSystemMenu;
         }
-        catch (Exception ex)
+
+        // Register the custom row as the drag region; the caption buttons keep
+        // overlaying the top-right corner.
+        SetTitleBar(AppTitleBar);
+
+        // Match the row to the real caption strip. XAML carries the design-time
+        // default, so this is skipped while the height is still unavailable.
+        var captionHeight = AppWindow.TitleBar.Height;
+        if (captionHeight > 0)
         {
-            StatusText.Text = "Error: " + ex.Message;
-            DetailText.Text = ex.ToString();
-            WriteResult("EXCEPTION " + ex);
+            AppTitleBar.Height = captionHeight / Scale;
         }
-        finally
-        {
-            RouterApi.Close(context);
-        }
+
+        UpdateTitleBarTheme();
+
+        // The native system menu is unwanted on the custom title bar. Filter the
+        // messages that open it instead of clearing WS_SYSMENU, which would also
+        // shift the caption buttons off the visible right edge.
+        Win32Window.SuppressSystemMenu(Handle);
     }
 
     /// <summary>
-    /// Copies decoded RGBA pixels into a SoftwareBitmap.
-    /// Uses DataWriter.DetachBuffer so the buffer is fully managed and no COM
-    /// byte-access interface is required.
+    /// The system-drawn caption buttons do not follow the app theme on their
+    /// own, so their colors are applied explicitly. Everything the system would
+    /// paint behind them stays transparent so the custom row shows through.
     /// </summary>
-    private static SoftwareBitmap ToSoftwareBitmap(ref NvRouterImage image)
+    private void UpdateTitleBarTheme()
     {
-        var pixelCount = image.Width * image.Height * 4;
-        var bgra = new byte[pixelCount];
-
-        // Copy RGBA from the codec, then convert to BGRA and premultiply alpha.
-        Marshal.Copy(image.Pixels, bgra, 0, pixelCount);
-        for (var i = 0; i < pixelCount; i += 4)
+        if (!AppWindowTitleBar.IsCustomizationSupported())
         {
-            var r = bgra[i];
-            var g = bgra[i + 1];
-            var b = bgra[i + 2];
-            var a = bgra[i + 3];
-
-            // Premultiply so the bitmap matches BitmapAlphaMode.Premultiplied.
-            bgra[i] = (byte)(b * a / 255);
-            bgra[i + 1] = (byte)(g * a / 255);
-            bgra[i + 2] = (byte)(r * a / 255);
-            bgra[i + 3] = a;
+            return;
         }
 
-        using var writer = new DataWriter();
-        writer.WriteBytes(bgra);
-        var buffer = writer.DetachBuffer();
+        var dark = RootGrid.ActualTheme == ElementTheme.Dark;
+        var bar = AppWindow.TitleBar;
 
-        return SoftwareBitmap.CreateCopyFromBuffer(
-            buffer,
-            BitmapPixelFormat.Bgra8,
-            image.Width,
-            image.Height,
-            BitmapAlphaMode.Premultiplied);
-    }
+        var foreground = dark ? Colors.White : Colors.Black;
+        var inactive = dark
+            ? ColorHelper.FromArgb(255, 128, 128, 128)
+            : ColorHelper.FromArgb(255, 153, 153, 153);
+        var hover = dark
+            ? ColorHelper.FromArgb(60, 255, 255, 255)
+            : ColorHelper.FromArgb(45, 0, 0, 0);
 
-    private static void WriteResult(string line)
-    {
-        try
-        {
-            var dir = Path.Combine(AppContext.BaseDirectory, "diagnostics");
-            Directory.CreateDirectory(dir);
-            var path = Path.Combine(dir, "slice_result.txt");
-            File.WriteAllText(path, $"{DateTime.Now:O} {line}");
-        }
-        catch
-        {
-            // Diagnostic output failure must not affect the app.
-        }
-    }
-
-    /// <summary>
-    /// Writes the rendered bitmap to a PNG next to the diagnostics file, so the
-    /// result can be inspected without a screen capture.
-    /// </summary>
-    private static async Task SaveDiagnosticPngAsync(SoftwareBitmap bitmap)
-    {
-        var dir = Path.Combine(AppContext.BaseDirectory, "diagnostics");
-        Directory.CreateDirectory(dir);
-        var path = Path.Combine(dir, "render_check.png");
-
-        var memory = new InMemoryRandomAccessStream();
-        var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, memory);
-        encoder.SetSoftwareBitmap(bitmap);
-        await encoder.FlushAsync();
-
-        memory.Seek(0);
-        var length = (uint)memory.Size;
-        using var reader = new DataReader(memory.GetInputStreamAt(0));
-        await reader.LoadAsync(length);
-        var bytes = new byte[length];
-        reader.ReadBytes(bytes);
-
-        await File.WriteAllBytesAsync(path, bytes);
+        bar.BackgroundColor = Colors.Transparent;
+        bar.ForegroundColor = Colors.Transparent;
+        bar.ButtonBackgroundColor = Colors.Transparent;
+        bar.ButtonForegroundColor = foreground;
+        bar.ButtonHoverBackgroundColor = hover;
+        bar.ButtonHoverForegroundColor = foreground;
+        bar.ButtonPressedBackgroundColor = hover;
+        bar.ButtonPressedForegroundColor = foreground;
+        bar.ButtonInactiveBackgroundColor = Colors.Transparent;
+        bar.ButtonInactiveForegroundColor = inactive;
     }
 }

@@ -3,11 +3,25 @@
     x:Class="NopeView.App.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="NopeView - PNG vertical slice">
+    Title="NopeView">
 
-    <StackPanel Padding="24" Spacing="12">
-        <TextBlock x:Name="StatusText" FontSize="15" TextWrapping="Wrap" Text="starting..." />
-        <TextBlock x:Name="DetailText" FontSize="12" TextWrapping="Wrap" />
-        <Image x:Name="ImageView" Stretch="None" HorizontalAlignment="Left" />
-    </StackPanel>
+    <Grid x:Name="RootGrid" Loaded="RootGrid_Loaded">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Custom-drawn title bar. The system caption buttons overlay the right
+             end of this row, which is the drag region registered through
+             SetTitleBar. The design-time height is replaced on load with the
+             real caption strip height. -->
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Height="32" Background="Transparent">
+            <TextBlock Text="NopeView"
+                       FontSize="12" VerticalAlignment="Center"
+                       HorizontalAlignment="Left"
+                       Margin="16,0,0,0" x:Name="TitleText" />
+        </Grid>
+
+        <Grid x:Name="ContentRoot" Grid.Row="1" />
+    </Grid>
 </Window>
