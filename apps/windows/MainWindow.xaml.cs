@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.Windows.Storage.Pickers;
 using NopeView.App.Native;
@@ -67,9 +68,12 @@ public sealed partial class MainWindow : Window
     // instead of letting it overwrite the newer image.
     private int _decodeGeneration;
 
+    private readonly Storyboard _loadingAnimation;
+
     public MainWindow()
     {
         InitializeComponent();
+        _loadingAnimation = CreateLoadingAnimation();
         _windowHandle = Handle;
         _animationTimer.Tick += AnimationTimer_Tick;
         _animationTimer.Interval = TimeSpan.FromMilliseconds(100);
@@ -375,7 +379,10 @@ public sealed partial class MainWindow : Window
         var generation = ++_decodeGeneration;
         if (resetView)
         {
+            // Only a full open shows the indicator. Animation frames are short
+            // enough that a ring would flicker on every step.
             ErrorPanel.Visibility = Visibility.Collapsed;
+            SetLoading(true);
         }
 
         try
@@ -466,6 +473,15 @@ public sealed partial class MainWindow : Window
                 StopAnimation();
             }
         }
+        finally
+        {
+            // A superseded open must not hide the indicator, because the newer
+            // request is still decoding behind it.
+            if (resetView && generation == _decodeGeneration)
+            {
+                SetLoading(false);
+            }
+        }
     }
 
     /// <summary>
@@ -516,6 +532,50 @@ public sealed partial class MainWindow : Window
         internal uint FrameCount;
         internal uint FrameDelayMs;
         internal string? Error;
+    }
+
+    private void SetLoading(bool loading)
+    {
+        var visible = LoadingRing.Visibility == Visibility.Visible;
+        if (loading == visible)
+        {
+            return;
+        }
+
+        LoadingRing.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
+
+        // The rotation is a dependent animation, so it only needs to run while
+        // the indicator is on screen.
+        if (loading)
+        {
+            _loadingAnimation.Begin();
+        }
+        else
+        {
+            _loadingAnimation.Stop();
+        }
+    }
+
+    /// <summary>
+    /// Spins the dashed loading ring. A classic storyboard is used because a
+    /// ProgressRing's Lottie visual crashes the current WinUI build.
+    /// </summary>
+    private Storyboard CreateLoadingAnimation()
+    {
+        var spin = new DoubleAnimation
+        {
+            From = 0,
+            To = 360,
+            Duration = new Duration(TimeSpan.FromSeconds(1.2)),
+            RepeatBehavior = RepeatBehavior.Forever,
+            EnableDependentAnimation = true,
+        };
+        Storyboard.SetTarget(spin, LoadingSpinnerRotation);
+        Storyboard.SetTargetProperty(spin, "Angle");
+
+        var storyboard = new Storyboard();
+        storyboard.Children.Add(spin);
+        return storyboard;
     }
 
     private void UpdateImageAutomationName(string path)
