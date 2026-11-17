@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <android/bitmap.h>
 #include <android/log.h>
 
 #include "nv_router_abi.h"
@@ -53,16 +54,25 @@ Java_app_android_nopeview_NativeCodec_destroy(
     nv_router_destroy(context_from_handle(handle));
 }
 
-JNIEXPORT jbyteArray JNICALL
-Java_app_android_nopeview_NativeCodec_decodeFd(
+JNIEXPORT jobject JNICALL
+Java_app_android_nopeview_NativeCodec_decodeFdBitmap(
     JNIEnv *env, jobject thiz, jlong handle, jint fd, jint max_dimension, jintArray out_info)
 {
     nv_router_context *context = context_from_handle(handle);
     nv_router_image image;
     nv_router_status status;
-    jbyteArray bytes;
+    jclass bitmap_class;
+    jclass config_class;
+    jmethodID create_bitmap;
+    jfieldID config_field;
+    jobject config;
+    jobject bitmap;
+    AndroidBitmapInfo bitmap_info;
+    void *bitmap_pixels;
     jint info[8];
     jsize info_length;
+    uint32_t y;
+    int result;
 
     (void)thiz;
 
@@ -89,22 +99,89 @@ Java_app_android_nopeview_NativeCodec_decodeFd(
     }
 
     if (image.pixels == NULL || image.width <= 0 || image.height <= 0 ||
-        image.stride != image.width * 4 ||
-        image.pixels_size > (size_t)INT32_MAX) {
+        (size_t)image.stride < (size_t)image.width * 4u ||
+        image.pixels_size < (size_t)image.stride * (size_t)image.height ||
+        image.width > INT32_MAX || image.height > INT32_MAX) {
         nv_router_image_free(&image);
         return NULL;
     }
 
-    NV_LOG("decoded %dx%d frames=%u", image.width, image.height,
-           (unsigned int)image.frame_count);
-
-    bytes = (*env)->NewByteArray(env, (jsize)image.pixels_size);
-    if (bytes == NULL) {
+    bitmap_class = (*env)->FindClass(env, "android/graphics/Bitmap");
+    if (bitmap_class == NULL) {
         nv_router_image_free(&image);
         return NULL;
     }
-    (*env)->SetByteArrayRegion(
-        env, bytes, 0, (jsize)image.pixels_size, (const jbyte *)image.pixels);
+    create_bitmap = (*env)->GetStaticMethodID(
+        env, bitmap_class, "createBitmap",
+        "(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;");
+    config_class = (*env)->FindClass(env, "android/graphics/Bitmap$Config");
+    if (config_class == NULL) {
+        (*env)->DeleteLocalRef(env, bitmap_class);
+        nv_router_image_free(&image);
+        return NULL;
+    }
+    config_field = (*env)->GetStaticFieldID(
+        env, config_class, "ARGB_8888", "Landroid/graphics/Bitmap$Config;");
+    if (create_bitmap == NULL || config_field == NULL) {
+        (*env)->DeleteLocalRef(env, config_class);
+        (*env)->DeleteLocalRef(env, bitmap_class);
+        nv_router_image_free(&image);
+        return NULL;
+    }
+
+    config = (*env)->GetStaticObjectField(env, config_class, config_field);
+    bitmap = (*env)->CallStaticObjectMethod(
+        env, bitmap_class, create_bitmap,
+        (jint)image.width, (jint)image.height, config);
+    (*env)->DeleteLocalRef(env, config);
+    (*env)->DeleteLocalRef(env, config_class);
+    (*env)->DeleteLocalRef(env, bitmap_class);
+    if ((*env)->ExceptionCheck(env)) {
+        (*env)->ExceptionClear(env);
+        if (bitmap != NULL) {
+            (*env)->DeleteLocalRef(env, bitmap);
+        }
+        nv_router_image_free(&image);
+        return NULL;
+    }
+    if (bitmap == NULL) {
+        nv_router_image_free(&image);
+        return NULL;
+    }
+
+    result = AndroidBitmap_getInfo(env, bitmap, &bitmap_info);
+    if (result != ANDROID_BITMAP_RESULT_SUCCESS ||
+        bitmap_info.width != (uint32_t)image.width ||
+        bitmap_info.height != (uint32_t)image.height ||
+        bitmap_info.format != ANDROID_BITMAP_FORMAT_RGBA_8888 ||
+        bitmap_info.stride < (uint32_t)image.width * 4u) {
+        (*env)->DeleteLocalRef(env, bitmap);
+        nv_router_image_free(&image);
+        return NULL;
+    }
+
+    result = AndroidBitmap_lockPixels(env, bitmap, &bitmap_pixels);
+    if (result != ANDROID_BITMAP_RESULT_SUCCESS) {
+        (*env)->DeleteLocalRef(env, bitmap);
+        nv_router_image_free(&image);
+        return NULL;
+    }
+
+    for (y = 0u; y < (uint32_t)image.height; y++) {
+        const unsigned char *source_row =
+            image.pixels + (size_t)y * (size_t)image.stride;
+        unsigned char *destination_row =
+            (unsigned char *)bitmap_pixels + (size_t)y * (size_t)bitmap_info.stride;
+
+        memcpy(destination_row, source_row, (size_t)image.width * 4u);
+    }
+
+    result = AndroidBitmap_unlockPixels(env, bitmap);
+    if (result != ANDROID_BITMAP_RESULT_SUCCESS) {
+        (*env)->DeleteLocalRef(env, bitmap);
+        nv_router_image_free(&image);
+        return NULL;
+    }
 
     info[0] = image.width;
     info[1] = image.height;
@@ -114,8 +191,21 @@ Java_app_android_nopeview_NativeCodec_decodeFd(
     info[5] = image.source_width;
     info[6] = image.source_height;
     info[7] = (jint)image.pixel_format;
-    (*env)->SetIntArrayRegion(env, out_info, 0, (jsize)(sizeof(info) / sizeof(info[0])), info);
+    (*env)->SetIntArrayRegion(
+        env, out_info, 0, (jsize)(sizeof(info) / sizeof(info[0])), info);
+    if ((*env)->ExceptionCheck(env)) {
+        (*env)->ExceptionClear(env);
+        (*env)->DeleteLocalRef(env, bitmap);
+        nv_router_image_free(&image);
+        return NULL;
+    }
 
+    NV_LOG("decoded bitmap %dx%d source=%dx%d frames=%u",
+           image.width,
+           image.height,
+           image.source_width,
+           image.source_height,
+           (unsigned int)image.frame_count);
     nv_router_image_free(&image);
-    return bytes;
+    return bitmap;
 }

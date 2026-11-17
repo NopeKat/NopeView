@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
@@ -45,7 +46,11 @@ private const val MAX_ZOOM = 8f
  * fit and actual size.
  */
 @Composable
-fun ZoomableImage(bitmap: Bitmap, modifier: Modifier = Modifier) {
+fun ZoomableImage(
+    bitmap: Bitmap,
+    modifier: Modifier = Modifier,
+    isPreview: Boolean = false,
+) {
     val image = remember(bitmap) { bitmap.asImageBitmap() }
     val imageWidth = bitmap.width
     val imageHeight = bitmap.height
@@ -70,6 +75,7 @@ fun ZoomableImage(bitmap: Bitmap, modifier: Modifier = Modifier) {
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
+                .clipToBounds()
                 .pointerInput(bitmap, viewport) {
                     detectTransformGestures { centroid, pan, gestureZoom, gestureRotation ->
                         val oldZoom = zoom
@@ -158,11 +164,23 @@ fun ZoomableImage(bitmap: Bitmap, modifier: Modifier = Modifier) {
                 .padding(8.dp),
         ) {
             Text(
-                text = if (abs(zoom - 1f) < 0.01f) {
-                    stringResource(R.string.view_fit)
-                } else {
-                    stringResource(R.string.view_actual)
+                text = when {
+                    abs(zoom - 1f) < 0.01f -> stringResource(R.string.view_fit)
+                    isPreview -> stringResource(R.string.view_preview_actual)
+                    else -> stringResource(R.string.view_actual)
                 },
+            )
+        }
+
+        if (isPreview) {
+            Text(
+                text = "${stringResource(R.string.view_preview)} " +
+                    "${bitmap.width}×${bitmap.height}",
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(8.dp),
+                style = MaterialTheme.typography.labelMedium,
+                color = Color.White.copy(alpha = 0.55f),
             )
         }
 

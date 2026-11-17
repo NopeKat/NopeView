@@ -1,5 +1,7 @@
 package app.android.nopeview
 
+import android.graphics.Bitmap
+
 object NativeCodec {
     init {
         System.loadLibrary("nopeview")
@@ -9,10 +11,10 @@ object NativeCodec {
 
     external fun destroy(handle: Long)
 
-    external fun decodeFd(
+    external fun decodeFdBitmap(
         handle: Long,
         fd: Int,
         maxDimension: Int,
         outInfo: IntArray,
-    ): ByteArray?
+    ): Bitmap?
 }

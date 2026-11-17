@@ -8,5 +8,7 @@
     <string name="open_image">打开图片</string>
     <string name="view_actual">1:1</string>
     <string name="view_fit">适应</string>
+    <string name="view_preview">预览</string>
+    <string name="view_preview_actual">预览 1:1</string>
     <string name="version_label">0.0.0.nightly</string>
 </resources>

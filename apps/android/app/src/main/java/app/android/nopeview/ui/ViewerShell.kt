@@ -1,7 +1,6 @@
 package app.android.nopeview.ui
 
 import android.content.Context
-import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -28,6 +27,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +37,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.android.nopeview.CodecSession
+import app.android.nopeview.DecodedImage
 import app.android.nopeview.R
 import java.util.concurrent.Executors
 
@@ -46,15 +47,18 @@ private val ViewerCanvas = Color(0xFF0B0C0E)
 fun ViewerShell() {
     val context = LocalContext.current
     var selectedName by remember { mutableStateOf<String?>(null) }
-    var bitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var image by remember { mutableStateOf<DecodedImage?>(null) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    val decodeFailed = stringResource(R.string.decode_failed)
 
     val codec = remember(context) { CodecSession(context) }
     val decoder = remember { Executors.newSingleThreadExecutor() }
+    val currentImage by rememberUpdatedState(image)
     DisposableEffect(codec, decoder) {
         onDispose {
             decoder.shutdownNow()
+            currentImage?.bitmap?.recycle()
             codec.close()
         }
     }
@@ -69,14 +73,14 @@ fun ViewerShell() {
             decoder.execute {
                 val decoded = runCatching {
                     context.contentResolver.openFileDescriptor(uri, "r")?.use { descriptor ->
-                        codec.decode(descriptor.fd, PREVIEW_MAX_DIMENSION)
+                        codec.decode(descriptor, PREVIEW_MAX_DIMENSION)
                     }
                 }.getOrNull()
                 Handler(Looper.getMainLooper()).post {
                     loading = false
-                    bitmap = decoded
+                    image = decoded
                     error = if (decoded == null) {
-                        context.getString(R.string.decode_failed)
+                        decodeFailed
                     } else {
                         null
                     }
@@ -108,8 +112,9 @@ fun ViewerShell() {
             ) {
                 when {
                     loading -> CircularProgressIndicator()
-                    bitmap != null -> ZoomableImage(
-                        bitmap = bitmap!!,
+                    image != null -> ZoomableImage(
+                        bitmap = image!!.bitmap,
+                        isPreview = image!!.isPreview,
                         modifier = Modifier.fillMaxSize(),
                     )
                     else -> Column(horizontalAlignment = Alignment.CenterHorizontally) {

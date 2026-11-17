@@ -10,6 +10,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 find_library(LOG_LIB log)
 find_library(DL_LIB dl)
+find_library(JNIGRAPHICS_LIB jnigraphics)
 
 # The router and JNI facade share one library. Format codecs stay separate so
 # the router can discover them exactly as it does on Windows.
@@ -20,7 +21,7 @@ add_library(nopeview SHARED
 target_include_directories(nopeview PRIVATE "${CODEC_ABI}")
 target_compile_definitions(nopeview PRIVATE NV_ROUTER_MAX_INPUT_BYTES=268435456)
 target_compile_options(nopeview PRIVATE -Wall -Wextra)
-target_link_libraries(nopeview PRIVATE "${LOG_LIB}" "${DL_LIB}")
+target_link_libraries(nopeview PRIVATE "${LOG_LIB}" "${DL_LIB}" "${JNIGRAPHICS_LIB}")
 
 foreach(FORMAT png jpg gif bmp)
     add_library(${FORMAT}_codec SHARED

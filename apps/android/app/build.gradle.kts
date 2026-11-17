@@ -77,6 +77,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.activity:activity-compose:1.12.4")
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
