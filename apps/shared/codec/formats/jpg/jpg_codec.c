@@ -1,12 +1,17 @@
 /*
  * JPEG format codec.
- * Implements the format ABI (nv_format_abi.h) on top of stb_image.
- * Decoding only; encoding is reported as unsupported for now.
+ * Implements the format ABI (nv_format_abi.h) on top of stb_image and
+ * stb_image_write.
+ * Decoding and encoding are both supported.
  */
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_ONLY_JPEG
 #include "stb_image.h"
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#define STBI_WRITE_NO_STDIO
+#include "stb_image_write.h"
 
 #include "nv_format_abi.h"
 #include "nv_format_common.h"
@@ -30,7 +35,7 @@ nv_format_status nv_format_query(nv_format_info *out_info)
     out_info->name = "JPEG";
     out_info->format_id = "jpg";
     out_info->extensions = "jpg,jpeg";
-    out_info->capabilities = NV_FORMAT_CAP_DECODE;
+    out_info->capabilities = NV_FORMAT_CAP_DECODE | NV_FORMAT_CAP_ENCODE;
     return NV_FORMAT_OK;
 }
 
@@ -105,7 +110,49 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
 
 nv_format_status nv_format_encode(const nv_format_encode_request *request, nv_format_buffer *out_buffer)
 {
-    return nv_encode_unsupported(request, out_buffer);
+    const nv_format_image *image;
+    nv_encode_sink sink;
+    unsigned char *packed;
+    size_t packed_size = 0u;
+    int quality;
+    int encoded;
+    nv_format_status status;
+
+    status = nv_validate_encode(request, out_buffer, &image);
+    if (status != NV_FORMAT_OK) {
+        return status;
+    }
+
+    /* JPEG has no alpha channel, so three channels are written. */
+    packed = nv_image_to_rgb(image, 3, &packed_size);
+    if (packed == NULL || packed_size == 0u) {
+        free(packed);
+        return NV_FORMAT_ERR_OUT_OF_MEMORY;
+    }
+
+    quality = (request->quality > 0 && request->quality <= 100)
+        ? request->quality
+        : 90;
+
+    memset(&sink, 0, sizeof(sink));
+    encoded = stbi_write_jpg_to_func(
+        nv_encode_sink_write,
+        &sink,
+        image->width,
+        image->height,
+        3,
+        packed,
+        quality);
+    free(packed);
+
+    if (encoded == 0 || sink.failed != 0 || sink.data == NULL || sink.size == 0u) {
+        free(sink.data);
+        return NV_FORMAT_ERR_ENCODE_FAILED;
+    }
+
+    out_buffer->data = sink.data;
+    out_buffer->size = sink.size;
+    return NV_FORMAT_OK;
 }
 
 void nv_format_image_free(nv_format_image *image)
@@ -126,7 +173,7 @@ void nv_format_buffer_free(nv_format_buffer *buffer)
     if (buffer == NULL) {
         return;
     }
-    /* Nothing is allocated until encoding is implemented. */
+    free(buffer->data);
     buffer->data = NULL;
     buffer->size = 0;
 }
