@@ -274,6 +274,49 @@
                                   Data="M5.65 3.15a.5.5 0 000 .7L9.79 8l-4.14 4.15a.5.5 0 00.7.7l4.5-4.5a.5.5 0 000-.7l-4.5-4.5a.5.5 0 00-.7 0z" />
                     </Button>
 
+                    <StackPanel x:Name="AnimationControls"
+                                Orientation="Horizontal"
+                                Spacing="2"
+                                Visibility="Collapsed">
+                        <Border Width="1"
+                                Height="20"
+                                Margin="4,0"
+                                VerticalAlignment="Center"
+                                Background="{ThemeResource FloatingPanelStrokeBrush}" />
+
+                        <Button x:Name="PlayPauseButton"
+                                AutomationProperties.AutomationId="PlayPauseButton"
+                                AutomationProperties.Name="Play or pause animation"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Padding="10,6"
+                                MinHeight="32"
+                                Click="PlayPauseButton_Click"
+                                ToolTipService.ToolTip="Pause or continue the animation">
+                            <TextBlock x:Name="PlayPauseLabel"
+                                       AutomationProperties.AutomationId="PlayPauseLabel"
+                                       Text="Pause"
+                                       FontSize="12"
+                                       VerticalAlignment="Center" />
+                        </Button>
+
+                        <Button x:Name="LoopButton"
+                                AutomationProperties.AutomationId="LoopButton"
+                                AutomationProperties.Name="Loop animation"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Padding="10,6"
+                                MinHeight="32"
+                                Click="LoopButton_Click"
+                                ToolTipService.ToolTip="Toggle looping">
+                            <TextBlock x:Name="LoopLabel"
+                                       AutomationProperties.AutomationId="LoopLabel"
+                                       Text="Loop on"
+                                       FontSize="12"
+                                       VerticalAlignment="Center" />
+                        </Button>
+                    </StackPanel>
+
                     <Border Width="1"
                             Height="20"
                             Margin="4,0"

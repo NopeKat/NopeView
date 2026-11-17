@@ -40,7 +40,7 @@ extern "C" {
  * explicitly requests otherwise, only the fourth segment is incremented.
  * Independent from the format ABI and the plugin ABI.
  */
-#define NV_ROUTER_ABI_VERSION "0.0.0.0"
+#define NV_ROUTER_ABI_VERSION "0.0.0.1"
 
 typedef enum nv_router_status {
     NV_ROUTER_OK = 0,
@@ -77,6 +77,8 @@ typedef struct nv_router_image {
     nv_router_pixel_format pixel_format;
     uint8_t *pixels;
     size_t pixels_size;
+    uint32_t frame_count;      /* 1 for still images; total frames otherwise. */
+    uint32_t frame_delay_ms;   /* Display duration for this frame, in milliseconds. */
 } nv_router_image;
 
 /*

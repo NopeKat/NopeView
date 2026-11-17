@@ -685,6 +685,8 @@ nv_router_status nv_router_decode_file(
     out_image->pixel_format = NV_ROUTER_PIXEL_UNKNOWN;
     out_image->pixels = NULL;
     out_image->pixels_size = 0;
+    out_image->frame_count = 0;
+    out_image->frame_delay_ms = 0;
 
     path_extension(path, extension, sizeof(extension));
 
@@ -736,6 +738,8 @@ nv_router_status nv_router_decode_file(
         out_image->pixel_format = (nv_router_pixel_format)image.pixel_format;
         out_image->pixels = image.pixels;
         out_image->pixels_size = image.pixels_size;
+        out_image->frame_count = image.frame_count;
+        out_image->frame_delay_ms = image.frame_delay_ms;
         free(file_data);
         return NV_ROUTER_OK;
     }
@@ -771,4 +775,6 @@ void nv_router_image_free(nv_router_image *image)
     image->width = 0;
     image->height = 0;
     image->stride = 0;
+    image->frame_count = 0;
+    image->frame_delay_ms = 0;
 }

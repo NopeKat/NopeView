@@ -13,6 +13,8 @@ internal struct NvRouterImage
     public int PixelFormat;
     public IntPtr Pixels;
     public nuint PixelsSize;
+    public uint FrameCount;
+    public uint FrameDelayMs;
 }
 
 /// <summary>Mirror of nv_router_format in nv_router_abi.h.</summary>

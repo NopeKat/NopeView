@@ -39,6 +39,7 @@ typedef struct nv_gif_cache {
     int width;
     int height;
     int frames;
+    int *delays;
     unsigned char *pixels;
     size_t frame_bytes;
     uint64_t last_used;
@@ -94,8 +95,24 @@ static void clear_cache(nv_gif_cache *cache)
     if (cache->pixels != NULL) {
         stbi_image_free(cache->pixels);
     }
+    free(cache->delays);
     free(cache->path);
     memset(cache, 0, sizeof(*cache));
+}
+
+static uint32_t frame_delay_ms(const nv_gif_cache *cache, uint32_t index)
+{
+    int delay;
+
+    if (cache->delays == NULL) {
+        return 100u;
+    }
+
+    delay = cache->delays[index];
+    if (delay <= 0) {
+        return 100u;
+    }
+    return (uint32_t)delay;
 }
 
 static int get_file_stamp(const char *path, __int64 *out_size, __time64_t *out_mtime)
@@ -251,10 +268,10 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     __int64 file_size = 0;
     __time64_t file_mtime = 0;
     int have_stamp = 0;
-            nv_gif_cache *slot;
-            nv_gif_cache fresh;
-            int image_width;
-            int image_height;
+    nv_gif_cache *slot;
+    nv_gif_cache fresh;
+    int image_width;
+    int image_height;
 
     if (request == NULL || out_image == NULL) {
         return NV_FORMAT_ERR_INVALID_ARGUMENT;
@@ -304,6 +321,8 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
             out_image->pixel_format = (nv_format_pixel_format)output_format;
             out_image->pixels = frame_pixels;
             out_image->pixels_size = frame_bytes;
+            out_image->frame_count = (uint32_t)slot->frames;
+            out_image->frame_delay_ms = frame_delay_ms(slot, request->frame_index);
             return NV_FORMAT_OK;
         }
         cache_unlock();
@@ -339,12 +358,13 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     if (owns_data != 0) {
         free(data);
     }
-    free(delays);
 
     if (all_frames == NULL) {
+        free(delays);
         return NV_FORMAT_ERR_DECODE_FAILED;
     }
     if (request->frame_index >= (uint32_t)frames) {
+        free(delays);
         stbi_image_free(all_frames);
         return NV_FORMAT_ERR_UNSUPPORTED;
     }
@@ -355,10 +375,12 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     fresh.width = width;
     fresh.height = height;
     fresh.frames = frames;
+    fresh.delays = delays;
     fresh.frame_bytes = pixel_count * 4u;
     if (request->path != NULL) {
         fresh.path = duplicate_path(request->path);
         if (fresh.path == NULL) {
+            free(delays);
             stbi_image_free(all_frames);
             return NV_FORMAT_ERR_OUT_OF_MEMORY;
         }
@@ -390,6 +412,8 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     out_image->pixel_format = (nv_format_pixel_format)output_format;
     out_image->pixels = frame_pixels;
     out_image->pixels_size = frame_bytes;
+    out_image->frame_count = (uint32_t)slot->frames;
+    out_image->frame_delay_ms = frame_delay_ms(slot, request->frame_index);
     return NV_FORMAT_OK;
 }
 

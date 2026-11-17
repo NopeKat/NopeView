@@ -39,7 +39,7 @@ public sealed partial class MainWindow : Window
     private static readonly SolidColorBrush s_lightInactiveBrush =
         new(ColorHelper.FromArgb(255, 153, 153, 153));
 
-    private readonly SoftwareBitmapSource _imageSource = new();
+    private readonly DispatcherTimer _animationTimer = new();
 
     private bool _titleBarInitialized;
     private bool _windowActive = true;
@@ -55,11 +55,19 @@ public sealed partial class MainWindow : Window
     private int _imagePixelWidth;
     private int _imagePixelHeight;
 
+    private uint _frameIndex;
+    private uint _frameCount = 1;
+    private uint _frameDelayMs = 100;
+    private bool _isAnimationPlaying;
+    private bool _animationLoop = true;
+    private bool _animationBusy;
+
     public MainWindow()
     {
         InitializeComponent();
         _windowHandle = Handle;
-        ImageView.Source = _imageSource;
+        _animationTimer.Tick += AnimationTimer_Tick;
+        _animationTimer.Interval = TimeSpan.FromMilliseconds(100);
 
         if (!RouterApi.TryCreate(null, out _routerContext))
         {
@@ -98,6 +106,7 @@ public sealed partial class MainWindow : Window
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
+        _animationTimer.Stop();
         Win32Window.UnsuppressSystemMenu(_windowHandle);
         RouterApi.Close(_routerContext);
         _routerContext = IntPtr.Zero;
@@ -329,6 +338,10 @@ public sealed partial class MainWindow : Window
 
     private async Task OpenImageAsync(string path)
     {
+        StopAnimation();
+        _frameCount = 1;
+        _frameIndex = 0;
+        UpdateAnimationControls();
         _directory = ImageDirectory.Create(path, SupportedExtensions());
         UpdateNavigationState();
         await ShowCurrentImageAsync();
@@ -341,11 +354,12 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        StopAnimation();
         await DecodeAndShowAsync(_directory.CurrentPath);
         UpdateNavigationState();
     }
 
-    private async Task DecodeAndShowAsync(string path)
+    private async Task DecodeAndShowAsync(string path, uint frameIndex = 0u, bool resetView = true)
     {
         if (_routerContext == IntPtr.Zero)
         {
@@ -353,18 +367,27 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        ErrorPanel.Visibility = Visibility.Collapsed;
+        if (resetView)
+        {
+            ErrorPanel.Visibility = Visibility.Collapsed;
+        }
 
         try
         {
             if (!RouterApi.TryDecodeFile(
                     _routerContext, path, out var image, out var status,
-                    0u, RouterApi.PixelFormatBgra8))
+                    frameIndex, RouterApi.PixelFormatBgra8))
             {
                 ShowError(DescribeStatus(status));
+                if (!resetView)
+                {
+                    StopAnimation();
+                }
                 return;
             }
 
+            var frameCount = image.FrameCount;
+            var frameDelay = image.FrameDelayMs;
             SoftwareBitmap bitmap;
             try
             {
@@ -375,18 +398,153 @@ public sealed partial class MainWindow : Window
                 RouterApi.FreeImage(ref image);
             }
 
-            await _imageSource.SetBitmapAsync(bitmap);
+            var source = new SoftwareBitmapSource();
+            await source.SetBitmapAsync(bitmap);
+            ImageView.Source = source;
             _imagePixelWidth = bitmap.PixelWidth;
             _imagePixelHeight = bitmap.PixelHeight;
-            ResetView();
+            _frameIndex = frameIndex;
+            _frameCount = Math.Max(1u, frameCount);
+            _frameDelayMs = frameDelay;
             SetViewControlsEnabled(true);
             ViewStatusPanel.Visibility = Visibility.Visible;
-            AutomationProperties.SetName(ImageView, "Current image: " + Path.GetFileName(path));
+            UpdateViewStatus();
+            UpdateAnimationControls();
+            UpdateImageAutomationName(path);
+
+            if (resetView)
+            {
+                ResetView();
+                if (_frameCount > 1)
+                {
+                    _isAnimationPlaying = true;
+                    UpdateAnimationControls();
+                    ScheduleNextFrame();
+                }
+                else
+                {
+                    StopAnimation();
+                }
+            }
         }
         catch (Exception ex)
         {
             ShowError("Failed to open image: " + ex.Message);
+            if (!resetView)
+            {
+                StopAnimation();
+            }
         }
+    }
+
+    private void UpdateImageAutomationName(string path)
+    {
+        var name = "Current image: " + Path.GetFileName(path);
+        if (_frameCount > 1)
+        {
+            name += $" [frame {_frameIndex + 1}/{_frameCount}]";
+        }
+        AutomationProperties.SetName(ImageView, name);
+    }
+
+    private async void AnimationTimer_Tick(object? sender, object e)
+    {
+        _animationTimer.Stop();
+        if (!_isAnimationPlaying || _animationBusy || _directory is null)
+        {
+            return;
+        }
+
+        if (_frameCount <= 1)
+        {
+            StopAnimation();
+            return;
+        }
+
+        var next = _frameIndex + 1;
+        if (next >= _frameCount)
+        {
+            if (!_animationLoop)
+            {
+                StopAnimation();
+                return;
+            }
+            next = 0;
+        }
+
+        var path = _directory.CurrentPath;
+        _animationBusy = true;
+        try
+        {
+            await DecodeAndShowAsync(path, next, resetView: false);
+        }
+        finally
+        {
+            _animationBusy = false;
+        }
+
+        if (_isAnimationPlaying)
+        {
+            ScheduleNextFrame();
+        }
+    }
+
+    private void ScheduleNextFrame()
+    {
+        if (!_isAnimationPlaying || _frameCount <= 1)
+        {
+            return;
+        }
+
+        _animationTimer.Interval = TimeSpan.FromMilliseconds(
+            Math.Clamp((double)_frameDelayMs, 20.0, 10000.0));
+        _animationTimer.Start();
+    }
+
+    private void StopAnimation()
+    {
+        _animationTimer.Stop();
+        _isAnimationPlaying = false;
+        _animationBusy = false;
+        UpdateAnimationControls();
+    }
+
+    private void UpdateAnimationControls()
+    {
+        var animated = _frameCount > 1;
+        AnimationControls.Visibility = animated ? Visibility.Visible : Visibility.Collapsed;
+        PlayPauseButton.IsEnabled = animated;
+        LoopButton.IsEnabled = animated;
+        PlayPauseLabel.Text = _isAnimationPlaying ? "Pause" : "Play";
+        LoopLabel.Text = _animationLoop ? "Loop on" : "Loop off";
+    }
+
+    private void PlayPauseButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_frameCount <= 1)
+        {
+            return;
+        }
+
+        if (_isAnimationPlaying)
+        {
+            StopAnimation();
+            return;
+        }
+
+        if (_frameIndex + 1 >= _frameCount)
+        {
+            _frameIndex = 0;
+        }
+        _isAnimationPlaying = true;
+        UpdateAnimationControls();
+        ScheduleNextFrame();
+    }
+
+    private void LoopButton_Click(object sender, RoutedEventArgs e)
+    {
+        _animationLoop = !_animationLoop;
+        UpdateAnimationControls();
     }
 
     private void UpdateNavigationState()
@@ -552,15 +710,18 @@ public sealed partial class MainWindow : Window
         var pan = Math.Abs(panX) >= 1 || Math.Abs(panY) >= 1
             ? $" | pan {panX:0},{panY:0}"
             : "";
+        var frame = _frameCount > 1
+            ? $" | {_frameIndex + 1}/{_frameCount}"
+            : "";
 
         if (Math.Abs(_zoom - 1.0) < 0.001)
         {
-            ViewStatusText.Text = $"Fit | {rotation:0} deg{pan}";
+            ViewStatusText.Text = $"Fit | {rotation:0} deg{frame}{pan}";
             return;
         }
 
         var percent = _zoom * FitToPixelRatio * 100.0;
-        ViewStatusText.Text = $"{Math.Round(percent):0}% | {rotation:0} deg{pan}";
+        ViewStatusText.Text = $"{Math.Round(percent):0}% | {rotation:0} deg{frame}{pan}";
     }
 
     private void SetViewControlsEnabled(bool enabled)

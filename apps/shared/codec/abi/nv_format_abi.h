@@ -1,8 +1,8 @@
 /*
  * nv_format_abi.h - Boundary B: format ABI.
  *
- * The contract between the codec router (apps/core/codecs/router) and each
- * format codec (apps/core/codecs/formats/<format>). Every format codec is an
+ * The contract between the codec router (apps/shared/codec/router) and each
+ * format codec (apps/shared/codec/formats/<format>). Every format codec is an
  * independent dynamic library that implements the entry points declared here.
  *
  * Naming: this header is named after the side that provides the interface.
@@ -42,7 +42,7 @@ extern "C" {
  * explicitly requests otherwise, only the fourth segment is incremented.
  * Independent from the router ABI and the plugin ABI.
  */
-#define NV_FORMAT_ABI_VERSION "0.0.0.0"
+#define NV_FORMAT_ABI_VERSION "0.0.0.1"
 
 /* Status codes. Zero means success; any negative value means failure. */
 typedef enum nv_format_status {
@@ -99,6 +99,8 @@ typedef struct nv_format_image {
     nv_format_pixel_format pixel_format;
     uint8_t *pixels;
     size_t pixels_size;        /* Total bytes in pixels. */
+    uint32_t frame_count;      /* 1 for still images; total frames otherwise. */
+    uint32_t frame_delay_ms;   /* Display duration for this frame, in milliseconds. */
 } nv_format_image;
 
 /*
