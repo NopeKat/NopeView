@@ -102,8 +102,132 @@
                 <Setter Property="BorderThickness" Value="1" />
                 <Setter Property="CornerRadius" Value="8" />
                 <Setter Property="Padding" Value="0,2,0,2" />
-                <Setter Property="MinWidth" Value="120" />
+                <Setter Property="MinWidth" Value="280" />
                 <Setter Property="MinHeight" Value="32" />
+            </Style>
+
+            <!-- Menu item template copied from the official menu flyout theme
+                 resources. The default template in this runtime leaves the
+                 shortcut text left aligned inside the reserved box, so the
+                 shortcuts only line up on their left edge. Restating the
+                 template with right aligned shortcut text keeps every shortcut
+                 flush with the menu's right padding on every open. -->
+            <Style TargetType="MenuFlyoutItem">
+                <Setter Property="Background" Value="{ThemeResource SubtleFillColorTransparentBrush}" />
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+                <Setter Property="Padding" Value="11,8,11,9" />
+                <Setter Property="FontSize" Value="14" />
+                <Setter Property="CornerRadius" Value="4" />
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="MenuFlyoutItem">
+                            <Grid x:Name="LayoutRoot"
+                                  Padding="{TemplateBinding Padding}"
+                                  Background="{TemplateBinding Background}"
+                                  BorderBrush="{TemplateBinding BorderBrush}"
+                                  BorderThickness="{TemplateBinding BorderThickness}"
+                                  CornerRadius="{TemplateBinding CornerRadius}">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal" />
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Target="LayoutRoot.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" />
+                                                <Setter Target="TextBlock.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+                                                <Setter Target="IconContent.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+                                                <Setter Target="KeyboardAcceleratorTextBlock.Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Target="LayoutRoot.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}" />
+                                                <Setter Target="TextBlock.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+                                                <Setter Target="IconContent.Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+                                                <Setter Target="KeyboardAcceleratorTextBlock.Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Disabled">
+                                            <VisualState.Setters>
+                                                <Setter Target="LayoutRoot.Background" Value="{ThemeResource SubtleFillColorTransparentBrush}" />
+                                                <Setter Target="TextBlock.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}" />
+                                                <Setter Target="IconContent.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}" />
+                                                <Setter Target="KeyboardAcceleratorTextBlock.Foreground" Value="{ThemeResource TextFillColorDisabledBrush}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                    <VisualStateGroup x:Name="CheckPlaceholderStates">
+                                        <VisualState x:Name="NoPlaceholder" />
+                                        <VisualState x:Name="CheckPlaceholder">
+                                            <VisualState.Setters>
+                                                <Setter Target="TextBlock.Margin" Value="28,0,0,0" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="IconPlaceholder">
+                                            <VisualState.Setters>
+                                                <Setter Target="TextBlock.Margin" Value="28,0,0,0" />
+                                                <Setter Target="IconRoot.Visibility" Value="Visible" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="CheckAndIconPlaceholder">
+                                            <VisualState.Setters>
+                                                <Setter Target="TextBlock.Margin" Value="56,0,0,0" />
+                                                <Setter Target="IconRoot.Visibility" Value="Visible" />
+                                                <Setter Target="IconRoot.Margin" Value="28,0,0,0" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                    <VisualStateGroup x:Name="PaddingSizeStates">
+                                        <VisualState x:Name="DefaultPadding" />
+                                        <VisualState x:Name="NarrowPadding">
+                                            <VisualState.Setters>
+                                                <Setter Target="LayoutRoot.Padding" Value="11,4,11,7" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                    <VisualStateGroup x:Name="KeyboardAcceleratorTextVisibility">
+                                        <VisualState x:Name="KeyboardAcceleratorTextCollapsed" />
+                                        <VisualState x:Name="KeyboardAcceleratorTextVisible">
+                                            <VisualState.Setters>
+                                                <Setter Target="KeyboardAcceleratorTextBlock.Visibility" Value="Visible" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Viewbox x:Name="IconRoot"
+                                         HorizontalAlignment="Left" VerticalAlignment="Center"
+                                         Width="16" Height="16" Visibility="Collapsed">
+                                    <ContentPresenter x:Name="IconContent"
+                                                      Content="{TemplateBinding Icon}"
+                                                      Foreground="{TemplateBinding Foreground}" />
+                                </Viewbox>
+                                <TextBlock x:Name="TextBlock"
+                                           Text="{TemplateBinding Text}"
+                                           TextTrimming="Clip"
+                                           Foreground="{TemplateBinding Foreground}"
+                                           HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                           VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                                <TextBlock x:Name="KeyboardAcceleratorTextBlock"
+                                           Grid.Column="1"
+                                           Text="{TemplateBinding KeyboardAcceleratorTextOverride}"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           FontSize="12"
+                                           MinWidth="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=TemplateSettings.KeyboardAcceleratorTextMinWidth}"
+                                           Margin="24,0,0,0"
+                                           TextAlignment="Right"
+                                           HorizontalAlignment="Right"
+                                           VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                           Visibility="Collapsed"
+                                           AutomationProperties.AccessibilityView="Raw" />
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
         </ResourceDictionary>
     </Application.Resources>
