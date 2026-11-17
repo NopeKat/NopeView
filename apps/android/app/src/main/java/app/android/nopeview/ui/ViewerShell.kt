@@ -8,7 +8,6 @@ import android.os.Looper
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,8 +32,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -111,11 +108,9 @@ fun ViewerShell() {
             ) {
                 when {
                     loading -> CircularProgressIndicator()
-                    bitmap != null -> Image(
-                        bitmap = bitmap!!.asImageBitmap(),
-                        contentDescription = selectedName,
+                    bitmap != null -> ZoomableImage(
+                        bitmap = bitmap!!,
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Fit,
                     )
                     else -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
@@ -165,7 +160,7 @@ fun ViewerShell() {
     }
 }
 
-private const val PREVIEW_MAX_DIMENSION = 2048
+private const val PREVIEW_MAX_DIMENSION = 4096
 
 private fun displayName(context: Context, uri: Uri): String {
     context.contentResolver.query(

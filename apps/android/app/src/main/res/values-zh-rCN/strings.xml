@@ -6,5 +6,7 @@
     <string name="selected_hint">正在解码。</string>
     <string name="decode_failed">这张图解码失败。</string>
     <string name="open_image">打开图片</string>
+    <string name="view_actual">1:1</string>
+    <string name="view_fit">适应</string>
     <string name="version_label">0.0.0.nightly</string>
 </resources>
