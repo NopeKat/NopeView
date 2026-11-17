@@ -40,7 +40,7 @@ extern "C" {
  * explicitly requests otherwise, only the fourth segment is incremented.
  * Independent from the format ABI and the plugin ABI.
  */
-#define NV_ROUTER_ABI_VERSION "0.0.0.1"
+#define NV_ROUTER_ABI_VERSION "0.0.0.2"
 
 typedef enum nv_router_status {
     NV_ROUTER_OK = 0,
@@ -50,7 +50,8 @@ typedef enum nv_router_status {
     NV_ROUTER_ERR_DECODE_FAILED = -4,
     NV_ROUTER_ERR_OUT_OF_MEMORY = -5,
     NV_ROUTER_ERR_IO = -6,
-    NV_ROUTER_ERR_ABI_MISMATCH = -7
+    NV_ROUTER_ERR_ABI_MISMATCH = -7,
+    NV_ROUTER_ERR_ENCODE_FAILED = -8
 } nv_router_status;
 
 /* Opaque router context owned by the host. */
@@ -126,6 +127,17 @@ NV_ROUTER_API nv_router_status nv_router_decode_file(
 
 /* Releases pixels held by an image produced by nv_router_decode_file. */
 NV_ROUTER_API void nv_router_image_free(nv_router_image *image);
+
+/*
+ * Encodes an image to a file. The output format is chosen from the path's
+ * extension, so a matching encoder must be available. quality is a
+ * format-defined hint in the range 1..100; 0 selects the default.
+ */
+NV_ROUTER_API nv_router_status nv_router_encode_file(
+    nv_router_context *context,
+    const char *path,
+    const nv_router_image *image,
+    int32_t quality);
 
 #ifdef __cplusplus
 }

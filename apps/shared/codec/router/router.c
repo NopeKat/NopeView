@@ -23,12 +23,16 @@
 typedef const char *(*fn_abi_version)(void);
 typedef nv_format_status (*fn_query)(nv_format_info *);
 typedef nv_format_status (*fn_decode)(const nv_format_decode_request *, nv_format_image *);
+typedef nv_format_status (*fn_encode)(const nv_format_encode_request *, nv_format_buffer *);
 typedef void (*fn_image_free)(nv_format_image *);
+typedef void (*fn_buffer_free)(nv_format_buffer *);
 
 typedef struct nv_format_entry {
     HMODULE module;
     fn_decode decode;
+    fn_encode encode;
     fn_image_free image_free;
+    fn_buffer_free buffer_free;
     char format_id[32];
     char extensions[128];
     uint32_t capabilities;
@@ -415,7 +419,9 @@ static void load_format_library(nv_router_context *context, const wchar_t *full_
     fn_abi_version abi_version;
     fn_query query;
     fn_decode decode;
+    fn_encode encode;
     fn_image_free image_free;
+    fn_buffer_free buffer_free;
     nv_format_info info;
 
     memset(&entry, 0, sizeof(entry));
@@ -429,7 +435,9 @@ static void load_format_library(nv_router_context *context, const wchar_t *full_
         entry.module, "nv_format_abi_version");
     query = (fn_query)(void *)GetProcAddress(entry.module, "nv_format_query");
     decode = (fn_decode)(void *)GetProcAddress(entry.module, "nv_format_decode");
+    encode = (fn_encode)(void *)GetProcAddress(entry.module, "nv_format_encode");
     image_free = (fn_image_free)(void *)GetProcAddress(entry.module, "nv_format_image_free");
+    buffer_free = (fn_buffer_free)(void *)GetProcAddress(entry.module, "nv_format_buffer_free");
 
     if (abi_version == NULL || query == NULL || decode == NULL || image_free == NULL) {
         context->abi_mismatch_count++;
@@ -452,7 +460,9 @@ static void load_format_library(nv_router_context *context, const wchar_t *full_
     }
 
     entry.decode = decode;
+    entry.encode = encode;
     entry.image_free = image_free;
+    entry.buffer_free = buffer_free;
     copy_str(entry.format_id, sizeof(entry.format_id), info.format_id);
     copy_str(entry.extensions, sizeof(entry.extensions), info.extensions);
     entry.capabilities = info.capabilities;
@@ -779,6 +789,136 @@ nv_router_status nv_router_decode_file(
         return NV_ROUTER_ERR_ABI_MISMATCH;
     }
     return last_status;
+}
+
+/* Writes bytes to a file, replacing an existing one. The path is UTF-8. */
+static int write_file_bytes(const char *path, const uint8_t *data, size_t size)
+{
+    int wide_length;
+    wchar_t *wide_path;
+    HANDLE file;
+    size_t offset = 0u;
+    int written_ok = 1;
+
+    wide_length = MultiByteToWideChar(CP_UTF8, 0u, path, -1, NULL, 0);
+    if (wide_length <= 0) {
+        return 0;
+    }
+    wide_path = (wchar_t *)malloc((size_t)wide_length * sizeof(wchar_t));
+    if (wide_path == NULL) {
+        return 0;
+    }
+    if (MultiByteToWideChar(CP_UTF8, 0u, path, -1, wide_path, wide_length) <= 0) {
+        free(wide_path);
+        return 0;
+    }
+
+    file = CreateFileW(wide_path, GENERIC_WRITE, 0u, NULL, CREATE_ALWAYS,
+                       FILE_ATTRIBUTE_NORMAL, NULL);
+    if (file == INVALID_HANDLE_VALUE) {
+        free(wide_path);
+        return 0;
+    }
+
+    while (offset < size) {
+        size_t remaining = size - offset;
+        DWORD chunk = remaining > (size_t)INT_MAX ? (DWORD)INT_MAX : (DWORD)remaining;
+        DWORD written = 0u;
+        if (!WriteFile(file, data + offset, chunk, &written, NULL) || written == 0u) {
+            written_ok = 0;
+            break;
+        }
+        offset += (size_t)written;
+    }
+
+    CloseHandle(file);
+
+    if (written_ok == 0) {
+        /* Do not leave a truncated image behind after a failed write. */
+        DeleteFileW(wide_path);
+    }
+    free(wide_path);
+    return written_ok;
+}
+
+nv_router_status nv_router_encode_file(
+    nv_router_context *context,
+    const char *path,
+    const nv_router_image *image,
+    int32_t quality)
+{
+    char extension[32];
+    uint32_t index;
+
+    if (context == NULL || path == NULL || image == NULL ||
+        image->pixels == NULL || image->width <= 0 || image->height <= 0) {
+        return NV_ROUTER_ERR_INVALID_ARGUMENT;
+    }
+
+    path_extension(path, extension, sizeof(extension));
+    if (extension[0] == '\0') {
+        return NV_ROUTER_ERR_UNSUPPORTED_FORMAT;
+    }
+
+    for (index = 0u; index < context->entry_count; index++) {
+        const nv_format_entry *entry = &context->entries[index];
+        nv_format_image source;
+        nv_format_encode_request request;
+        nv_format_buffer buffer;
+        nv_format_status status;
+
+        if ((entry->capabilities & NV_FORMAT_CAP_ENCODE) == 0u ||
+            entry->encode == NULL) {
+            continue;
+        }
+        if (extension_matches(entry->extensions, extension) == 0) {
+            continue;
+        }
+
+        memset(&source, 0, sizeof(source));
+        source.struct_size = (uint32_t)sizeof(source);
+        source.width = image->width;
+        source.height = image->height;
+        source.stride = image->stride;
+        source.pixel_format = (nv_format_pixel_format)image->pixel_format;
+        source.pixels = image->pixels;
+        source.pixels_size = image->pixels_size;
+        source.frame_count = image->frame_count;
+        source.frame_delay_ms = image->frame_delay_ms;
+
+        memset(&request, 0, sizeof(request));
+        request.struct_size = (uint32_t)sizeof(request);
+        request.image = &source;
+        request.quality = quality;
+
+        memset(&buffer, 0, sizeof(buffer));
+        buffer.struct_size = (uint32_t)sizeof(buffer);
+
+        status = entry->encode(&request, &buffer);
+        if (status == NV_FORMAT_OK && buffer.data != NULL && buffer.size > 0u) {
+            int written = write_file_bytes(path, buffer.data, buffer.size);
+
+            if (entry->buffer_free != NULL) {
+                entry->buffer_free(&buffer);
+            }
+            return written != 0 ? NV_ROUTER_OK : NV_ROUTER_ERR_IO;
+        }
+
+        if (entry->buffer_free != NULL) {
+            entry->buffer_free(&buffer);
+        }
+
+        switch (status) {
+        case NV_FORMAT_ERR_OUT_OF_MEMORY:
+            return NV_ROUTER_ERR_OUT_OF_MEMORY;
+        case NV_FORMAT_ERR_UNSUPPORTED:
+            continue;
+        default:
+            return NV_ROUTER_ERR_ENCODE_FAILED;
+        }
+    }
+
+    return NV_ROUTER_ERR_UNSUPPORTED_FORMAT;
 }
 
 void nv_router_image_free(nv_router_image *image)
