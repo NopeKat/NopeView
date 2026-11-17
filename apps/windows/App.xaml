@@ -15,6 +15,7 @@
                     <SolidColorBrush x:Key="FloatingPanelPrimaryTextBrush" Color="#FFFFFF" />
                     <SolidColorBrush x:Key="FloatingPanelSecondaryTextBrush" Color="#C5C5C5" />
                     <SolidColorBrush x:Key="FloatingPanelErrorBrush" Color="#FF99A4" />
+                    <SolidColorBrush x:Key="ViewerBackgroundBrush" Color="#1A1A1A" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="CaptionGlyphBrush" Color="#000000" />
@@ -25,6 +26,7 @@
                     <SolidColorBrush x:Key="FloatingPanelPrimaryTextBrush" Color="#000000" />
                     <SolidColorBrush x:Key="FloatingPanelSecondaryTextBrush" Color="#5D5D5D" />
                     <SolidColorBrush x:Key="FloatingPanelErrorBrush" Color="#C42B1C" />
+                    <SolidColorBrush x:Key="ViewerBackgroundBrush" Color="#F5F5F5" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>

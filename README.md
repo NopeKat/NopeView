@@ -2,7 +2,7 @@
 
 A fast, lightweight, and extensible cross-platform image viewer.
 
-> **Status: early development.** The Windows side can open JPG, PNG, GIF, and BMP through the file picker or drag and drop, decode them through the router, display them in the content area, and step to the previous or next image in the same directory. The custom title bar is in place; there is no release yet.
+> **Status: early development.** The Windows side can open JPG, PNG, GIF, and BMP through the file picker or drag and drop, decode them through the router, display them in the content area, step to the previous or next image in the same directory, and zoom, pan, or rotate the view. The custom title bar is in place; there is no release yet.
 
 ## Highlights
 
@@ -42,13 +42,12 @@ Decoding is built on `apps/core/codecs/third_party/stb/stb_image.h`. More format
 ## Planned capabilities
 
 - File association (planned with MSIX packaging)
-- Zoom, pan, and rotate
 - GIF playback
 - Interface localization: Simplified Chinese, Traditional Chinese, American English, Japanese, Korean, Russian, French, and German
 - Themes: follow system, dark, and light
 - Diagnostic export (crash logs, user settings, and runtime environment, packaged as a zip archive), shared only when the user chooses to send it
 
-File opening through the picker and drag and drop, plus previous/next navigation, is implemented; the rest is still planned.
+File opening through the picker and drag and drop, previous/next navigation, and zoom, pan, and rotate are implemented; the rest is still planned.
 
 ## Building
 

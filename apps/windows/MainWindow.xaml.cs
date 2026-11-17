@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -11,6 +12,7 @@ using Microsoft.Windows.Storage.Pickers;
 using NopeView.App.Native;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Graphics;
+using Windows.Foundation;
 using Windows.Graphics.Imaging;
 using Windows.Storage;
 using Windows.Storage.Streams;
@@ -42,8 +44,16 @@ public sealed partial class MainWindow : Window
     private bool _titleBarInitialized;
     private bool _windowActive = true;
     private nint _windowHandle;
+    private const double MinZoom = 0.1;
+    private const double MaxZoom = 8.0;
+    private const double ZoomStep = 1.2;
+
     private IntPtr _routerContext;
     private ImageDirectory? _directory;
+    private double _zoom = 1.0;
+    private double _rotation;
+    private int _imagePixelWidth;
+    private int _imagePixelHeight;
 
     public MainWindow()
     {
@@ -366,6 +376,11 @@ public sealed partial class MainWindow : Window
             }
 
             await _imageSource.SetBitmapAsync(bitmap);
+            _imagePixelWidth = bitmap.PixelWidth;
+            _imagePixelHeight = bitmap.PixelHeight;
+            ResetView();
+            SetViewControlsEnabled(true);
+            ViewStatusPanel.Visibility = Visibility.Visible;
             AutomationProperties.SetName(ImageView, "Current image: " + Path.GetFileName(path));
         }
         catch (Exception ex)
@@ -420,6 +435,141 @@ public sealed partial class MainWindow : Window
         {
             await ShowCurrentImageAsync();
         }
+    }
+
+    private void Viewport_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        Viewport.Clip = new RectangleGeometry
+        {
+            Rect = new Rect(0, 0, e.NewSize.Width, e.NewSize.Height)
+        };
+    }
+
+    private void PanThumb_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
+    {
+        if (_imagePixelWidth == 0)
+        {
+            return;
+        }
+
+        var delta = e.GetCurrentPoint(PanThumb).Properties.MouseWheelDelta;
+        if (delta == 0)
+        {
+            return;
+        }
+
+        SetZoom(delta > 0 ? _zoom * 1.1 : _zoom / 1.1);
+        e.Handled = true;
+    }
+
+    private void PanThumb_DragDelta(object sender, DragDeltaEventArgs e)
+    {
+        if (_imagePixelWidth == 0)
+        {
+            return;
+        }
+
+        ImageTransform.TranslateX += e.HorizontalChange;
+        ImageTransform.TranslateY += e.VerticalChange;
+        UpdateViewStatus();
+    }
+
+    private void ZoomOutButton_Click(object sender, RoutedEventArgs e)
+    {
+        SetZoom(_zoom / ZoomStep);
+    }
+
+    private void ZoomInButton_Click(object sender, RoutedEventArgs e)
+    {
+        SetZoom(_zoom * ZoomStep);
+    }
+
+    private void RotateButton_Click(object sender, RoutedEventArgs e)
+    {
+        _rotation = (_rotation + 90) % 360;
+        ImageTransform.Rotation = _rotation;
+        UpdateViewStatus();
+    }
+
+    private void FitButton_Click(object sender, RoutedEventArgs e)
+    {
+        ResetView();
+    }
+
+    private void ActualSizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        var ratio = FitToPixelRatio;
+        if (ratio <= 0)
+        {
+            return;
+        }
+
+        SetZoom(1.0 / ratio);
+        ImageTransform.TranslateX = 0;
+        ImageTransform.TranslateY = 0;
+        UpdateViewStatus();
+    }
+
+    private double FitToPixelRatio
+    {
+        get
+        {
+            if (_imagePixelWidth <= 0 || ImageView.ActualWidth <= 0)
+            {
+                return 1.0;
+            }
+
+            var rasterizationScale = Viewport.XamlRoot?.RasterizationScale ?? 1.0;
+            return ImageView.ActualWidth * rasterizationScale / _imagePixelWidth;
+        }
+    }
+
+    private void SetZoom(double zoom)
+    {
+        _zoom = Math.Clamp(zoom, MinZoom, MaxZoom);
+        ImageTransform.ScaleX = _zoom;
+        ImageTransform.ScaleY = _zoom;
+        UpdateViewStatus();
+    }
+
+    private void ResetView()
+    {
+        _zoom = 1.0;
+        _rotation = 0;
+        ImageTransform.ScaleX = 1.0;
+        ImageTransform.ScaleY = 1.0;
+        ImageTransform.Rotation = 0;
+        ImageTransform.TranslateX = 0;
+        ImageTransform.TranslateY = 0;
+        UpdateViewStatus();
+    }
+
+    private void UpdateViewStatus()
+    {
+        var rotation = Math.Round(_rotation);
+        var panX = Math.Round(ImageTransform.TranslateX);
+        var panY = Math.Round(ImageTransform.TranslateY);
+        var pan = Math.Abs(panX) >= 1 || Math.Abs(panY) >= 1
+            ? $" | pan {panX:0},{panY:0}"
+            : "";
+
+        if (Math.Abs(_zoom - 1.0) < 0.001)
+        {
+            ViewStatusText.Text = $"Fit | {rotation:0} deg{pan}";
+            return;
+        }
+
+        var percent = _zoom * FitToPixelRatio * 100.0;
+        ViewStatusText.Text = $"{Math.Round(percent):0}% | {rotation:0} deg{pan}";
+    }
+
+    private void SetViewControlsEnabled(bool enabled)
+    {
+        ZoomOutButton.IsEnabled = enabled;
+        ZoomInButton.IsEnabled = enabled;
+        RotateButton.IsEnabled = enabled;
+        FitButton.IsEnabled = enabled;
+        ActualSizeButton.IsEnabled = enabled;
     }
 
     private static SoftwareBitmap ToSoftwareBitmap(ref NvRouterImage image)
