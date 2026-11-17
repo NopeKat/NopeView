@@ -68,6 +68,15 @@ public sealed partial class MainWindow : Window
     // instead of letting it overwrite the newer image.
     private int _decodeGeneration;
 
+    // A single source is reused for every frame. Creating a source per frame
+    // allocates a new native image object for each animation step.
+    private readonly SoftwareBitmapSource _frameSource = new();
+
+    // Marshaling scratch for the decode result. SoftwareBitmap copies the
+    // data, so the same buffer serves the next frame of the same size.
+    private readonly Lock _pixelLock = new();
+    private byte[] _pixelBuffer = [];
+
     private readonly Storyboard _loadingAnimation;
 
     public MainWindow()
@@ -420,10 +429,9 @@ public sealed partial class MainWindow : Window
                 return;
             }
 
-            var source = new SoftwareBitmapSource();
             try
             {
-                await source.SetBitmapAsync(frame.Bitmap);
+                await _frameSource.SetBitmapAsync(frame.Bitmap);
             }
             finally
             {
@@ -437,7 +445,10 @@ public sealed partial class MainWindow : Window
                 return;
             }
 
-            ImageView.Source = source;
+            if (!ReferenceEquals(ImageView.Source, _frameSource))
+            {
+                ImageView.Source = _frameSource;
+            }
 
             _imagePixelWidth = frame.PixelWidth;
             _imagePixelHeight = frame.PixelHeight;
@@ -895,41 +906,52 @@ public sealed partial class MainWindow : Window
         ActualSizeButton.IsEnabled = enabled;
     }
 
-    private static SoftwareBitmap ToSoftwareBitmap(ref NvRouterImage image)
+    private SoftwareBitmap ToSoftwareBitmap(ref NvRouterImage image)
     {
         var pixelCount = checked(image.Width * image.Height * 4);
-        var pixels = new byte[pixelCount];
-        Marshal.Copy(image.Pixels, pixels, 0, pixelCount);
 
-        var swap = image.PixelFormat != RouterApi.PixelFormatBgra8;
-        for (var index = 0; index < pixelCount; index += 4)
+        // SoftwareBitmap copies whatever buffer it is given, so one scratch
+        // array serves every frame of the same size. The lock keeps concurrent
+        // decodes from sharing it at the same time.
+        lock (_pixelLock)
         {
-            var first = pixels[index];
-            var third = pixels[index + 2];
-            var alpha = pixels[index + 3];
-
-            if (swap)
+            if (_pixelBuffer.Length != pixelCount)
             {
-                pixels[index] = third;
-                pixels[index + 2] = first;
+                _pixelBuffer = new byte[pixelCount];
+            }
+            var pixels = _pixelBuffer;
+            Marshal.Copy(image.Pixels, pixels, 0, pixelCount);
+
+            var swap = image.PixelFormat != RouterApi.PixelFormatBgra8;
+            for (var index = 0; index < pixelCount; index += 4)
+            {
+                var first = pixels[index];
+                var third = pixels[index + 2];
+                var alpha = pixels[index + 3];
+
+                if (swap)
+                {
+                    pixels[index] = third;
+                    pixels[index + 2] = first;
+                }
+
+                // SoftwareBitmap requires premultiplied alpha.
+                pixels[index] = (byte)(pixels[index] * alpha / 255);
+                pixels[index + 1] = (byte)(pixels[index + 1] * alpha / 255);
+                pixels[index + 2] = (byte)(pixels[index + 2] * alpha / 255);
             }
 
-            // SoftwareBitmap requires premultiplied alpha.
-            pixels[index] = (byte)(pixels[index] * alpha / 255);
-            pixels[index + 1] = (byte)(pixels[index + 1] * alpha / 255);
-            pixels[index + 2] = (byte)(pixels[index + 2] * alpha / 255);
+            using var writer = new DataWriter();
+            writer.WriteBytes(pixels);
+            var buffer = writer.DetachBuffer();
+
+            return SoftwareBitmap.CreateCopyFromBuffer(
+                buffer,
+                BitmapPixelFormat.Bgra8,
+                image.Width,
+                image.Height,
+                BitmapAlphaMode.Premultiplied);
         }
-
-        using var writer = new DataWriter();
-        writer.WriteBytes(pixels);
-        var buffer = writer.DetachBuffer();
-
-        return SoftwareBitmap.CreateCopyFromBuffer(
-            buffer,
-            BitmapPixelFormat.Bgra8,
-            image.Width,
-            image.Height,
-            BitmapAlphaMode.Premultiplied);
     }
 
     private void ShowError(string message)
