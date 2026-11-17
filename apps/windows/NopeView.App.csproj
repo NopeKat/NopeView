@@ -28,7 +28,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Assets\nopeview.svg" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\nopeview-title.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

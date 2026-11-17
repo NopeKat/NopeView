@@ -8,5 +8,5 @@ components of this core, so both contracts live here.
 - `nv_format_abi.h` - boundary B: what each format codec implements
   (router calls, format implements).
 
-The plugin ABI is not here: plugins are a separate top-level module, so their
-contract lives in `apps/plugins/abi/`.
+The plugin ABI is not here: plugins are a separate shared module, so their
+contract lives in `apps/shared/plugin/abi/`.
