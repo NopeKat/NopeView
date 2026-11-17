@@ -222,7 +222,8 @@ static inline unsigned char *nv_downscale_pixels(
     int32_t max_dimension,
     int *out_width,
     int *out_height,
-    int *out_stride)
+    int *out_stride,
+    void *(*allocate)(size_t))
 {
     int target_width;
     int target_height;
@@ -232,7 +233,8 @@ static inline unsigned char *nv_downscale_pixels(
     int y;
 
     if (source == NULL || width <= 0 || height <= 0 || stride <= 0 ||
-        components < 1 || components > 4 || max_dimension <= 0) {
+        components < 1 || components > 4 || max_dimension <= 0 ||
+        allocate == NULL) {
         return NULL;
     }
     if (width <= max_dimension && height <= max_dimension) {
@@ -256,7 +258,7 @@ static inline unsigned char *nv_downscale_pixels(
 
     row_bytes = (size_t)target_width * (size_t)components;
     total = row_bytes * (size_t)target_height;
-    result = (unsigned char *)malloc(total);
+    result = (unsigned char *)allocate(total);
     if (result == NULL) {
         return NULL;
     }
@@ -317,8 +319,9 @@ static inline unsigned char *nv_downscale_pixels(
 
 /*
  * Replaces decoded pixels with a smaller box-averaged copy when the request
- * asks for one. The original buffer is released with release. Returns 1 on
- * success, including when no scaling was needed, and 0 on allocation failure.
+ * asks for one. The original buffer is released with release. The replacement
+ * uses allocate, which must match the allocator that release expects. Returns
+ * 1 on success, including when no scaling was needed, and 0 on failure.
  */
 static inline int nv_limit_decoded_size(
     unsigned char **pixels,
@@ -328,6 +331,7 @@ static inline int nv_limit_decoded_size(
     int components,
     int32_t max_dimension,
     void (*release)(void *),
+    void *(*allocate)(size_t),
     int *source_width,
     int *source_height)
 {
@@ -345,7 +349,7 @@ static inline int nv_limit_decoded_size(
 
     scaled = nv_downscale_pixels(
         *pixels, *width, *height, *stride, components, max_dimension,
-        &scaled_width, &scaled_height, &scaled_stride);
+        &scaled_width, &scaled_height, &scaled_stride, allocate);
     if (scaled == NULL) {
         return 0;
     }

@@ -14,6 +14,8 @@
 #define STBI_FREE nv_stbi_free
 #endif
 
+#define NV_DOWNSCALE_ALLOC malloc
+
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_ONLY_GIF
 #include "stb_image.h"
@@ -389,7 +391,8 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
              * is scaled down for a preview request. */
             if (!nv_limit_decoded_size(
                     &frame_pixels, &image_width, &image_height, &frame_stride,
-                    components, max_dimension, free, &source_width, &source_height)) {
+                    components, max_dimension, free, NV_DOWNSCALE_ALLOC,
+                    &source_width, &source_height)) {
                 free(frame_pixels);
                 return NV_FORMAT_ERR_OUT_OF_MEMORY;
             }
@@ -492,7 +495,7 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     frame_stride = width * components;
     if (!nv_limit_decoded_size(
             &frame_pixels, &width, &height, &frame_stride, components,
-            max_dimension, free, &source_width, &source_height)) {
+            max_dimension, free, NV_DOWNSCALE_ALLOC, &source_width, &source_height)) {
         free(frame_pixels);
         return NV_FORMAT_ERR_OUT_OF_MEMORY;
     }

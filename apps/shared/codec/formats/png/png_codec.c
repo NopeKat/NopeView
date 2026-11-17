@@ -12,6 +12,12 @@
 #define STBI_FREE nv_stbi_free
 #endif
 
+#if defined(NV_CODEC_MEMORY_BUDGET)
+#define NV_DOWNSCALE_ALLOC nv_stbi_malloc
+#else
+#define NV_DOWNSCALE_ALLOC malloc
+#endif
+
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_ONLY_PNG
 #include "stb_image.h"
@@ -108,7 +114,7 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     stride = width * components;
     if (!nv_limit_decoded_size(
             &pixels, &width, &height, &stride, components, max_dimension,
-            stbi_image_free, &source_width, &source_height)) {
+            stbi_image_free, NV_DOWNSCALE_ALLOC, &source_width, &source_height)) {
         stbi_image_free(pixels);
         return NV_FORMAT_ERR_OUT_OF_MEMORY;
     }
