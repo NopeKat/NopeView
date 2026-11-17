@@ -209,6 +209,7 @@
                                 <TextBlock x:Name="TextBlock"
                                            Text="{TemplateBinding Text}"
                                            TextTrimming="Clip"
+                                           FontSize="{TemplateBinding FontSize}"
                                            Foreground="{TemplateBinding Foreground}"
                                            HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                            VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
