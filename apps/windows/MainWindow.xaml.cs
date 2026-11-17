@@ -51,12 +51,23 @@ public sealed partial class MainWindow : Window
     private const double MaxZoom = 8.0;
     private const double ZoomStep = 1.2;
 
+    // Large images are decoded once at a reduced size for display. The preview
+    // long edge follows the viewport in physical pixels, clamped to these
+    // bounds. A full decode replaces it when the view magnifies the pixels.
+    private const int PreviewMinEdge = 1024;
+    private const int PreviewMaxEdge = 4096;
+
     private IntPtr _routerContext;
     private ImageDirectory? _directory;
     private double _zoom = 1.0;
     private double _rotation;
     private int _imagePixelWidth;
     private int _imagePixelHeight;
+
+    // True while the displayed bitmap is a downscaled preview. The status bar
+    // still reports the source dimensions, and zooming past the preview scale
+    // triggers a full decode.
+    private bool _previewActive;
 
     private uint _frameIndex;
     private uint _frameCount = 1;
@@ -414,7 +425,11 @@ public sealed partial class MainWindow : Window
         UpdateNavigationState();
     }
 
-    private async Task DecodeAndShowAsync(string path, uint frameIndex = 0u, bool resetView = true)
+    private async Task DecodeAndShowAsync(
+        string path,
+        uint frameIndex = 0u,
+        bool resetView = true,
+        bool fullResolution = false)
     {
         if (_routerContext == IntPtr.Zero)
         {
@@ -437,7 +452,8 @@ public sealed partial class MainWindow : Window
             // worker thread. Leaving them on the UI thread froze the window for
             // the whole decode and prevented a loading state from rendering.
             var context = _routerContext;
-            var frame = await Task.Run(() => DecodeFrame(context, path, frameIndex));
+            var maxDimension = fullResolution ? 0 : PreviewEdge();
+            var frame = await Task.Run(() => DecodeFrame(context, path, frameIndex, maxDimension));
 
             if (generation != _decodeGeneration)
             {
@@ -449,6 +465,12 @@ public sealed partial class MainWindow : Window
             if (frame.Error is not null)
             {
                 ShowError("Failed to open image: " + frame.Error);
+                if (fullResolution)
+                {
+                    // The preview bitmap is still on screen, so keep reporting
+                    // it as such instead of claiming a full decode.
+                    _previewActive = true;
+                }
                 if (!resetView)
                 {
                     StopAnimation();
@@ -459,6 +481,10 @@ public sealed partial class MainWindow : Window
             if (frame.Bitmap is null)
             {
                 ShowError(DescribeStatus(frame.Status));
+                if (fullResolution)
+                {
+                    _previewActive = true;
+                }
                 if (!resetView)
                 {
                     StopAnimation();
@@ -487,8 +513,9 @@ public sealed partial class MainWindow : Window
                 ImageView.Source = _frameSource;
             }
 
-            _imagePixelWidth = frame.PixelWidth;
-            _imagePixelHeight = frame.PixelHeight;
+            _imagePixelWidth = frame.SourceWidth;
+            _imagePixelHeight = frame.SourceHeight;
+            _previewActive = frame.SourceWidth > frame.BitmapWidth;
             _frameIndex = frameIndex;
             _frameCount = Math.Max(1u, frame.FrameCount);
             _frameDelayMs = frame.FrameDelayMs;
@@ -536,7 +563,7 @@ public sealed partial class MainWindow : Window
     /// Decodes one frame entirely on the calling thread. The router image is
     /// released here, so no native pointer ever crosses threads.
     /// </summary>
-    private DecodedFrame DecodeFrame(IntPtr context, string path, uint frameIndex)
+    private DecodedFrame DecodeFrame(IntPtr context, string path, uint frameIndex, int maxDimension)
     {
         var frame = new DecodedFrame();
 
@@ -544,7 +571,7 @@ public sealed partial class MainWindow : Window
         {
             if (!RouterApi.TryDecodeFile(
                     context, path, out var image, out var status,
-                    frameIndex, RouterApi.PixelFormatBgra8))
+                    frameIndex, RouterApi.PixelFormatBgra8, maxDimension))
             {
                 frame.Status = status;
                 return frame;
@@ -553,8 +580,9 @@ public sealed partial class MainWindow : Window
             try
             {
                 frame.Bitmap = ToSoftwareBitmap(ref image);
-                frame.PixelWidth = image.Width;
-                frame.PixelHeight = image.Height;
+                frame.BitmapWidth = image.Width;
+                frame.SourceWidth = image.SourceWidth > 0 ? image.SourceWidth : image.Width;
+                frame.SourceHeight = image.SourceHeight > 0 ? image.SourceHeight : image.Height;
                 frame.FrameCount = image.FrameCount;
                 frame.FrameDelayMs = image.FrameDelayMs;
             }
@@ -575,11 +603,42 @@ public sealed partial class MainWindow : Window
     {
         internal SoftwareBitmap? Bitmap;
         internal int Status;
-        internal int PixelWidth;
-        internal int PixelHeight;
+        internal int BitmapWidth;
+        internal int SourceWidth;
+        internal int SourceHeight;
         internal uint FrameCount;
         internal uint FrameDelayMs;
         internal string? Error;
+    }
+
+    /// <summary>
+    /// Longest viewport edge in physical pixels, clamped so the preview stays
+    /// sharp at fit on small displays and bounded on very large ones.
+    /// </summary>
+    private int PreviewEdge()
+    {
+        var scale = Viewport.XamlRoot?.RasterizationScale ?? Scale;
+        var longest = Math.Max(Viewport.ActualWidth, Viewport.ActualHeight) * scale;
+        return Math.Clamp((int)Math.Round(longest), PreviewMinEdge, PreviewMaxEdge);
+    }
+
+    /// <summary>
+    /// Replaces the preview bitmap with a full-size decode once the view
+    /// magnifies its pixels. One attempt per load; animated frames keep the
+    /// preview so playback does not decode full frames.
+    /// </summary>
+    private async Task UpgradeToFullResolutionAsync()
+    {
+        if (!_previewActive || _frameCount > 1 || _directory is null)
+        {
+            return;
+        }
+
+        // Cleared before the decode so overlapping zoom input cannot queue a
+        // second full decode; the decode result sets it again.
+        _previewActive = false;
+        await DecodeAndShowAsync(
+            _directory.CurrentPath, _frameIndex, resetView: false, fullResolution: true);
     }
 
     private void SetLoading(bool loading)
@@ -629,6 +688,11 @@ public sealed partial class MainWindow : Window
     private void UpdateImageAutomationName(string path)
     {
         var name = "Current image: " + Path.GetFileName(path);
+        if (_previewActive)
+        {
+            // Tells assistive tech that the displayed bitmap is downscaled.
+            name += " (preview)";
+        }
         if (_frameCount > 1)
         {
             name += $" [frame {_frameIndex + 1}/{_frameCount}]";
@@ -1010,6 +1074,7 @@ public sealed partial class MainWindow : Window
         ImageTransform.TranslateX = 0;
         ImageTransform.TranslateY = 0;
         UpdateViewStatus();
+        _ = UpgradeToFullResolutionAsync();
     }
 
     private double FitToPixelRatio
@@ -1039,6 +1104,13 @@ public sealed partial class MainWindow : Window
         ImageTransform.ScaleX = _zoom;
         ImageTransform.ScaleY = _zoom;
         UpdateViewStatus();
+
+        if (_zoom > 1.001)
+        {
+            // Zooming past fit magnifies a preview bitmap, so upgrade to the
+            // real pixels once. The call is a no-op for full-resolution images.
+            _ = UpgradeToFullResolutionAsync();
+        }
     }
 
     private void ResetView()

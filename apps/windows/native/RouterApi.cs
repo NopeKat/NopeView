@@ -15,6 +15,8 @@ internal struct NvRouterImage
     public nuint PixelsSize;
     public uint FrameCount;
     public uint FrameDelayMs;
+    public int SourceWidth;
+    public int SourceHeight;
 }
 
 /// <summary>Mirror of nv_router_format in nv_router_abi.h.</summary>
@@ -74,8 +76,8 @@ internal static partial class RouterApi
     [LibraryImport(LibraryName, EntryPoint = "nv_router_enum_formats")]
     private static partial int EnumFormats(IntPtr context, uint index, ref NvRouterFormat format);
 
-    [LibraryImport(LibraryName, EntryPoint = "nv_router_decode_file", StringMarshalling = StringMarshalling.Utf8)]
-    private static partial int DecodeFile(IntPtr context, string path, int desiredPixelFormat, uint frameIndex, ref NvRouterImage image);
+    [LibraryImport(LibraryName, EntryPoint = "nv_router_decode_file_ex", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial int DecodeFileEx(IntPtr context, string path, int desiredPixelFormat, uint frameIndex, int maxDimension, ref NvRouterImage image);
 
     [LibraryImport(LibraryName, EntryPoint = "nv_router_image_free")]
     private static partial void ImageFree(ref NvRouterImage image);
@@ -131,6 +133,8 @@ internal static partial class RouterApi
     /// <summary>
     /// Decodes one frame through the router. Release native memory with
     /// ImageFree. Defaults keep the original single-image RGBA behavior.
+    /// A positive maxDimension caps the long edge of the returned pixels; the
+    /// image still reports the original size in SourceWidth and SourceHeight.
     /// </summary>
     internal static bool TryDecodeFile(
         IntPtr context,
@@ -138,12 +142,13 @@ internal static partial class RouterApi
         out NvRouterImage image,
         out int status,
         uint frameIndex = 0u,
-        int pixelFormat = PixelFormatRgba8)
+        int pixelFormat = PixelFormatRgba8,
+        int maxDimension = 0)
     {
         image = default;
         image.StructSize = (uint)Marshal.SizeOf<NvRouterImage>();
 
-        status = DecodeFile(context, path, pixelFormat, frameIndex, ref image);
+        status = DecodeFileEx(context, path, pixelFormat, frameIndex, maxDimension, ref image);
         return status == Ok;
     }
 
