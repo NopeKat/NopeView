@@ -69,6 +69,13 @@ typedef struct nv_file_cache {
     size_t data_size;
 } nv_file_cache;
 
+/*
+ * Files above this size are decoded without being cached. Holding a very large
+ * image for the whole process lifetime costs more memory than the repeat reads
+ * it saves, and still images are normally read once.
+ */
+#define NV_FILE_CACHE_MAX_BYTES ((size_t)32u * 1024u * 1024u)
+
 static nv_file_cache g_file_cache;
 static SRWLOCK g_file_cache_lock = SRWLOCK_INIT;
 
@@ -290,6 +297,10 @@ static void cache_store(const char *path, const uint8_t *data, size_t size,
 {
     char *cache_path;
     uint8_t *cache_copy;
+
+    if (size > NV_FILE_CACHE_MAX_BYTES) {
+        return;
+    }
 
     cache_path = (char *)malloc(strlen(path) + 1u);
     cache_copy = (uint8_t *)malloc(size);
