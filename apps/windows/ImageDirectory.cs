@@ -1,9 +1,11 @@
+using NopeView.App.Native;
+
 namespace NopeView.App;
 
 /// <summary>
-/// Supported image files in one directory, with a current position.
-/// This is the Windows-side list for now; the pure ordering and index logic
-/// can move to apps/core once the shared file-system abstraction exists.
+/// Supported image files in one directory, with a current position. The core
+/// file list service owns enumeration, extension filtering, and sorting; this
+/// type only keeps the current index and the movement rules.
 /// </summary>
 internal sealed class ImageDirectory
 {
@@ -20,31 +22,12 @@ internal sealed class ImageDirectory
     {
         var fullPath = Path.GetFullPath(filePath);
         var directory = Path.GetDirectoryName(fullPath);
-        var allowed = new HashSet<string>(
-            extensions.Select(NormalizeExtension),
-            StringComparer.OrdinalIgnoreCase);
         var paths = new List<string>();
 
-        if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
+        if (!string.IsNullOrEmpty(directory) &&
+            FilesApi.TryListPaths(directory, extensions, out var corePaths))
         {
-            try
-            {
-                foreach (var candidate in Directory.EnumerateFiles(directory))
-                {
-                    if (allowed.Contains(Path.GetExtension(candidate)))
-                    {
-                        paths.Add(candidate);
-                    }
-                }
-            }
-            catch (IOException)
-            {
-                // Fall back to the single file below.
-            }
-            catch (UnauthorizedAccessException)
-            {
-                // Fall back to the single file below.
-            }
+            paths.AddRange(corePaths);
         }
 
         if (paths.Count == 0)
@@ -64,11 +47,6 @@ internal sealed class ImageDirectory
         }
 
         return new ImageDirectory(paths, index);
-    }
-
-    private static string NormalizeExtension(string extension)
-    {
-        return extension.StartsWith('.') ? extension : "." + extension;
     }
 
     internal int Count => _paths.Count;

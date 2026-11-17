@@ -54,19 +54,7 @@ internal static partial class RouterApi
 
     static RouterApi()
     {
-        NativeLibrary.SetDllImportResolver(typeof(RouterApi).Assembly, Resolve);
-    }
-
-    private static IntPtr Resolve(string libraryName, System.Reflection.Assembly assembly, DllImportSearchPath? searchPath)
-    {
-        if (libraryName != LibraryName)
-        {
-            return IntPtr.Zero;
-        }
-
-        var dir = Path.Combine(AppContext.BaseDirectory, "native", "x64");
-        var candidate = Path.Combine(dir, "router.dll");
-        return File.Exists(candidate) ? NativeLibrary.Load(candidate) : IntPtr.Zero;
+        NativeLibraryResolver.EnsureRegistered();
     }
 
     // Returns the ABI version as an x.y.z.n string. The pointer refers to a

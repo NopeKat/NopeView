@@ -70,6 +70,8 @@ apps/
 │   └── abi/                    application plugin ABI
 ├── shell/                      platform capability layer (notes only)
 └── core/
+    ├── files/                  shared file list service
+    │   └── abi/                file list ABI
     └── codecs/                 codec core
         ├── abi/                router ABI and format ABI
         ├── router/             router: directory scan, dispatch, pixel ownership
