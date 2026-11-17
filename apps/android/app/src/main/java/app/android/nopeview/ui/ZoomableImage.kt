@@ -50,6 +50,7 @@ fun ZoomableImage(
     bitmap: Bitmap,
     modifier: Modifier = Modifier,
     isPreview: Boolean = false,
+    resetKey: Any? = null,
 ) {
     val image = remember(bitmap) { bitmap.asImageBitmap() }
     val imageWidth = bitmap.width
@@ -60,7 +61,7 @@ fun ZoomableImage(
     var offset by remember { mutableStateOf(Offset.Zero) }
     var rotation by remember { mutableStateOf(0f) }
 
-    LaunchedEffect(bitmap, viewport) {
+    LaunchedEffect(resetKey, viewport) {
         if (viewport.width > 0 && viewport.height > 0) {
             zoom = fitZoom(viewport, imageWidth, imageHeight)
             offset = Offset.Zero
@@ -76,7 +77,7 @@ fun ZoomableImage(
             modifier = Modifier
                 .fillMaxSize()
                 .clipToBounds()
-                .pointerInput(bitmap, viewport) {
+                .pointerInput(imageWidth, imageHeight, viewport) {
                     detectTransformGestures { centroid, pan, gestureZoom, gestureRotation ->
                         val oldZoom = zoom
                         val minimumZoom = minZoom(viewport, imageWidth, imageHeight)
@@ -95,7 +96,7 @@ fun ZoomableImage(
                         )
                     }
                 }
-                .pointerInput(bitmap, viewport) {
+                .pointerInput(imageWidth, imageHeight, viewport) {
                     detectTapGestures(
                         onDoubleTap = { point ->
                             val goToActual = abs(zoom - 1f) >= 0.01f

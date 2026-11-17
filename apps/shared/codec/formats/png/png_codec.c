@@ -135,6 +135,8 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     out_image->pixels_size = pixel_count * (size_t)components;
     out_image->source_width = source_width;
     out_image->source_height = source_height;
+    out_image->frame_count = 1u;
+    out_image->frame_delay_ms = 0u;
     return NV_FORMAT_OK;
 }
 

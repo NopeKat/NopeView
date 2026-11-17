@@ -33,16 +33,25 @@ class CodecSession(context: android.content.Context) : Closeable {
     val isReady: Boolean
         get() = handle != 0L
 
-    fun decode(descriptor: ParcelFileDescriptor, maxDimension: Int): DecodedImage? {
-        if (handle == 0L) {
+    fun decode(
+        descriptor: ParcelFileDescriptor,
+        frameIndex: Int,
+        maxDimension: Int,
+    ): DecodedImage? {
+        if (handle == 0L || frameIndex < 0) {
             return null
         }
 
-        val orientation = readOrientation(descriptor)
+        val orientation = if (frameIndex == 0) {
+            readOrientation(descriptor)
+        } else {
+            ExifInterface.ORIENTATION_NORMAL
+        }
         val info = IntArray(8)
         val bitmap = NativeCodec.decodeFdBitmap(
             handle,
             descriptor.fd,
+            frameIndex,
             maxDimension,
             info,
         ) ?: return null

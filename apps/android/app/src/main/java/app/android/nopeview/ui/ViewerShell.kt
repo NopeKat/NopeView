@@ -2,8 +2,6 @@ package app.android.nopeview.ui
 
 import android.content.Context
 import android.net.Uri
-import android.os.Handler
-import android.os.Looper
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,6 +25,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -39,7 +38,15 @@ import androidx.compose.ui.unit.dp
 import app.android.nopeview.CodecSession
 import app.android.nopeview.DecodedImage
 import app.android.nopeview.R
-import java.util.concurrent.Executors
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 private val ViewerCanvas = Color(0xFF0B0C0E)
 
@@ -50,14 +57,18 @@ fun ViewerShell() {
     var image by remember { mutableStateOf<DecodedImage?>(null) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var animationJob by remember { mutableStateOf<Job?>(null) }
+    var imageEpoch by remember { mutableStateOf(0) }
     val decodeFailed = stringResource(R.string.decode_failed)
 
     val codec = remember(context) { CodecSession(context) }
-    val decoder = remember { Executors.newSingleThreadExecutor() }
+    val decodeMutex = remember { Mutex() }
+    val scope = rememberCoroutineScope()
     val currentImage by rememberUpdatedState(image)
-    DisposableEffect(codec, decoder) {
+    val currentJob by rememberUpdatedState(animationJob)
+    DisposableEffect(codec) {
         onDispose {
-            decoder.shutdownNow()
+            currentJob?.cancel()
             currentImage?.bitmap?.recycle()
             codec.close()
         }
@@ -67,22 +78,61 @@ fun ViewerShell() {
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri: Uri? ->
         if (uri != null) {
+            animationJob?.cancel()
+            animationJob = null
             selectedName = displayName(context, uri)
+            imageEpoch += 1
             loading = true
             error = null
-            decoder.execute {
-                val decoded = runCatching {
-                    context.contentResolver.openFileDescriptor(uri, "r")?.use { descriptor ->
-                        codec.decode(descriptor, PREVIEW_MAX_DIMENSION)
-                    }
-                }.getOrNull()
-                Handler(Looper.getMainLooper()).post {
-                    loading = false
-                    image = decoded
-                    error = if (decoded == null) {
-                        decodeFailed
-                    } else {
-                        null
+            image = null
+
+            val descriptor = runCatching {
+                context.contentResolver.openFileDescriptor(uri, "r")
+            }.getOrNull()
+            if (descriptor == null) {
+                loading = false
+                error = decodeFailed
+            } else {
+                animationJob = scope.launch {
+                    try {
+                        val first = withContext(Dispatchers.IO) {
+                            decodeMutex.withLock {
+                                codec.decode(descriptor, 0, PREVIEW_MAX_DIMENSION)
+                            }
+                        }
+                        if (first == null) {
+                            loading = false
+                            error = decodeFailed
+                            return@launch
+                        }
+
+                        loading = false
+                        image = first
+                        var frameIndex = 0
+                        while (isActive) {
+                            val current = image ?: break
+                            if (current.frameCount <= 1) {
+                                break
+                            }
+                            delay(current.frameDelayMs.coerceIn(20, 5000).toLong())
+                            val nextIndex = (frameIndex + 1) % current.frameCount
+                            val next = withContext(Dispatchers.IO) {
+                                decodeMutex.withLock {
+                                    codec.decode(descriptor, nextIndex, PREVIEW_MAX_DIMENSION)
+                                }
+                            } ?: break
+                            frameIndex = nextIndex
+                            image = next
+                        }
+                    } catch (cancel: CancellationException) {
+                        throw cancel
+                    } catch (_: Exception) {
+                        loading = false
+                        if (image == null) {
+                            error = decodeFailed
+                        }
+                    } finally {
+                        runCatching { descriptor.close() }
                     }
                 }
             }
@@ -115,6 +165,7 @@ fun ViewerShell() {
                     image != null -> ZoomableImage(
                         bitmap = image!!.bitmap,
                         isPreview = image!!.isPreview,
+                        resetKey = imageEpoch,
                         modifier = Modifier.fillMaxSize(),
                     )
                     else -> Column(horizontalAlignment = Alignment.CenterHorizontally) {

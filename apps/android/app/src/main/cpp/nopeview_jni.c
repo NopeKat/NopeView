@@ -56,7 +56,8 @@ Java_app_android_nopeview_NativeCodec_destroy(
 
 JNIEXPORT jobject JNICALL
 Java_app_android_nopeview_NativeCodec_decodeFdBitmap(
-    JNIEnv *env, jobject thiz, jlong handle, jint fd, jint max_dimension, jintArray out_info)
+    JNIEnv *env, jobject thiz, jlong handle, jint fd, jint frame_index,
+    jint max_dimension, jintArray out_info)
 {
     nv_router_context *context = context_from_handle(handle);
     nv_router_image image;
@@ -76,7 +77,7 @@ Java_app_android_nopeview_NativeCodec_decodeFdBitmap(
 
     (void)thiz;
 
-    if (context == NULL || fd < 0 || out_info == NULL) {
+    if (context == NULL || fd < 0 || frame_index < 0 || out_info == NULL) {
         return NULL;
     }
     info_length = (*env)->GetArrayLength(env, out_info);
@@ -90,7 +91,7 @@ Java_app_android_nopeview_NativeCodec_decodeFdBitmap(
         context,
         (int)fd,
         NV_ROUTER_PIXEL_RGBA8,
-        0u,
+        (uint32_t)frame_index,
         max_dimension,
         &image);
     if (status != NV_ROUTER_OK) {
@@ -200,11 +201,12 @@ Java_app_android_nopeview_NativeCodec_decodeFdBitmap(
         return NULL;
     }
 
-    NV_LOG("decoded bitmap %dx%d source=%dx%d frames=%u",
+    NV_LOG("decoded bitmap %dx%d source=%dx%d frame=%d/%u",
            image.width,
            image.height,
            image.source_width,
            image.source_height,
+           (int)frame_index,
            (unsigned int)image.frame_count);
     nv_router_image_free(&image);
     return bitmap;

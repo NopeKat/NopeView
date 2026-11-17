@@ -58,6 +58,8 @@ typedef struct nv_gif_cache {
     int *delays;
     unsigned char *pixels;
     size_t frame_bytes;
+    uint64_t data_hash;
+    size_t data_size;
     uint64_t last_used;
 } nv_gif_cache;
 
@@ -149,6 +151,18 @@ static uint32_t frame_delay_ms(const nv_gif_cache *cache, uint32_t index)
     return (uint32_t)delay;
 }
 
+static uint64_t hash_bytes(const unsigned char *data, size_t size)
+{
+    uint64_t hash = UINT64_C(1469598103934665603);
+    size_t index;
+
+    for (index = 0u; index < size; index++) {
+        hash ^= (uint64_t)data[index];
+        hash *= UINT64_C(1099511628211);
+    }
+    return hash;
+}
+
 static int get_file_stamp(const char *path, int64_t *out_size, int64_t *out_mtime)
 {
 #if defined(_WIN32)
@@ -186,6 +200,21 @@ static nv_gif_cache *cache_find(const char *path, int64_t size, int64_t mtime)
         nv_gif_cache *slot = &g_cache[index];
         if (slot->path != NULL && strcmp(slot->path, path) == 0 &&
             slot->size == size && slot->mtime == mtime) {
+            slot->last_used = ++g_cache_tick;
+            return slot;
+        }
+    }
+    return NULL;
+}
+
+static nv_gif_cache *cache_find_data(uint64_t data_hash, size_t data_size)
+{
+    int index;
+
+    for (index = 0; index < NV_GIF_CACHE_SLOTS; index++) {
+        nv_gif_cache *slot = &g_cache[index];
+        if (slot->pixels != NULL && slot->data_hash == data_hash &&
+            slot->data_size == data_size) {
             slot->last_used = ++g_cache_tick;
             return slot;
         }
@@ -329,6 +358,7 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     unsigned char *frame_pixels = NULL;
     size_t pixel_count;
     size_t frame_bytes;
+    uint64_t data_hash = 0u;
     int components;
     nv_format_pixel_format output_format;
     int64_t file_size = 0;
@@ -429,6 +459,53 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
         return NV_FORMAT_ERR_INVALID_ARGUMENT;
     }
 
+    data_hash = hash_bytes(data, data_size);
+    cache_lock();
+    slot = cache_find_data(data_hash, data_size);
+    if (slot != NULL) {
+        if (request->frame_index >= (uint32_t)slot->frames) {
+            cache_unlock();
+            return NV_FORMAT_ERR_UNSUPPORTED;
+        }
+        pixel_count = (size_t)slot->width * (size_t)slot->height;
+        frame_bytes = pixel_count * (size_t)components;
+        frame_pixels = (unsigned char *)malloc(frame_bytes);
+        if (frame_pixels == NULL) {
+            cache_unlock();
+            return NV_FORMAT_ERR_OUT_OF_MEMORY;
+        }
+        nv_rgba_to_format(
+            frame_pixels,
+            slot->pixels + (size_t)request->frame_index * slot->frame_bytes,
+            pixel_count,
+            output_format);
+        image_width = slot->width;
+        image_height = slot->height;
+        frame_stride = image_width * components;
+        cache_unlock();
+
+        if (!nv_limit_decoded_size(
+                &frame_pixels, &image_width, &image_height, &frame_stride,
+                components, max_dimension, free, NV_DOWNSCALE_ALLOC,
+                &source_width, &source_height)) {
+            free(frame_pixels);
+            return NV_FORMAT_ERR_OUT_OF_MEMORY;
+        }
+
+        out_image->width = image_width;
+        out_image->height = image_height;
+        out_image->stride = frame_stride;
+        out_image->pixel_format = (nv_format_pixel_format)output_format;
+        out_image->pixels = frame_pixels;
+        out_image->pixels_size = (size_t)frame_stride * (size_t)image_height;
+        out_image->frame_count = (uint32_t)slot->frames;
+        out_image->frame_delay_ms = frame_delay_ms(slot, request->frame_index);
+        out_image->source_width = source_width;
+        out_image->source_height = source_height;
+        return NV_FORMAT_OK;
+    }
+    cache_unlock();
+
     all_frames = stbi_load_gif_from_memory(
         data,
         (int)data_size,
@@ -461,6 +538,8 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     fresh.frames = frames;
     fresh.delays = delays;
     fresh.frame_bytes = pixel_count * 4u;
+    fresh.data_hash = data_hash;
+    fresh.data_size = data_size;
     if (request->path != NULL) {
         fresh.path = duplicate_path(request->path);
         if (fresh.path == NULL) {

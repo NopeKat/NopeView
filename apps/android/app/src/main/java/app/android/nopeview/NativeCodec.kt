@@ -14,6 +14,7 @@ object NativeCodec {
     external fun decodeFdBitmap(
         handle: Long,
         fd: Int,
+        frameIndex: Int,
         maxDimension: Int,
         outInfo: IntArray,
     ): Bitmap?
