@@ -13,7 +13,7 @@ A fast, lightweight, and extensible cross-platform image viewer.
 ## Current progress
 
 - **Codecs**: the router core and the decoders for PNG, JPG, GIF, and BMP are implemented. The encode entry point exists, but all four formats return "unsupported".
-- **Windows app**: WinUI 3, with content extended into the title bar and a self-drawn title bar whose minimize / maximize / close buttons are XAML buttons using Fluent `PathIcon` (the native title bar strip and its tooltips are collapsed), PerMonitorV2 declared, and the NopeView brand logo shown at the left of the title bar. The app icon is set both in the executable and on the running window for Explorer, taskbar, Alt-Tab and Start. The content area displays the decoded image, with an open button and drag-and-drop support.
+- **Windows app**: WinUI 3 viewer MVP. The content is extended into the title bar, with a self-drawn title bar whose minimize / maximize / close buttons are XAML buttons using Fluent `PathIcon` (the native title bar strip and its tooltips are collapsed), PerMonitorV2 declared, and the NopeView brand logo shown at the left. The app icon is set both in the executable and on the running window for Explorer, taskbar, Alt-Tab and Start. The content area renders decoded images, with file picker and drag-and-drop opening, previous/next navigation within the same directory, Fit and 1:1 modes, mouse-wheel zoom, drag pan, rotation, and a view status line. GIF frames can be selected by frame index; playback is not implemented yet.
 - **Three ABI boundaries**: router (`nv_router_abi.h`), format (`nv_format_abi.h`), and application plugin (`nv_plugin_abi.h`) are all in place, each versioned `0.0.0.0` (the `x.y.z.n` scheme).
 - **Shared assets**: the base logo SVG lives in `shared/resource/`; platform builds derive their own icon and title-bar files from it.
 - **Other modules**: the CLI, application plugins, and the platform capability layer contain only directories and notes; nothing is implemented. The CLI, plugins, and platform capability layer live under `shared/` as non-GUI foundations.
@@ -22,7 +22,7 @@ A fast, lightweight, and extensible cross-platform image viewer.
 
 | Platform | Minimum version | UI toolkit | Status |
 | --- | --- | --- | --- |
-| Windows | Windows 10 | WinUI 3 (Windows App SDK) | Runnable skeleton |
+| Windows | Windows 10 | WinUI 3 (Windows App SDK) | Viewer MVP |
 | Mac | macOS 12 | SwiftUI | Not started |
 | Linux | kernel 4.x and later | GTK 4 | Not started |
 | Android | Android 8 | Jetpack Compose | Not started |
@@ -54,8 +54,8 @@ File opening through the picker and drag and drop, previous/next navigation, and
 
 - The repository contains **no build scripts**.
 - Windows app: requires the .NET SDK and the Windows App SDK; build `apps/windows/NopeView.App.csproj`.
-- C codecs and the router core: compile them with MSVC into DLLs, place them in a directory the app can load, and the router discovers them by scanning that directory.
-- A complete, reproducible build guide has not been written yet.
+- C codecs, the router core, and the file list service: compile them with MSVC into DLLs, place them in `apps/windows/native/x64/`, and the app loads them from there.
+- The current Windows build is driven by local scripts kept outside the repository; a complete reproducible build guide is not committed yet.
 
 ## Repository layout
 
