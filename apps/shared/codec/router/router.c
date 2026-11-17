@@ -239,11 +239,7 @@ static void path_extension(const char *path, char *out_extension, size_t out_siz
     }
 }
 
-/*
- * Reads a whole file into memory before dispatch. The format ABI accepts raw
- * bytes, so codecs never open a path by name. This keeps UTF-8 host paths
- * working on Windows, where narrow fopen would use the active code page.
- */
+/* Size and write time, used to detect a changed file behind a cached copy. */
 static int file_stamp(const wchar_t *wide_path, uint64_t *out_size, FILETIME *out_mtime)
 {
     WIN32_FILE_ATTRIBUTE_DATA attributes;
@@ -260,7 +256,64 @@ static int file_stamp(const wchar_t *wide_path, uint64_t *out_size, FILETIME *ou
     return 1;
 }
 
-static int read_file_bytes(const char *path, uint8_t **out_data, size_t *out_size)
+/*
+ * Encoded bytes for one decode. data points either at the shared cache or at a
+ * private allocation; cached tells release_file_bytes how to let go of it.
+ */
+typedef struct nv_file_bytes {
+    const uint8_t *data;
+    size_t size;
+    int cached;
+} nv_file_bytes;
+
+/*
+ * A cache hit keeps the shared lock and hands out the cached bytes directly.
+ * Copying them per call was the dominant cost of GIF playback, where every
+ * frame reads the same unchanged file.
+ */
+static void release_file_bytes(nv_file_bytes *bytes)
+{
+    if (bytes->cached != 0) {
+        ReleaseSRWLockShared(&g_file_cache_lock);
+    }
+    bytes->data = NULL;
+    bytes->size = 0u;
+    bytes->cached = 0;
+}
+
+static void cache_store(const char *path, const uint8_t *data, size_t size,
+                        uint64_t file_size, FILETIME mtime)
+{
+    char *cache_path;
+    uint8_t *cache_copy;
+
+    cache_path = (char *)malloc(strlen(path) + 1u);
+    cache_copy = (uint8_t *)malloc(size);
+    if (cache_path != NULL && cache_copy != NULL) {
+        memcpy(cache_path, path, strlen(path) + 1u);
+        memcpy(cache_copy, data, size);
+        AcquireSRWLockExclusive(&g_file_cache_lock);
+        free(g_file_cache.path);
+        free(g_file_cache.data);
+        g_file_cache.path = cache_path;
+        g_file_cache.size = file_size;
+        g_file_cache.mtime = mtime;
+        g_file_cache.data = cache_copy;
+        g_file_cache.data_size = size;
+        ReleaseSRWLockExclusive(&g_file_cache_lock);
+    }
+    else {
+        free(cache_path);
+        free(cache_copy);
+    }
+}
+
+/*
+ * Reads a whole file before dispatch. The format ABI accepts raw bytes, so
+ * codecs never open a path by name. This keeps UTF-8 host paths working on
+ * Windows, where narrow fopen would use the active code page.
+ */
+static int read_file_bytes(const char *path, nv_file_bytes *out)
 {
     int wide_length;
     wchar_t *wide_path;
@@ -269,14 +322,13 @@ static int read_file_bytes(const char *path, uint8_t **out_data, size_t *out_siz
     int have_stamp;
     HANDLE file;
     uint8_t *buffer;
-    uint8_t *cache_copy;
-    char *cache_path;
     uint64_t offset;
     DWORD chunk;
     DWORD bytes_read;
 
-    *out_data = NULL;
-    *out_size = 0u;
+    out->data = NULL;
+    out->size = 0u;
+    out->cached = 0;
     memset(&mtime, 0, sizeof(mtime));
 
     wide_length = MultiByteToWideChar(CP_UTF8, 0u, path, -1, NULL, 0);
@@ -299,15 +351,11 @@ static int read_file_bytes(const char *path, uint8_t **out_data, size_t *out_siz
             strcmp(g_file_cache.path, path) == 0 &&
             g_file_cache.size == file_size &&
             CompareFileTime(&g_file_cache.mtime, &mtime) == 0) {
-            buffer = (uint8_t *)malloc(g_file_cache.data_size);
-            if (buffer != NULL) {
-                memcpy(buffer, g_file_cache.data, g_file_cache.data_size);
-                *out_data = buffer;
-                *out_size = g_file_cache.data_size;
-            }
-            ReleaseSRWLockShared(&g_file_cache_lock);
+            out->data = g_file_cache.data;
+            out->size = g_file_cache.data_size;
+            out->cached = 1;
             free(wide_path);
-            return buffer != NULL;
+            return 1;
         }
         ReleaseSRWLockShared(&g_file_cache_lock);
     }
@@ -352,29 +400,11 @@ static int read_file_bytes(const char *path, uint8_t **out_data, size_t *out_siz
     CloseHandle(file);
 
     if (have_stamp != 0) {
-        cache_path = (char *)malloc(strlen(path) + 1u);
-        cache_copy = (uint8_t *)malloc((size_t)file_size);
-        if (cache_path != NULL && cache_copy != NULL) {
-            memcpy(cache_path, path, strlen(path) + 1u);
-            memcpy(cache_copy, buffer, (size_t)file_size);
-            AcquireSRWLockExclusive(&g_file_cache_lock);
-            free(g_file_cache.path);
-            free(g_file_cache.data);
-            g_file_cache.path = cache_path;
-            g_file_cache.size = file_size;
-            g_file_cache.mtime = mtime;
-            g_file_cache.data = cache_copy;
-            g_file_cache.data_size = (size_t)file_size;
-            ReleaseSRWLockExclusive(&g_file_cache_lock);
-        }
-        else {
-            free(cache_path);
-            free(cache_copy);
-        }
+        cache_store(path, buffer, (size_t)file_size, file_size, mtime);
     }
 
-    *out_data = buffer;
-    *out_size = (size_t)file_size;
+    out->data = buffer;
+    out->size = (size_t)file_size;
     return 1;
 }
 
@@ -670,8 +700,7 @@ nv_router_status nv_router_decode_file(
     nv_router_image *out_image)
 {
     char extension[32];
-    uint8_t *file_data;
-    size_t file_size;
+    nv_file_bytes file;
     nv_router_status last_status;
     uint32_t index;
 
@@ -690,7 +719,7 @@ nv_router_status nv_router_decode_file(
 
     path_extension(path, extension, sizeof(extension));
 
-    if (!read_file_bytes(path, &file_data, &file_size)) {
+    if (!read_file_bytes(path, &file)) {
         return NV_ROUTER_ERR_IO;
     }
 
@@ -710,8 +739,8 @@ nv_router_status nv_router_decode_file(
 
         memset(&request, 0, sizeof(request));
         request.struct_size = (uint32_t)sizeof(request);
-        request.data = file_data;
-        request.data_size = file_size;
+        request.data = file.data;
+        request.data_size = file.size;
         request.path = path;
         request.desired_pixel_format = (nv_format_pixel_format)desired_pixel_format;
         request.frame_index = frame_index;
@@ -727,7 +756,7 @@ nv_router_status nv_router_decode_file(
 
         if (owner_add(image.pixels, entry->image_free) == 0) {
             entry->image_free(&image);
-            free(file_data);
+            release_file_bytes(&file);
             return NV_ROUTER_ERR_OUT_OF_MEMORY;
         }
 
@@ -740,11 +769,11 @@ nv_router_status nv_router_decode_file(
         out_image->pixels_size = image.pixels_size;
         out_image->frame_count = image.frame_count;
         out_image->frame_delay_ms = image.frame_delay_ms;
-        free(file_data);
+        release_file_bytes(&file);
         return NV_ROUTER_OK;
     }
 
-    free(file_data);
+    release_file_bytes(&file);
     if (last_status == NV_ROUTER_ERR_UNSUPPORTED_FORMAT &&
         context->abi_mismatch_count > 0u) {
         return NV_ROUTER_ERR_ABI_MISMATCH;
