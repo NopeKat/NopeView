@@ -5,7 +5,10 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="NopeView">
 
+    <!-- Hidden placement keeps WinUI from turning the window-wide keyboard
+         accelerators into hover tooltips on every control. -->
     <Grid x:Name="RootGrid" Loaded="RootGrid_Loaded"
+          KeyboardAcceleratorPlacementMode="Hidden"
           AllowDrop="True" DragOver="RootGrid_DragOver" Drop="RootGrid_Drop">
         <Grid.KeyboardAccelerators>
             <KeyboardAccelerator Key="Left" Invoked="PreviousAccelerator_Invoked" />
@@ -109,6 +112,20 @@
                     </Setter.Value>
                 </Setter>
             </Style>
+
+            <!-- Toolbar buttons follow the official AppBarButton colors from
+                 the WinUI 3 source (transparent at rest, subtle fill on hover
+                 and press) while keeping the default Button template. -->
+            <Style x:Key="ToolbarButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="{ThemeResource SubtleFillColorTransparentBrush}" />
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource SubtleFillColorTransparentBrush}" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="CornerRadius" Value="4" />
+                <Setter Property="Padding" Value="11,5,11,6" />
+                <Setter Property="MinHeight" Value="32" />
+                <Setter Property="MinWidth" Value="32" />
+            </Style>
         </Grid.Resources>
 
         <Grid.RowDefinitions>
@@ -207,38 +224,66 @@
                                         AutomationProperties.AutomationId="CopyImageMenuItem"
                                         KeyboardAcceleratorTextOverride="Ctrl+C"
                                         IsEnabled="False"
-                                        Click="CopyImageMenuItem_Click" />
+                                        Click="CopyImageMenuItem_Click">
+                            <MenuFlyoutItem.Icon>
+                                <PathIcon Width="16" Height="16"
+                                          Data="M5 6H3.5C2.67157 6 2 6.67157 2 7.5V12.5C2 13.3284 2.67157 14 3.5 14H7.5C8.32843 14 9 13.3284 9 12.5V12H10V12.5C10 13.8807 8.88071 15 7.5 15H3.5C2.11929 15 1 13.8807 1 12.5V7.5C1 6.11929 2.11929 5 3.5 5H5V6ZM12.5 1C13.8807 1 15 2.11929 15 3.5V8.5C15 9.88071 13.8807 11 12.5 11H8.5C7.11929 11 6 9.88071 6 8.5V3.5C6 2.11929 7.11929 1 8.5 1H12.5ZM8.5 2C7.67157 2 7 2.67157 7 3.5V8.5C7 9.32843 7.67157 10 8.5 10H12.5C13.3284 10 14 9.32843 14 8.5V3.5C14 2.67157 13.3284 2 12.5 2H8.5Z" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
                         <MenuFlyoutItem x:Name="CopyPathMenuItem"
                                         Text="Copy path"
                                         AutomationProperties.AutomationId="CopyPathMenuItem"
                                         KeyboardAcceleratorTextOverride="Ctrl+Shift+C"
                                         IsEnabled="False"
-                                        Click="CopyPathMenuItem_Click" />
+                                        Click="CopyPathMenuItem_Click">
+                            <MenuFlyoutItem.Icon>
+                                <PathIcon Width="16" Height="16"
+                                          Data="M4.08535 2C4.29127 1.4174 4.84689 1 5.5 1H8.5C9.15311 1 9.70873 1.4174 9.91465 2H10.5C11.3284 2 12 2.67157 12 3.5V7H11V3.5C11 3.22386 10.7761 3 10.5 3H9.91465C9.70873 3.5826 9.15311 4 8.5 4H5.5C4.84689 4 4.29127 3.5826 4.08535 3H3.5C3.22386 3 3 3.22386 3 3.5V13.5C3 13.7761 3.22386 14 3.5 14H4.75777C5.01056 14.3776 5.31899 14.7149 5.67133 15H3.5C2.67157 15 2 14.3284 2 13.5V3.5C2 2.67157 2.67157 2 3.5 2H4.08535ZM5.5 2C5.22386 2 5 2.22386 5 2.5C5 2.77614 5.22386 3 5.5 3H8.5C8.77614 3 9 2.77614 9 2.5C9 2.22386 8.77614 2 8.5 2H5.5ZM15 11.5C15 9.567 13.433 8 11.5 8L11.4101 8.00806C11.1769 8.05039 11 8.25454 11 8.5C11 8.77614 11.2239 9 11.5 9L11.6644 9.00532C12.9685 9.08996 14 10.1745 14 11.5C14 12.8807 12.8807 14 11.5 14L11.4977 14.0046L11.4079 14.0131C11.1748 14.0565 10.9989 14.2614 11 14.5069C11.0013 14.783 11.2262 15.0059 11.5023 15.0046V15L11.6941 14.9948C13.5357 14.8951 15 13.3686 15 11.5ZM9 8.5C9 8.22386 8.77614 8 8.5 8L8.30796 8.00518C6.46428 8.10487 5 9.63144 5 11.5C5 13.433 6.567 15 8.5 15L8.58988 14.9919C8.82312 14.9496 9 14.7455 9 14.5C9 14.2239 8.77614 14 8.5 14L8.33562 13.9947C7.03154 13.91 6 12.8255 6 11.5C6 10.1193 7.11929 9 8.5 9L8.58988 8.99194C8.82312 8.94961 9 8.74546 9 8.5ZM11.5002 11.0023L8.50023 11L8.41035 11.008C8.17708 11.0502 8.00011 11.2543 8 11.4998C7.99987 11.7759 8.22363 11.9999 8.49977 12L11.4998 12.0023L11.5897 11.9943C11.8229 11.9521 11.9999 11.748 12 11.5025C12.0001 11.2264 11.7764 11.0024 11.5002 11.0023Z" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
                         <MenuFlyoutItem x:Name="SaveAsMenuItem"
                                         Text="Save as..."
                                         AutomationProperties.AutomationId="SaveAsMenuItem"
                                         KeyboardAcceleratorTextOverride="Ctrl+S"
                                         IsEnabled="False"
-                                        Click="SaveAsMenuItem_Click" />
-                        <MenuFlyoutSeparator />
+                                        Click="SaveAsMenuItem_Click">
+                            <MenuFlyoutItem.Icon>
+                                <PathIcon Width="16" Height="16"
+                                          Data="M4.00018 3C3.4479 3 3.00018 3.44772 3.00018 4V12C3.00018 12.5523 3.4479 13 4.00018 13V9.5C4.00018 8.67157 4.67176 8 5.50018 8H10.5002C11.3286 8 12.0002 8.67157 12.0002 9.5V13C12.5525 13 13.0002 12.5523 13.0002 12V5.62132C13.0002 5.3561 12.8948 5.10175 12.7073 4.91421L11.086 3.29289C10.8984 3.10536 10.6441 3 10.3789 3H10.0002V4.5C10.0002 5.32843 9.32861 6 8.50018 6H6.50018C5.67176 6 5.00018 5.32843 5.00018 4.5V3H4.00018ZM6.00018 3V4.5C6.00018 4.77614 6.22404 5 6.50018 5H8.50018C8.77633 5 9.00018 4.77614 9.00018 4.5V3H6.00018ZM11.0002 13V9.5C11.0002 9.22386 10.7763 9 10.5002 9H5.50018C5.22404 9 5.00018 9.22386 5.00018 9.5V13H11.0002ZM2.00018 4C2.00018 2.89543 2.89561 2 4.00018 2H10.3789C10.9093 2 11.418 2.21071 11.7931 2.58579L13.4144 4.20711C13.7895 4.58218 14.0002 5.09089 14.0002 5.62132V12C14.0002 13.1046 13.1048 14 12.0002 14H4.00018C2.89561 14 2.00018 13.1046 2.00018 12V4Z" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
                         <MenuFlyoutItem x:Name="ShowInExplorerMenuItem"
                                         Text="Show in Explorer"
                                         AutomationProperties.AutomationId="ShowInExplorerMenuItem"
                                         IsEnabled="False"
-                                        Click="ShowInExplorerMenuItem_Click" />
-                        <MenuFlyoutSeparator />
+                                        Click="ShowInExplorerMenuItem_Click">
+                            <MenuFlyoutItem.Icon>
+                                <PathIcon Width="16" Height="16"
+                                          Data="M2 4.5V9.10022L2.92389 7.5C3.45979 6.5718 4.45017 6 5.52196 6L11.9146 6C11.7087 5.4174 11.1531 5 10.5 5H7C6.86739 5 6.74021 4.94732 6.64645 4.85355L4.93934 3.14645C4.84557 3.05268 4.71839 3 4.58579 3H3.5C2.67157 3 2 3.67157 2 4.5ZM7.06895 13.9953C7.04641 13.9984 7.02339 14 7 14H3.5C2.11929 14 1 12.8807 1 11.5V4.5C1 3.11929 2.11929 2 3.5 2H4.58579C4.98361 2 5.36514 2.15804 5.64645 2.43934L7.20711 4H10.5C11.724 4 12.7426 4.87965 12.958 6.04127C14.605 6.34148 15.5443 8.22106 14.6616 9.75L13.0766 12.4953C12.5407 13.4235 11.5503 13.9953 10.4785 13.9953H7.06895ZM5.52196 7C4.80743 7 4.14718 7.3812 3.78991 8L2.20492 10.7453C1.62757 11.7453 2.34926 12.9953 3.50396 12.9953L10.4785 12.9953C11.193 12.9953 11.8533 12.6141 12.2105 11.9953L13.7955 9.25C14.3729 8.25 13.6512 7 12.4965 7L5.52196 7Z" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
                         <MenuFlyoutItem x:Name="FitMenuItem"
                                         Text="Fit"
                                         AutomationProperties.AutomationId="FitMenuItem"
                                         KeyboardAcceleratorTextOverride="F"
                                         IsEnabled="False"
-                                        Click="FitMenuItem_Click" />
+                                        Click="FitMenuItem_Click">
+                            <MenuFlyoutItem.Icon>
+                                <PathIcon Width="16" Height="16"
+                                          Data="M11 4C11 4.55228 11.4477 5 12 5H13.5C13.7761 5 14 5.22386 14 5.5C14 5.77614 13.7761 6 13.5 6H12C10.8954 6 10 5.10457 10 4V2.5C10 2.22386 10.2239 2 10.5 2C10.7761 2 11 2.22386 11 2.5V4ZM11 12C11 11.4477 11.4477 11 12 11H13.5C13.7761 11 14 10.7761 14 10.5C14 10.2239 13.7761 10 13.5 10H12C10.8954 10 10 10.8954 10 12V13.5C10 13.7761 10.2239 14 10.5 14C10.7761 14 11 13.7761 11 13.5V12ZM4 11C4.55228 11 5 11.4477 5 12V13.5C5 13.7761 5.22386 14 5.5 14C5.77614 14 6 13.7761 6 13.5V12C6 10.8954 5.10457 10 4 10H2.5C2.22386 10 2 10.2239 2 10.5C2 10.7761 2.22386 11 2.5 11H4ZM5 4C5 4.55228 4.55228 5 4 5H2.5C2.22386 5 2 5.22386 2 5.5C2 5.77614 2.22386 6 2.5 6H4C5.10457 6 6 5.10457 6 4V2.5C6 2.22386 5.77614 2 5.5 2C5.22386 2 5 2.22386 5 2.5V4Z" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
                         <MenuFlyoutItem x:Name="ActualSizeMenuItem"
                                         Text="Actual size"
                                         AutomationProperties.AutomationId="ActualSizeMenuItem"
                                         KeyboardAcceleratorTextOverride="0"
                                         IsEnabled="False"
-                                        Click="ActualSizeMenuItem_Click" />
+                                        Click="ActualSizeMenuItem_Click">
+                            <MenuFlyoutItem.Icon>
+                                <PathIcon Width="16" Height="16"
+                                          Data="M5.4103 5.65974C5.52822 5.73262 5.6 5.86137 5.6 6V10C5.6 10.22088 5.42091 10.4 5.2 10.4C4.97909 10.4 4.8 10.22088 4.8 10V6.64722L4.57889 6.75777C4.3813 6.85657 4.14102 6.77648 4.04223 6.57889C3.94343 6.3813 4.02352 6.14102 4.22111 6.04223L5.02111 5.64223C5.14511 5.58023 5.29237 5.58686 5.4103 5.65974ZM11.2 6C11.2 5.86137 11.12824 5.73262 11.01032 5.65974C10.8924 5.58686 10.74512 5.58023 10.62112 5.64223L9.82112 6.04223C9.62352 6.14102 9.54344 6.3813 9.64224 6.57889C9.74104 6.77648 9.98128 6.85657 10.17888 6.75777L10.4 6.64722V10C10.4 10.22088 10.57912 10.4 10.8 10.4C11.02088 10.4 11.2 10.22088 11.2 10V6ZM8 6.8C8 7.02091 7.82091 7.2 7.6 7.2C7.37909 7.2 7.2 7.02091 7.2 6.8C7.2 6.57909 7.37909 6.4 7.6 6.4C7.82091 6.4 8 6.57909 8 6.8ZM7.6 9.6C7.82091 9.6 8 9.42088 8 9.2C8 8.97912 7.82091 8.8 7.6 8.8C7.37909 8.8 7.2 8.97912 7.2 9.2C7.2 9.42088 7.37909 9.6 7.6 9.6ZM1.6 5.4C1.6 4.18498 2.58498 3.2 3.8 3.2H12.2C13.41504 3.2 14.4 4.18498 14.4 5.4V10.6C14.4 11.81504 13.41504 12.8 12.2 12.8H3.8C2.58498 12.8 1.6 11.81504 1.6 10.6V5.4ZM3.8 4C3.0268 4 2.4 4.6268 2.4 5.4V10.6C2.4 11.3732 3.0268 12 3.8 12H12.2C12.9732 12 13.6 11.3732 13.6 10.6V5.4C13.6 4.6268 12.9732 4 12.2 4H3.8Z" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
                     </MenuFlyout>
                 </Grid.ContextFlyout>
 
@@ -256,65 +301,73 @@
                 </Image>
 
                 <!-- Thumb handles drag input reliably inside the WinUI host.
-                     Opacity 0 keeps it invisible while still hit-testable. -->
+                     The default Thumb template paints ThumbBackgroundPointerOver
+                     and ThumbBackgroundPressed across its whole surface, which
+                     turned the entire viewport dark on hover. A transparent
+                     rectangle keeps the thumb hit-testable with no visuals. -->
                 <Thumb x:Name="PanThumb"
                        AutomationProperties.AccessibilityView="Raw"
-                       Background="#01000000"
                        HorizontalAlignment="Stretch"
                        VerticalAlignment="Stretch"
                        IsTabStop="False"
                        DragDelta="PanThumb_DragDelta"
-                       PointerWheelChanged="PanThumb_PointerWheelChanged" />
+                       PointerWheelChanged="PanThumb_PointerWheelChanged">
+                    <Thumb.Template>
+                        <ControlTemplate TargetType="Thumb">
+                            <Rectangle Fill="Transparent" />
+                        </ControlTemplate>
+                    </Thumb.Template>
+                </Thumb>
 
                 <!-- Shown while a file is being decoded. Decoding happens on a
                      worker thread, so this keeps animating while the UI stays
                      responsive. A ProgressRing was not usable: its Lottie
-                     visual crashes the current WinUI build, so the spinner is
-                     a dashed ring animated by a classic storyboard. -->
+                     visual crashes the current WinUI build, so the spinner
+                     redraws the same look with the ProgressRing metrics: 32 px
+                     box, 4 px accent arc, round caps. -->
                 <Border x:Name="LoadingRing"
                         AutomationProperties.AutomationId="LoadingRing"
                         AutomationProperties.Name="Loading image"
-                        Width="48"
-                        Height="48"
-                        CornerRadius="24"
-                        Background="#80202020"
+                        Width="32"
+                        Height="32"
                         Visibility="Collapsed"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center">
-                    <Ellipse Width="24" Height="24"
-                             Stroke="#F2FFFFFF"
-                             StrokeThickness="3"
-                             StrokeDashArray="2,2"
-                             StrokeDashCap="Round"
-                             RenderTransformOrigin="0.5,0.5">
-                        <Ellipse.RenderTransform>
+                    <!-- 270 degree arc, clockwise from the top. -->
+                    <Path Stroke="{ThemeResource AccentFillColorDefaultBrush}"
+                          StrokeThickness="4"
+                          StrokeStartLineCap="Round"
+                          StrokeEndLineCap="Round"
+                          Data="M16,2.5 A13.5,13.5 0 1 1 2.5,16"
+                          RenderTransformOrigin="0.5,0.5">
+                        <Path.RenderTransform>
                             <RotateTransform x:Name="LoadingSpinnerRotation" />
-                        </Ellipse.RenderTransform>
-                    </Ellipse>
+                        </Path.RenderTransform>
+                    </Path>
                 </Border>
             </Grid>
 
+            <!-- Floating toolbar. The surface uses the Fluent "control on
+                 image" fill from the WinUI 3 source, with an overlay corner
+                 radius and a hairline stroke, so buttons stay legible over any
+                 image. -->
             <Border HorizontalAlignment="Left"
                     VerticalAlignment="Top"
                     Margin="12"
-                    Padding="2"
-                    CornerRadius="6"
-                    Background="{ThemeResource FloatingPanelBrush}"
-                    BorderBrush="{ThemeResource FloatingPanelStrokeBrush}"
+                    Padding="4"
+                    CornerRadius="8"
+                    Background="{ThemeResource ControlOnImageFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
                     BorderThickness="1">
-                <StackPanel Orientation="Horizontal" Spacing="2">
+                <StackPanel Orientation="Horizontal">
                     <Button x:Name="OpenButton"
+                            Style="{StaticResource ToolbarButtonStyle}"
                             AutomationProperties.AutomationId="OpenButton"
                             AutomationProperties.Name="Open image"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            Padding="10,6"
-                            MinHeight="32"
-                            Click="OpenButton_Click"
-                            ToolTipService.ToolTip="Open image (Ctrl+O)">
+                            Click="OpenButton_Click">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <PathIcon Width="16" Height="16"
-                                      Data="M13 6a2 2 0 00-2-2H6.17l-1.1-.9a.5.5 0 00-.32-.1H3a2 2 0 00-2 2v6c0 1.1.9 2 2 2h9.25a1.5 1.5 0 001.44-1.08l1.17-4A1.5 1.5 0 0013.42 6H13zM3 4h1.58l1.1.89c.1.07.2.1.32.1h5a1 1 0 011 1V6H4.25a1.5 1.5 0 00-1.44 1.08L2 9.86V5a1 1 0 011-1zm.77 3.36A.5.5 0 014.25 7h9.17a.5.5 0 01.48.64l-1.17 4a.5.5 0 01-.48.36H3.08a.5.5 0 01-.48-.64l1.17-4z" />
+                                      Data="M2 4.5V9.10022L2.92389 7.5C3.45979 6.5718 4.45017 6 5.52196 6L11.9146 6C11.7087 5.4174 11.1531 5 10.5 5H7C6.86739 5 6.74021 4.94732 6.64645 4.85355L4.93934 3.14645C4.84557 3.05268 4.71839 3 4.58579 3H3.5C2.67157 3 2 3.67157 2 4.5ZM7.06895 13.9953C7.04641 13.9984 7.02339 14 7 14H3.5C2.11929 14 1 12.8807 1 11.5V4.5C1 3.11929 2.11929 2 3.5 2H4.58579C4.98361 2 5.36514 2.15804 5.64645 2.43934L7.20711 4H10.5C11.724 4 12.7426 4.87965 12.958 6.04127C14.605 6.34148 15.5443 8.22106 14.6616 9.75L13.0766 12.4953C12.5407 13.4235 11.5503 13.9953 10.4785 13.9953H7.06895ZM5.52196 7C4.80743 7 4.14718 7.3812 3.78991 8L2.20492 10.7453C1.62757 11.7453 2.34926 12.9953 3.50396 12.9953L10.4785 12.9953C11.193 12.9953 11.8533 12.6141 12.2105 11.9953L13.7955 9.25C14.3729 8.25 13.6512 7 12.4965 7L5.52196 7Z" />
                             <TextBlock Text="Open" VerticalAlignment="Center" />
                         </StackPanel>
                         <Button.KeyboardAccelerators>
@@ -322,204 +375,167 @@
                         </Button.KeyboardAccelerators>
                     </Button>
 
-                    <Border Width="1"
-                            Height="20"
-                            Margin="4,0"
-                            VerticalAlignment="Center"
-                            Background="{ThemeResource FloatingPanelStrokeBrush}" />
+                    <!-- AppBarSeparator metrics: 1 px wide, 2,8 margins, a
+                         0.5 radius, and the divider stroke color. -->
+                    <Rectangle Width="1"
+                               Height="16"
+                               Margin="2,8,2,8"
+                               VerticalAlignment="Center"
+                               RadiusX="0.5"
+                               RadiusY="0.5"
+                               Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
 
                     <Button x:Name="PreviousButton"
+                            Style="{StaticResource ToolbarButtonStyle}"
                             AutomationProperties.AutomationId="PreviousButton"
                             AutomationProperties.Name="Previous image"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            Padding="8"
-                            MinHeight="32"
-                            MinWidth="32"
                             IsEnabled="False"
-                            Click="PreviousButton_Click"
-                            ToolTipService.ToolTip="Previous image (Left)">
+                            Click="PreviousButton_Click">
                         <PathIcon Width="16" Height="16"
-                                  Data="M10.35 3.15c.2.2.2.5 0 .7L6.21 8l4.14 4.15a.5.5 0 01-.7.7l-4.5-4.5a.5.5 0 010-.7l4.5-4.5c.2-.2.5-.2.7 0z" />
+                                  Data="M10.3536 3.14645C10.5488 3.34171 10.5488 3.65829 10.3536 3.85355L6.20711 8L10.3536 12.1464C10.5488 12.3417 10.5488 12.6583 10.3536 12.8536C10.1583 13.0488 9.84171 13.0488 9.64645 12.8536L5.14645 8.35355C4.95118 8.15829 4.95118 7.84171 5.14645 7.64645L9.64645 3.14645C9.84171 2.95118 10.1583 2.95118 10.3536 3.14645Z" />
                     </Button>
 
                     <Button x:Name="NextButton"
+                            Style="{StaticResource ToolbarButtonStyle}"
                             AutomationProperties.AutomationId="NextButton"
                             AutomationProperties.Name="Next image"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            Padding="8"
-                            MinHeight="32"
-                            MinWidth="32"
                             IsEnabled="False"
-                            Click="NextButton_Click"
-                            ToolTipService.ToolTip="Next image (Right)">
+                            Click="NextButton_Click">
                         <PathIcon Width="16" Height="16"
-                                  Data="M5.65 3.15a.5.5 0 000 .7L9.79 8l-4.14 4.15a.5.5 0 00.7.7l4.5-4.5a.5.5 0 000-.7l-4.5-4.5a.5.5 0 00-.7 0z" />
+                                  Data="M5.64645 3.14645C5.45118 3.34171 5.45118 3.65829 5.64645 3.85355L9.79289 8L5.64645 12.1464C5.45118 12.3417 5.45118 12.6583 5.64645 12.8536C5.84171 13.0488 6.15829 13.0488 6.35355 12.8536L10.8536 8.35355C11.0488 8.15829 11.0488 7.84171 10.8536 7.64645L6.35355 3.14645C6.15829 2.95118 5.84171 2.95118 5.64645 3.14645Z" />
                     </Button>
 
                     <StackPanel x:Name="AnimationControls"
                                 Orientation="Horizontal"
-                                Spacing="2"
                                 Visibility="Collapsed">
-                        <Border Width="1"
-                                Height="20"
-                                Margin="4,0"
-                                VerticalAlignment="Center"
-                                Background="{ThemeResource FloatingPanelStrokeBrush}" />
+                        <Rectangle Width="1"
+                                   Height="16"
+                                   Margin="2,8,2,8"
+                                   VerticalAlignment="Center"
+                                   RadiusX="0.5"
+                                   RadiusY="0.5"
+                                   Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
 
                         <Button x:Name="PlayPauseButton"
+                                Style="{StaticResource ToolbarButtonStyle}"
                                 AutomationProperties.AutomationId="PlayPauseButton"
                                 AutomationProperties.Name="Play or pause animation"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Padding="10,6"
-                                MinHeight="32"
-                                Click="PlayPauseButton_Click"
-                                ToolTipService.ToolTip="Pause or continue the animation">
+                                Click="PlayPauseButton_Click">
                             <TextBlock x:Name="PlayPauseLabel"
                                        AutomationProperties.AutomationId="PlayPauseLabel"
                                        Text="Pause"
-                                       FontSize="12"
                                        VerticalAlignment="Center" />
                         </Button>
 
                         <Button x:Name="LoopButton"
+                                Style="{StaticResource ToolbarButtonStyle}"
                                 AutomationProperties.AutomationId="LoopButton"
                                 AutomationProperties.Name="Loop animation"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Padding="10,6"
-                                MinHeight="32"
-                                Click="LoopButton_Click"
-                                ToolTipService.ToolTip="Toggle looping">
+                                Click="LoopButton_Click">
                             <TextBlock x:Name="LoopLabel"
                                        AutomationProperties.AutomationId="LoopLabel"
                                        Text="Loop on"
-                                       FontSize="12"
                                        VerticalAlignment="Center" />
                         </Button>
                     </StackPanel>
 
-                    <Border Width="1"
-                            Height="20"
-                            Margin="4,0"
-                            VerticalAlignment="Center"
-                            Background="{ThemeResource FloatingPanelStrokeBrush}" />
+                    <Rectangle Width="1"
+                               Height="16"
+                               Margin="2,8,2,8"
+                               VerticalAlignment="Center"
+                               RadiusX="0.5"
+                               RadiusY="0.5"
+                               Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
 
                     <StackPanel x:Name="ViewControls"
-                                Orientation="Horizontal"
-                                Spacing="2">
+                                Orientation="Horizontal">
                         <Button x:Name="ZoomOutButton"
+                                Style="{StaticResource ToolbarButtonStyle}"
                                 AutomationProperties.AutomationId="ZoomOutButton"
                                 AutomationProperties.Name="Zoom out"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Padding="8"
-                                MinHeight="32"
-                                MinWidth="32"
                                 IsEnabled="False"
-                                Click="ZoomOutButton_Click"
-                                ToolTipService.ToolTip="Zoom out">
+                                Click="ZoomOutButton_Click">
                             <PathIcon Width="16" Height="16"
-                                      Data="M3 8c0-.28.22-.5.5-.5h9a.5.5 0 010 1h-9A.5.5 0 013 8z" />
+                                      Data="M8.5 6C8.77614 6 9 6.22386 9 6.5C9 6.77614 8.77614 7 8.5 7H4.5C4.22386 7 4 6.77614 4 6.5C4 6.22386 4.22386 6 4.5 6H8.5ZM6.5 1C9.53757 1 12 3.46243 12 6.5C12 7.83875 11.5216 9.06578 10.7266 10.0195L13.8535 13.1465C14.0488 13.3417 14.0488 13.6583 13.8535 13.8535C13.6583 14.0488 13.3417 14.0488 13.1465 13.8535L10.0195 10.7266C9.06578 11.5216 7.83875 12 6.5 12C3.46243 12 1 9.53757 1 6.5C1 3.46243 3.46243 1 6.5 1ZM6.5 2C4.01472 2 2 4.01472 2 6.5C2 8.98528 4.01472 11 6.5 11C8.98528 11 11 8.98528 11 6.5C11 4.01472 8.98528 2 6.5 2Z" />
                         </Button>
 
                         <Button x:Name="ZoomInButton"
+                                Style="{StaticResource ToolbarButtonStyle}"
                                 AutomationProperties.AutomationId="ZoomInButton"
                                 AutomationProperties.Name="Zoom in"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Padding="8"
-                                MinHeight="32"
-                                MinWidth="32"
                                 IsEnabled="False"
-                                Click="ZoomInButton_Click"
-                                ToolTipService.ToolTip="Zoom in">
+                                Click="ZoomInButton_Click">
                             <PathIcon Width="16" Height="16"
-                                      Data="M7.91 3H8a.5.5 0 01.5.41V7.5h4a.5.5 0 01.5.41V8a.5.5 0 01-.41.5H8.5v4a.5.5 0 01-.41.5H8a.5.5 0 01-.5-.41V8.5h-4a.5.5 0 01-.5-.41V8a.5.5 0 01.41-.5H7.5v-4a.5.5 0 01.41-.5H8h-.09z" />
+                                      Data="M6.5 4C6.77614 4 7 4.22386 7 4.5V6H8.5C8.77614 6 9 6.22386 9 6.5C9 6.77614 8.77614 7 8.5 7H7V8.5C7 8.77614 6.77614 9 6.5 9C6.22386 9 6 8.77614 6 8.5V7H4.5C4.22386 7 4 6.77614 4 6.5C4 6.22386 4.22386 6 4.5 6H6V4.5C6 4.22386 6.22386 4 6.5 4ZM6.5 1C9.53757 1 12 3.46243 12 6.5C12 7.83875 11.5216 9.06578 10.7266 10.0195L13.8535 13.1465C14.0488 13.3417 14.0488 13.6583 13.8535 13.8535C13.6583 14.0488 13.3417 14.0488 13.1465 13.8535L10.0195 10.7266C9.06578 11.5216 7.83875 12 6.5 12C3.46243 12 1 9.53757 1 6.5C1 3.46243 3.46243 1 6.5 1ZM6.5 2C4.01472 2 2 4.01472 2 6.5C2 8.98528 4.01472 11 6.5 11C8.98528 11 11 8.98528 11 6.5C11 4.01472 8.98528 2 6.5 2Z" />
                         </Button>
 
                         <Button x:Name="RotateButton"
+                                Style="{StaticResource ToolbarButtonStyle}"
                                 AutomationProperties.AutomationId="RotateButton"
                                 AutomationProperties.Name="Rotate clockwise"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Padding="8"
-                                MinHeight="32"
-                                MinWidth="32"
                                 IsEnabled="False"
-                                Click="RotateButton_Click"
-                                ToolTipService.ToolTip="Rotate clockwise">
+                                Click="RotateButton_Click">
                             <PathIcon Width="16" Height="16"
-                                      Data="M3.07 9.05a7 7 0 0112.55-3.22l.13.17H12.5a.5.5 0 100 1h4a.5.5 0 00.5-.5v-4a.5.5 0 00-1 0v2.2a8 8 0 101.99 4.77.5.5 0 00-1 .08 7 7 0 11-13.92-.5z" />
+                                      Data="M8 3C5.23858 3 3 5.23858 3 8C3 8.27614 2.77614 8.5 2.5 8.5C2.22386 8.5 2 8.27614 2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8C14 9.79253 13.2139 11.4009 11.9686 12.5H13C13.2761 12.5 13.5 12.7239 13.5 13C13.5 13.2761 13.2761 13.5 13 13.5H10.5C10.2239 13.5 10 13.2761 10 13V12.911C9.99986 12.9041 9.99986 12.8973 10 12.8904V10.5C10 10.2239 10.2239 10 10.5 10C10.7761 10 11 10.2239 11 10.5V12.0005C12.215 11.0878 13 9.63527 13 8C13 5.23858 10.7614 3 8 3ZM6 8C6 6.89543 6.89543 6 8 6C9.10457 6 10 6.89543 10 8C10 9.10457 9.10457 10 8 10C6.89543 10 6 9.10457 6 8ZM8 7C7.44772 7 7 7.44772 7 8C7 8.55228 7.44772 9 8 9C8.55228 9 9 8.55228 9 8C9 7.44772 8.55228 7 8 7Z" />
                         </Button>
 
                         <Button x:Name="FitButton"
+                                Style="{StaticResource ToolbarButtonStyle}"
                                 AutomationProperties.AutomationId="FitButton"
                                 AutomationProperties.Name="Fit image"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Padding="8"
-                                MinHeight="32"
-                                MinWidth="32"
                                 IsEnabled="False"
-                                Click="FitButton_Click"
-                                ToolTipService.ToolTip="Fit image">
+                                Click="FitButton_Click">
                             <PathIcon Width="16" Height="16"
-                                      Data="M3.75 3a.75.75 0 0 0-.75.75V5.5a.5.5 0 0 1-1 0V3.75C2 2.78 2.78 2 3.75 2H5.5a.5.5 0 0 1 0 1zM10 2.5c0-.28.22-.5.5-.5h1.75c.97 0 1.75.78 1.75 1.75V5.5a.5.5 0 0 1-1 0V3.75a.75.75 0 0 0-.75-.75H10.5a.5.5 0 0 1-.5-.5M2.5 10c.28 0 .5.22.5.5v1.75c0 .41.34.75.75.75H5.5a.5.5 0 0 1 0 1H3.75C2.78 14 2 13.22 2 12.25V10.5c0-.28.22-.5.5-.5m11 0c.28 0 .5.22.5.5v1.75c0 .97-.78 1.75-1.75 1.75H10.5a.5.5 0 0 1 0-1h1.75c.41 0 .75-.34.75-.75V10.5c0-.28.22-.5.5-.5" />
+                                      Data="M11 4C11 4.55228 11.4477 5 12 5H13.5C13.7761 5 14 5.22386 14 5.5C14 5.77614 13.7761 6 13.5 6H12C10.8954 6 10 5.10457 10 4V2.5C10 2.22386 10.2239 2 10.5 2C10.7761 2 11 2.22386 11 2.5V4ZM11 12C11 11.4477 11.4477 11 12 11H13.5C13.7761 11 14 10.7761 14 10.5C14 10.2239 13.7761 10 13.5 10H12C10.8954 10 10 10.8954 10 12V13.5C10 13.7761 10.2239 14 10.5 14C10.7761 14 11 13.7761 11 13.5V12ZM4 11C4.55228 11 5 11.4477 5 12V13.5C5 13.7761 5.22386 14 5.5 14C5.77614 14 6 13.7761 6 13.5V12C6 10.8954 5.10457 10 4 10H2.5C2.22386 10 2 10.2239 2 10.5C2 10.7761 2.22386 11 2.5 11H4ZM5 4C5 4.55228 4.55228 5 4 5H2.5C2.22386 5 2 5.22386 2 5.5C2 5.77614 2.22386 6 2.5 6H4C5.10457 6 6 5.10457 6 4V2.5C6 2.22386 5.77614 2 5.5 2C5.22386 2 5 2.22386 5 2.5V4Z" />
                         </Button>
 
                         <Button x:Name="ActualSizeButton"
+                                Style="{StaticResource ToolbarButtonStyle}"
                                 AutomationProperties.AutomationId="ActualSizeButton"
                                 AutomationProperties.Name="Actual size"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Padding="8,6"
-                                MinHeight="32"
-                                MinWidth="36"
                                 IsEnabled="False"
-                                Click="ActualSizeButton_Click"
-                                ToolTipService.ToolTip="Actual size (1:1)">
-                            <TextBlock Text="1:1" FontSize="12" VerticalAlignment="Center" />
+                                Click="ActualSizeButton_Click">
+                            <PathIcon Width="16" Height="16"
+                                      Data="M5.4103 5.65974C5.52822 5.73262 5.6 5.86137 5.6 6V10C5.6 10.22088 5.42091 10.4 5.2 10.4C4.97909 10.4 4.8 10.22088 4.8 10V6.64722L4.57889 6.75777C4.3813 6.85657 4.14102 6.77648 4.04223 6.57889C3.94343 6.3813 4.02352 6.14102 4.22111 6.04223L5.02111 5.64223C5.14511 5.58023 5.29237 5.58686 5.4103 5.65974ZM11.2 6C11.2 5.86137 11.12824 5.73262 11.01032 5.65974C10.8924 5.58686 10.74512 5.58023 10.62112 5.64223L9.82112 6.04223C9.62352 6.14102 9.54344 6.3813 9.64224 6.57889C9.74104 6.77648 9.98128 6.85657 10.17888 6.75777L10.4 6.64722V10C10.4 10.22088 10.57912 10.4 10.8 10.4C11.02088 10.4 11.2 10.22088 11.2 10V6ZM8 6.8C8 7.02091 7.82091 7.2 7.6 7.2C7.37909 7.2 7.2 7.02091 7.2 6.8C7.2 6.57909 7.37909 6.4 7.6 6.4C7.82091 6.4 8 6.57909 8 6.8ZM7.6 9.6C7.82091 9.6 8 9.42088 8 9.2C8 8.97912 7.82091 8.8 7.6 8.8C7.37909 8.8 7.2 8.97912 7.2 9.2C7.2 9.42088 7.37909 9.6 7.6 9.6ZM1.6 5.4C1.6 4.18498 2.58498 3.2 3.8 3.2H12.2C13.41504 3.2 14.4 4.18498 14.4 5.4V10.6C14.4 11.81504 13.41504 12.8 12.2 12.8H3.8C2.58498 12.8 1.6 11.81504 1.6 10.6V5.4ZM3.8 4C3.0268 4 2.4 4.6268 2.4 5.4V10.6C2.4 11.3732 3.0268 12 3.8 12H12.2C12.9732 12 13.6 11.3732 13.6 10.6V5.4C13.6 4.6268 12.9732 4 12.2 4H3.8Z" />
                         </Button>
                     </StackPanel>
 
-                    <Border Width="1"
-                            Height="20"
-                            Margin="4,0"
-                            VerticalAlignment="Center"
-                            Background="{ThemeResource FloatingPanelStrokeBrush}" />
+                    <Rectangle Width="1"
+                               Height="16"
+                               Margin="2,8,2,8"
+                               VerticalAlignment="Center"
+                               RadiusX="0.5"
+                               RadiusY="0.5"
+                               Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
 
                     <!-- Opens the same menu the image area shows on right-click. -->
                     <Button x:Name="ActionsButton"
+                            Style="{StaticResource ToolbarButtonStyle}"
                             AutomationProperties.AutomationId="ActionsButton"
                             AutomationProperties.Name="More actions"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            Padding="8"
-                            MinHeight="32"
-                            MinWidth="32"
-                            Click="ActionsButton_Click"
-                            ToolTipService.ToolTip="More actions">
+                            Click="ActionsButton_Click">
                         <PathIcon Width="16" Height="16"
                                   Data="M2 8a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM6.5 8a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM11 8a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0z" />
                     </Button>
                 </StackPanel>
             </Border>
 
+            <!-- Error surface follows the InfoBar Error severity: critical
+                 background, card stroke, 4 px control radius, 48 px minimum
+                 height, 16 px content padding, and a 14 px icon/text gutter. -->
             <Border x:Name="ErrorPanel"
                     Visibility="Collapsed"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Bottom"
                     MaxWidth="640"
+                    MinHeight="48"
                     Margin="24"
                     Padding="16,12"
-                    CornerRadius="8"
-                    Background="{ThemeResource FloatingPanelBrush}"
-                    BorderBrush="{ThemeResource FloatingPanelStrokeBrush}"
+                    CornerRadius="4"
+                    Background="{ThemeResource SystemFillColorCriticalBackgroundBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1">
-                <Grid ColumnSpacing="12">
+                <Grid ColumnSpacing="14">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
@@ -527,18 +543,20 @@
                     <PathIcon Width="16"
                               Height="16"
                               VerticalAlignment="Top"
-                              Foreground="{ThemeResource FloatingPanelErrorBrush}"
+                              Foreground="{ThemeResource SystemFillColorCriticalBrush}"
                               Data="M8 2a6 6 0 110 12A6 6 0 018 2zm0 1a5 5 0 100 10A5 5 0 008 3zm0 7a.75.75 0 110 1.5.75.75 0 010-1.5zm0-5.5a.5.5 0 01.5.41V8.5a.5.5 0 01-1 .09V5c0-.28.22-.5.5-.5z" />
                     <StackPanel Grid.Column="1" Spacing="2">
                         <TextBlock x:Name="ErrorTitle"
                                    AutomationProperties.AutomationId="ErrorTitle"
                                    Text="Could not open image"
+                                   FontSize="14"
                                    FontWeight="SemiBold"
-                                   Foreground="{ThemeResource FloatingPanelPrimaryTextBrush}" />
+                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
                         <TextBlock x:Name="ErrorText"
                                    AutomationProperties.AutomationId="ErrorText"
                                    AutomationProperties.Name="Image error"
-                                   Foreground="{ThemeResource FloatingPanelSecondaryTextBrush}"
+                                   FontSize="14"
+                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                    TextWrapping="Wrap" />
                     </StackPanel>
                 </Grid>
