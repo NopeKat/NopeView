@@ -62,6 +62,11 @@ public sealed partial class MainWindow : Window
     private bool _animationLoop = true;
     private bool _animationBusy;
 
+    // Frames are decoded on a worker thread. A newer request makes an older
+    // one stale, so the generation counter discards the superseded result
+    // instead of letting it overwrite the newer image.
+    private int _decodeGeneration;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -367,6 +372,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        var generation = ++_decodeGeneration;
         if (resetView)
         {
             ErrorPanel.Visibility = Visibility.Collapsed;
@@ -374,11 +380,22 @@ public sealed partial class MainWindow : Window
 
         try
         {
-            if (!RouterApi.TryDecodeFile(
-                    _routerContext, path, out var image, out var status,
-                    frameIndex, RouterApi.PixelFormatBgra8))
+            // Decoding, the pixel copy, and the premultiply step all run on a
+            // worker thread. Leaving them on the UI thread froze the window for
+            // the whole decode and prevented a loading state from rendering.
+            var context = _routerContext;
+            var frame = await Task.Run(() => DecodeFrame(context, path, frameIndex));
+
+            if (generation != _decodeGeneration)
             {
-                ShowError(DescribeStatus(status));
+                // A newer request already owns the view.
+                frame.Bitmap?.Dispose();
+                return;
+            }
+
+            if (frame.Error is not null)
+            {
+                ShowError("Failed to open image: " + frame.Error);
                 if (!resetView)
                 {
                     StopAnimation();
@@ -386,26 +403,40 @@ public sealed partial class MainWindow : Window
                 return;
             }
 
-            var frameCount = image.FrameCount;
-            var frameDelay = image.FrameDelayMs;
-            SoftwareBitmap bitmap;
-            try
+            if (frame.Bitmap is null)
             {
-                bitmap = ToSoftwareBitmap(ref image);
-            }
-            finally
-            {
-                RouterApi.FreeImage(ref image);
+                ShowError(DescribeStatus(frame.Status));
+                if (!resetView)
+                {
+                    StopAnimation();
+                }
+                return;
             }
 
             var source = new SoftwareBitmapSource();
-            await source.SetBitmapAsync(bitmap);
+            try
+            {
+                await source.SetBitmapAsync(frame.Bitmap);
+            }
+            finally
+            {
+                // The source copies the pixels, so the decoded bitmap is no
+                // longer needed once the update completes.
+                frame.Bitmap.Dispose();
+            }
+
+            if (generation != _decodeGeneration)
+            {
+                return;
+            }
+
             ImageView.Source = source;
-            _imagePixelWidth = bitmap.PixelWidth;
-            _imagePixelHeight = bitmap.PixelHeight;
+
+            _imagePixelWidth = frame.PixelWidth;
+            _imagePixelHeight = frame.PixelHeight;
             _frameIndex = frameIndex;
-            _frameCount = Math.Max(1u, frameCount);
-            _frameDelayMs = frameDelay;
+            _frameCount = Math.Max(1u, frame.FrameCount);
+            _frameDelayMs = frame.FrameDelayMs;
             SetViewControlsEnabled(true);
             UpdateFileStatus(path);
             UpdateViewStatus();
@@ -435,6 +466,56 @@ public sealed partial class MainWindow : Window
                 StopAnimation();
             }
         }
+    }
+
+    /// <summary>
+    /// Decodes one frame entirely on the calling thread. The router image is
+    /// released here, so no native pointer ever crosses threads.
+    /// </summary>
+    private DecodedFrame DecodeFrame(IntPtr context, string path, uint frameIndex)
+    {
+        var frame = new DecodedFrame();
+
+        try
+        {
+            if (!RouterApi.TryDecodeFile(
+                    context, path, out var image, out var status,
+                    frameIndex, RouterApi.PixelFormatBgra8))
+            {
+                frame.Status = status;
+                return frame;
+            }
+
+            try
+            {
+                frame.Bitmap = ToSoftwareBitmap(ref image);
+                frame.PixelWidth = image.Width;
+                frame.PixelHeight = image.Height;
+                frame.FrameCount = image.FrameCount;
+                frame.FrameDelayMs = image.FrameDelayMs;
+            }
+            finally
+            {
+                RouterApi.FreeImage(ref image);
+            }
+        }
+        catch (Exception ex)
+        {
+            frame.Error = ex.Message;
+        }
+
+        return frame;
+    }
+
+    private sealed class DecodedFrame
+    {
+        internal SoftwareBitmap? Bitmap;
+        internal int Status;
+        internal int PixelWidth;
+        internal int PixelHeight;
+        internal uint FrameCount;
+        internal uint FrameDelayMs;
+        internal string? Error;
     }
 
     private void UpdateImageAutomationName(string path)
@@ -756,7 +837,7 @@ public sealed partial class MainWindow : Window
 
     private static SoftwareBitmap ToSoftwareBitmap(ref NvRouterImage image)
     {
-        var pixelCount = image.Width * image.Height * 4;
+        var pixelCount = checked(image.Width * image.Height * 4);
         var pixels = new byte[pixelCount];
         Marshal.Copy(image.Pixels, pixels, 0, pixelCount);
 
