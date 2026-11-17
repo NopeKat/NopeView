@@ -103,6 +103,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- Custom-drawn title bar with its own caption buttons; the system
@@ -437,23 +438,40 @@
                 </Grid>
             </Border>
 
-            <Border x:Name="ViewStatusPanel"
-                    Visibility="Collapsed"
-                    HorizontalAlignment="Left"
-                    VerticalAlignment="Bottom"
-                    Margin="16"
-                    Padding="10,4"
-                    CornerRadius="6"
-                    Background="{ThemeResource FloatingPanelBrush}"
-                    BorderBrush="{ThemeResource FloatingPanelStrokeBrush}"
-                    BorderThickness="1">
+        </Grid>
+
+        <!-- Bottom status bar: the current file on the left, view state on
+             the right. It stays in the window grid so it is also visible when
+             an error panel is shown. -->
+        <Border x:Name="StatusBar" Grid.Row="2" Height="28"
+                Background="{ThemeResource FloatingPanelBrush}"
+                BorderBrush="{ThemeResource FloatingPanelStrokeBrush}"
+                BorderThickness="0,1,0,0">
+            <Grid Padding="12,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock x:Name="FileStatusText"
+                           AutomationProperties.AutomationId="FileStatus"
+                           AutomationProperties.Name="Image status"
+                           Text="No image"
+                           FontSize="12"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           Foreground="{ThemeResource FloatingPanelSecondaryTextBrush}" />
+
                 <TextBlock x:Name="ViewStatusText"
+                           Grid.Column="1"
                            AutomationProperties.AutomationId="ViewStatus"
                            AutomationProperties.Name="View status"
                            FontSize="12"
+                           VerticalAlignment="Center"
+                           Margin="16,0,0,0"
                            Foreground="{ThemeResource FloatingPanelSecondaryTextBrush}"
-                           Text="100% | 0 deg" />
-            </Border>
-        </Grid>
+                           Text="" />
+            </Grid>
+        </Border>
     </Grid>
 </Window>

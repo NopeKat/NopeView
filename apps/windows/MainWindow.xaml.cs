@@ -407,7 +407,7 @@ public sealed partial class MainWindow : Window
             _frameCount = Math.Max(1u, frameCount);
             _frameDelayMs = frameDelay;
             SetViewControlsEnabled(true);
-            ViewStatusPanel.Visibility = Visibility.Visible;
+            UpdateFileStatus(path);
             UpdateViewStatus();
             UpdateAnimationControls();
             UpdateImageAutomationName(path);
@@ -662,7 +662,11 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        SetZoom(1.0 / ratio);
+        // 1:1 must be exact even when the needed scale falls outside the
+        // interactive wheel limits; those limits only bound wheel zooming.
+        _zoom = 1.0 / ratio;
+        ImageTransform.ScaleX = _zoom;
+        ImageTransform.ScaleY = _zoom;
         ImageTransform.TranslateX = 0;
         ImageTransform.TranslateY = 0;
         UpdateViewStatus();
@@ -672,13 +676,20 @@ public sealed partial class MainWindow : Window
     {
         get
         {
-            if (_imagePixelWidth <= 0 || ImageView.ActualWidth <= 0)
+            if (_imagePixelWidth <= 0 || _imagePixelHeight <= 0 ||
+                ImageView.ActualWidth <= 0 || ImageView.ActualHeight <= 0)
             {
                 return 1.0;
             }
 
+            // Stretch=Uniform fits the bitmap on its limiting axis. Using the
+            // control width alone overestimates the fit scale for tall images,
+            // which made 1:1 and the zoom percentage wrong.
+            var fitScale = Math.Min(
+                ImageView.ActualWidth / _imagePixelWidth,
+                ImageView.ActualHeight / _imagePixelHeight);
             var rasterizationScale = Viewport.XamlRoot?.RasterizationScale ?? 1.0;
-            return ImageView.ActualWidth * rasterizationScale / _imagePixelWidth;
+            return fitScale * rasterizationScale;
         }
     }
 
@@ -722,6 +733,16 @@ public sealed partial class MainWindow : Window
 
         var percent = _zoom * FitToPixelRatio * 100.0;
         ViewStatusText.Text = $"{Math.Round(percent):0}% | {rotation:0} deg{frame}{pan}";
+    }
+
+    private void UpdateFileStatus(string path)
+    {
+        var name = Path.GetFileName(path);
+        var format = Path.GetExtension(path).TrimStart('.').ToUpperInvariant();
+        var dimensions = $"{_imagePixelWidth} x {_imagePixelHeight}";
+        FileStatusText.Text = string.IsNullOrEmpty(format)
+            ? $"{name} | {dimensions}"
+            : $"{name} | {dimensions} | {format}";
     }
 
     private void SetViewControlsEnabled(bool enabled)
