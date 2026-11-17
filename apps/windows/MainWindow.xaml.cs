@@ -149,7 +149,7 @@ public sealed partial class MainWindow : Window
         // executable's ApplicationIcon alone does not reach Explorer, so the
         // taskbar button, Alt-Tab and thumbnails show a default icon until the
         // running window is given one through AppWindow.SetIcon.
-        var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "nopeview.ico");
+        var iconPath = Path.Combine(AppContext.BaseDirectory, "assets", "nopeview.ico");
         if (File.Exists(iconPath))
         {
             AppWindow.SetIcon(iconPath);

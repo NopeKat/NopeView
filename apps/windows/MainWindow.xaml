@@ -189,7 +189,7 @@
                         HorizontalAlignment="Left"
                         Margin="12,0,0,0">
                 <Image x:Name="AppLogo"
-                       Source="ms-appx:///Assets/nopeview-title.png"
+                       Source="ms-appx:///assets/nopeview-title.png"
                        Width="16" Height="16" />
                 <TextBlock Text="NopeView"
                            FontSize="12" VerticalAlignment="Center"

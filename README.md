@@ -63,7 +63,7 @@ The project is a single monorepo:
 ```
 apps/
 ├── windows/                    Windows app (WinUI 3)
-│   ├── Assets/                 derived ICO and title-bar PNG
+│   ├── assets/                 derived ICO and title-bar PNG
 │   └── native/                 P/Invoke bindings and test images
 └── shared/
     ├── cli/                    command-line entry point (notes only)
