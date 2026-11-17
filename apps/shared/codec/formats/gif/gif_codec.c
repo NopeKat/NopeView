@@ -41,6 +41,7 @@
  * page. stb_image declares the same function when STBI_WINDOWS_UTF8 is set. */
 #define NV_UTF8_CODE_PAGE 65001u
 #define NV_GIF_CACHE_SLOTS 4
+#define NV_GIF_CACHE_BUDGET_BYTES ((size_t)64u * 1024u * 1024u)
 
 #if defined(_WIN32)
 extern __declspec(dllimport) int __stdcall MultiByteToWideChar(
@@ -58,6 +59,7 @@ typedef struct nv_gif_cache {
     int *delays;
     unsigned char *pixels;
     size_t frame_bytes;
+    size_t cache_bytes;
     uint64_t data_hash;
     size_t data_size;
     uint64_t last_used;
@@ -65,6 +67,7 @@ typedef struct nv_gif_cache {
 
 static nv_gif_cache g_cache[NV_GIF_CACHE_SLOTS];
 static uint64_t g_cache_tick;
+static size_t g_cache_bytes;
 
 #if defined(_WIN32)
 static volatile long g_cache_lock = 0;
@@ -133,6 +136,11 @@ static void clear_cache(nv_gif_cache *cache)
     }
     free(cache->delays);
     free(cache->path);
+    if (cache->cache_bytes <= g_cache_bytes) {
+        g_cache_bytes -= cache->cache_bytes;
+    } else {
+        g_cache_bytes = 0u;
+    }
     memset(cache, 0, sizeof(*cache));
 }
 
@@ -225,13 +233,37 @@ static nv_gif_cache *cache_find_data(uint64_t data_hash, size_t data_size)
 static nv_gif_cache *cache_insert(const nv_gif_cache *fresh)
 {
     int index;
-    int oldest = 0;
+    int oldest;
+    size_t bytes;
 
+    if (fresh->frames <= 0 ||
+        fresh->frame_bytes > NV_GIF_CACHE_BUDGET_BYTES / (size_t)fresh->frames) {
+        return NULL;
+    }
+    bytes = fresh->frame_bytes * (size_t)fresh->frames;
+
+    while (g_cache_bytes > NV_GIF_CACHE_BUDGET_BYTES - bytes) {
+        oldest = -1;
+        for (index = 0; index < NV_GIF_CACHE_SLOTS; index++) {
+            if (g_cache[index].pixels != NULL &&
+                (oldest < 0 || g_cache[index].last_used < g_cache[oldest].last_used)) {
+                oldest = index;
+            }
+        }
+        if (oldest < 0) {
+            break;
+        }
+        clear_cache(&g_cache[oldest]);
+    }
+
+    oldest = 0;
     for (index = 0; index < NV_GIF_CACHE_SLOTS; index++) {
         if (g_cache[index].pixels == NULL) {
             clear_cache(&g_cache[index]);
             g_cache[index] = *fresh;
+            g_cache[index].cache_bytes = bytes;
             g_cache[index].last_used = ++g_cache_tick;
+            g_cache_bytes += bytes;
             return &g_cache[index];
         }
     }
@@ -242,7 +274,9 @@ static nv_gif_cache *cache_insert(const nv_gif_cache *fresh)
     }
     clear_cache(&g_cache[oldest]);
     g_cache[oldest] = *fresh;
+    g_cache[oldest].cache_bytes = bytes;
     g_cache[oldest].last_used = ++g_cache_tick;
+    g_cache_bytes += bytes;
     return &g_cache[oldest];
 }
 
@@ -366,6 +400,9 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     int have_stamp = 0;
     nv_gif_cache *slot;
     nv_gif_cache fresh;
+    int uncached = 0;
+    uint32_t out_frames;
+    uint32_t out_delay;
     int image_width;
     int image_height;
     int frame_stride;
@@ -556,6 +593,10 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
 
     cache_lock();
     slot = cache_insert(&fresh);
+    if (slot == NULL) {
+        slot = &fresh;
+        uncached = 1;
+    }
     if (frame_pixels != NULL) {
         nv_rgba_to_format(
             frame_pixels,
@@ -563,8 +604,15 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
             pixel_count,
             output_format);
     }
+    out_frames = (uint32_t)slot->frames;
+    out_delay = frame_delay_ms(slot, request->frame_index);
     cache_unlock();
 
+    if (uncached != 0) {
+        stbi_image_free(fresh.pixels);
+        free(fresh.delays);
+        free(fresh.path);
+    }
     if (frame_pixels == NULL) {
         return NV_FORMAT_ERR_OUT_OF_MEMORY;
     }
@@ -585,8 +633,8 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     out_image->pixel_format = (nv_format_pixel_format)output_format;
     out_image->pixels = frame_pixels;
     out_image->pixels_size = (size_t)frame_stride * (size_t)height;
-    out_image->frame_count = (uint32_t)slot->frames;
-    out_image->frame_delay_ms = frame_delay_ms(slot, request->frame_index);
+    out_image->frame_count = out_frames;
+    out_image->frame_delay_ms = out_delay;
     out_image->source_width = source_width;
     out_image->source_height = source_height;
     return NV_FORMAT_OK;

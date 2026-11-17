@@ -17,6 +17,7 @@ data class DecodedImage(
     val sourceHeight: Int,
     val frameCount: Int,
     val frameDelayMs: Int,
+    val frameIndex: Int = 0,
 ) {
     val isPreview: Boolean
         get() = bitmap.width < sourceWidth || bitmap.height < sourceHeight
@@ -56,10 +57,57 @@ class CodecSession(context: android.content.Context) : Closeable {
             info,
         ) ?: return null
 
+        val result = buildDecodedImage(bitmap, info, orientation, frameIndex)
+        if (result == null) {
+            bitmap.recycle()
+        }
+        return result
+    }
+
+    /**
+     * Decodes a frame directly into an existing ARGB_8888 bitmap. The caller
+     * keeps a small ring of frame buffers, so playback does not allocate a
+     * new bitmap for every frame. Frame zero keeps the full decode path because
+     * EXIF orientation may change its dimensions.
+     */
+    fun decodeInto(
+        descriptor: ParcelFileDescriptor,
+        frameIndex: Int,
+        maxDimension: Int,
+        target: Bitmap,
+    ): DecodedImage? {
+        if (handle == 0L || frameIndex <= 0) {
+            return null
+        }
+        val info = IntArray(8)
+        val decoded = NativeCodec.decodeFdBitmapInto(
+            handle,
+            descriptor.fd,
+            frameIndex,
+            maxDimension,
+            info,
+            target,
+        )
+        if (!decoded) {
+            return null
+        }
+        return buildDecodedImage(
+            target,
+            info,
+            ExifInterface.ORIENTATION_NORMAL,
+            frameIndex,
+        )
+    }
+
+    private fun buildDecodedImage(
+        bitmap: Bitmap,
+        info: IntArray,
+        orientation: Int,
+        frameIndex: Int,
+    ): DecodedImage? {
         val width = info[0]
         val height = info[1]
         if (width <= 0 || height <= 0 || bitmap.width != width || bitmap.height != height) {
-            bitmap.recycle()
             return null
         }
 
@@ -76,6 +124,7 @@ class CodecSession(context: android.content.Context) : Closeable {
             sourceHeight = sourceHeight,
             frameCount = info[3],
             frameDelayMs = info[4],
+            frameIndex = frameIndex,
         )
     }
 

@@ -59,6 +59,10 @@ android {
     lint {
         abortOnError = true
         warningsAsErrors = true
+        // Versions are intentionally pinned; dependencies are updated on purpose.
+        // Only arm64-v8a is shipped, so ChromeOS x86 support is out of scope.
+        // Adaptive icons still need the -v26 qualifier for AAPT.
+        disable += setOf("GradleDependency", "ChromeOsAbiSupport", "ObsoleteSdkInt")
     }
 }
 

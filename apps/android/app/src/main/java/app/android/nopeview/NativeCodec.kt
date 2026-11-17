@@ -18,4 +18,13 @@ object NativeCodec {
         maxDimension: Int,
         outInfo: IntArray,
     ): Bitmap?
+
+    external fun decodeFdBitmapInto(
+        handle: Long,
+        fd: Int,
+        frameIndex: Int,
+        maxDimension: Int,
+        outInfo: IntArray,
+        target: Bitmap,
+    ): Boolean
 }

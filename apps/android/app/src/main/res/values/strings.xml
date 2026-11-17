@@ -10,5 +10,9 @@
     <string name="view_fit">Fit</string>
     <string name="view_preview">Preview</string>
     <string name="view_preview_actual">Preview 1:1</string>
+    <string name="load_full">Full image</string>
+    <string name="full_too_large">This image is too large for full size.</string>
+    <string name="pause_animation">Pause</string>
+    <string name="resume_animation">Play</string>
     <string name="version_label">0.0.0.nightly</string>
 </resources>

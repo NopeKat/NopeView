@@ -13,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -51,19 +52,29 @@ fun ZoomableImage(
     modifier: Modifier = Modifier,
     isPreview: Boolean = false,
     resetKey: Any? = null,
+    startAtActual: Boolean = false,
+    onRequestFull: (() -> Unit)? = null,
+    frameIndex: Int = 0,
+    frameCount: Int = 1,
 ) {
     val image = remember(bitmap) { bitmap.asImageBitmap() }
     val imageWidth = bitmap.width
     val imageHeight = bitmap.height
 
     var viewport by remember { mutableStateOf(IntSize.Zero) }
-    var zoom by remember { mutableStateOf(1f) }
+    var zoom by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
-    var rotation by remember { mutableStateOf(0f) }
+    var rotation by remember { mutableFloatStateOf(0f) }
+    var initialActual by remember(resetKey) { mutableStateOf(startAtActual) }
 
     LaunchedEffect(resetKey, viewport) {
         if (viewport.width > 0 && viewport.height > 0) {
-            zoom = fitZoom(viewport, imageWidth, imageHeight)
+            zoom = if (initialActual) {
+                initialActual = false
+                1f
+            } else {
+                fitZoom(viewport, imageWidth, imageHeight)
+            }
             offset = Offset.Zero
             rotation = 0f
         }
@@ -145,6 +156,10 @@ fun ZoomableImage(
 
         FilledTonalButton(
             onClick = {
+                if (isPreview && onRequestFull != null) {
+                    onRequestFull.invoke()
+                    return@FilledTonalButton
+                }
                 val goToActual = abs(zoom - 1f) >= 0.01f
                 val target = if (goToActual) {
                     1f
@@ -166,6 +181,8 @@ fun ZoomableImage(
         ) {
             Text(
                 text = when {
+                    isPreview && onRequestFull != null ->
+                        stringResource(R.string.load_full)
                     abs(zoom - 1f) < 0.01f -> stringResource(R.string.view_fit)
                     isPreview -> stringResource(R.string.view_preview_actual)
                     else -> stringResource(R.string.view_actual)
@@ -193,6 +210,17 @@ fun ZoomableImage(
             style = MaterialTheme.typography.labelMedium,
             color = Color.White.copy(alpha = 0.55f),
         )
+
+        if (frameCount > 1) {
+            Text(
+                text = "${frameIndex + 1} / $frameCount",
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(8.dp),
+                style = MaterialTheme.typography.labelMedium,
+                color = Color.White.copy(alpha = 0.55f),
+            )
+        }
     }
 }
 
