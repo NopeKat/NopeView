@@ -15,7 +15,7 @@ A fast, lightweight, and extensible cross-platform image viewer.
 - **Codecs**: the router core and the decoders for PNG, JPG, GIF, and BMP are implemented. The encode entry point exists, but all four formats return "unsupported".
 - **Windows app**: WinUI 3, with content extended into the title bar and a self-drawn title bar whose minimize / maximize / close buttons are XAML buttons using Fluent `PathIcon` (the native title bar strip and its tooltips are collapsed), PerMonitorV2 declared, and the NopeView brand logo shown at the left of the title bar. The app icon is set both in the executable and on the running window for Explorer, taskbar, Alt-Tab and Start. The content area displays the decoded image, with an open button and drag-and-drop support.
 - **Three ABI boundaries**: router (`nv_router_abi.h`), format (`nv_format_abi.h`), and application plugin (`nv_plugin_abi.h`) are all in place, each versioned `0.0.0.0` (the `x.y.z.n` scheme).
-- **Other modules**: the CLI, application plugins, and the platform capability layer contain only directories and notes; nothing is implemented.
+- **Other modules**: the CLI, application plugins, and the platform capability layer contain only directories and notes; nothing is implemented. The CLI and platform capability layer live under `shared/` as non-GUI foundations.
 
 ## Supported platforms
 
@@ -37,7 +37,7 @@ A fast, lightweight, and extensible cross-platform image viewer.
 | GIF | Yes, per frame | No | `DECODE` + `ANIMATED` |
 | BMP | Yes | No | `DECODE` |
 
-Decoding is built on `apps/core/codecs/third_party/stb/stb_image.h`. More formats are planned; the format roadmap will be announced once it is defined.
+Decoding is built on `apps/shared/codecs/third_party/stb/stb_image.h`. More formats are planned; the format roadmap will be announced once it is defined.
 
 ## Planned capabilities
 
@@ -65,11 +65,11 @@ apps/
 ├── windows/                    Windows app (WinUI 3)
 │   ├── Assets/                 brand logo (SVG source, ICO, title-bar PNG)
 │   └── native/                 P/Invoke bindings and test images
-├── cli/                        command-line entry point (notes only)
 ├── plugins/                    application plugins
 │   └── abi/                    application plugin ABI
-├── shell/                      platform capability layer (notes only)
-└── core/
+└── shared/
+    ├── cli/                    command-line entry point (notes only)
+    ├── platforms/              platform capability layer (notes only)
     ├── files/                  shared file list service
     │   └── abi/                file list ABI
     └── codecs/                 codec core
