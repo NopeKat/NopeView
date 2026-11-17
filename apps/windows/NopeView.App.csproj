@@ -32,12 +32,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Test fixtures live beside the native DLLs but must not ship. -->
-    <None Remove="native\x64\test.*" />
-    <Content Remove="native\x64\test.*" />
-  </ItemGroup>
-
-  <ItemGroup>
     <None Update="native\x64\png_codec.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
