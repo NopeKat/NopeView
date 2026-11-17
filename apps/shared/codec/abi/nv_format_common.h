@@ -50,7 +50,7 @@ static nv_format_pixel_format nv_output_format(nv_format_pixel_format desired)
     }
 }
 
-static void nv_swap_red_blue(unsigned char *pixels, size_t pixel_count, int components)
+static inline void nv_swap_red_blue(unsigned char *pixels, size_t pixel_count, int components)
 {
     size_t index;
 
@@ -65,7 +65,7 @@ static void nv_swap_red_blue(unsigned char *pixels, size_t pixel_count, int comp
     }
 }
 
-static void nv_rgba_to_format(
+static inline void nv_rgba_to_format(
     unsigned char *destination,
     const unsigned char *source,
     size_t pixel_count,

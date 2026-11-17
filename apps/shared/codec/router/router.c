@@ -8,11 +8,29 @@
  * The host never talks to a format codec directly; it only sees nv_router_*.
  */
 
+#if !defined(_WIN32) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
+
 #include "nv_router_abi.h"
 #include "nv_format_abi.h"
 
+#if defined(_WIN32)
 #include <windows.h>
 #include <wchar.h>
+#else
+#include <dirent.h>
+#include <dlfcn.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <pthread.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+#if defined(__ANDROID__)
+#include <android/log.h>
+#endif
+#endif
 
 #include <ctype.h>
 #include <limits.h>
@@ -27,8 +45,14 @@ typedef nv_format_status (*fn_encode)(const nv_format_encode_request *, nv_forma
 typedef void (*fn_image_free)(nv_format_image *);
 typedef void (*fn_buffer_free)(nv_format_buffer *);
 
+#if defined(_WIN32)
+typedef HMODULE nv_module;
+#else
+typedef void *nv_module;
+#endif
+
 typedef struct nv_format_entry {
-    HMODULE module;
+    nv_module module;
     fn_decode decode;
     fn_encode encode;
     fn_image_free image_free;
@@ -37,6 +61,72 @@ typedef struct nv_format_entry {
     char extensions[128];
     uint32_t capabilities;
 } nv_format_entry;
+
+#if defined(_WIN32)
+typedef SRWLOCK nv_rwlock;
+#define NV_RWLOCK_INITIALIZER SRWLOCK_INIT
+
+static void nv_rwlock_read(nv_rwlock *lock)
+{
+    AcquireSRWLockShared(lock);
+}
+
+static void nv_rwlock_write(nv_rwlock *lock)
+{
+    AcquireSRWLockExclusive(lock);
+}
+
+static void nv_rwlock_read_unlock(nv_rwlock *lock)
+{
+    ReleaseSRWLockShared(lock);
+}
+
+static void nv_rwlock_write_unlock(nv_rwlock *lock)
+{
+    ReleaseSRWLockExclusive(lock);
+}
+#else
+typedef pthread_rwlock_t nv_rwlock;
+#define NV_RWLOCK_INITIALIZER PTHREAD_RWLOCK_INITIALIZER
+
+static void nv_rwlock_read(nv_rwlock *lock)
+{
+    pthread_rwlock_rdlock(lock);
+}
+
+static void nv_rwlock_write(nv_rwlock *lock)
+{
+    pthread_rwlock_wrlock(lock);
+}
+
+static void nv_rwlock_read_unlock(nv_rwlock *lock)
+{
+    pthread_rwlock_unlock(lock);
+}
+
+static void nv_rwlock_write_unlock(nv_rwlock *lock)
+{
+    pthread_rwlock_unlock(lock);
+}
+#endif
+
+static void nv_log(const char *message)
+{
+#if defined(_WIN32)
+    OutputDebugStringA(message);
+#elif defined(__ANDROID__)
+    __android_log_write(ANDROID_LOG_INFO, "NopeViewNative", message);
+#else
+    (void)message;
+#endif
+}
+
+#if defined(__ANDROID__)
+#define nv_log_format(...) \
+    __android_log_print(ANDROID_LOG_INFO, "NopeViewNative", __VA_ARGS__)
+#else
+#define nv_log_format(...) ((void)0)
+#endif
 
 /*
  * Pixels produced by a format library must be released with that library's own
@@ -58,13 +148,13 @@ struct nv_router_context {
 static nv_image_owner *g_owners;
 static uint32_t g_owner_count;
 static uint32_t g_owner_capacity;
-static SRWLOCK g_owner_lock = SRWLOCK_INIT;
+static nv_rwlock g_owner_lock = NV_RWLOCK_INITIALIZER;
 
 /* Last file bytes read, reused while a GIF animation plays. */
 typedef struct nv_file_cache {
     char *path;
     uint64_t size;
-    FILETIME mtime;
+    int64_t mtime;
     uint8_t *data;
     size_t data_size;
 } nv_file_cache;
@@ -77,10 +167,12 @@ typedef struct nv_file_cache {
 #define NV_FILE_CACHE_MAX_BYTES ((size_t)32u * 1024u * 1024u)
 
 static nv_file_cache g_file_cache;
-static SRWLOCK g_file_cache_lock = SRWLOCK_INIT;
+static nv_rwlock g_file_cache_lock = NV_RWLOCK_INITIALIZER;
 
+#if defined(_WIN32)
 /* Address used to identify this module when resolving its own directory. */
 static int g_module_marker;
+#endif
 
 static void copy_str(char *destination, size_t destination_size, const char *source)
 {
@@ -126,7 +218,7 @@ static int owner_add(void *pixels, fn_image_free image_free)
 {
     int added = 0;
 
-    AcquireSRWLockExclusive(&g_owner_lock);
+    nv_rwlock_write(&g_owner_lock);
     {
         if (g_owner_count == g_owner_capacity) {
             uint32_t capacity = (g_owner_capacity == 0u) ? 8u : g_owner_capacity * 2u;
@@ -146,7 +238,7 @@ static int owner_add(void *pixels, fn_image_free image_free)
             added = 1;
         }
     }
-    ReleaseSRWLockExclusive(&g_owner_lock);
+    nv_rwlock_write_unlock(&g_owner_lock);
 
     return added;
 }
@@ -157,7 +249,7 @@ static fn_image_free owner_take(void *pixels)
     fn_image_free image_free = NULL;
     uint32_t index;
 
-    AcquireSRWLockExclusive(&g_owner_lock);
+    nv_rwlock_write(&g_owner_lock);
     {
         for (index = 0u; index < g_owner_count; index++) {
             if (g_owners[index].pixels == pixels) {
@@ -168,7 +260,7 @@ static fn_image_free owner_take(void *pixels)
             }
         }
     }
-    ReleaseSRWLockExclusive(&g_owner_lock);
+    nv_rwlock_write_unlock(&g_owner_lock);
 
     return image_free;
 }
@@ -251,100 +343,13 @@ static void path_extension(const char *path, char *out_extension, size_t out_siz
 }
 
 /* Size and write time, used to detect a changed file behind a cached copy. */
-static int file_stamp(const wchar_t *wide_path, uint64_t *out_size, FILETIME *out_mtime)
+static int file_stamp(const char *path, uint64_t *out_size, int64_t *out_mtime)
 {
-    WIN32_FILE_ATTRIBUTE_DATA attributes;
-
-    if (!GetFileAttributesExW(wide_path, GetFileExInfoStandard, &attributes)) {
-        return 0;
-    }
-    if ((attributes.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0u) {
-        return 0;
-    }
-    *out_size = ((uint64_t)attributes.nFileSizeHigh << 32) |
-                (uint64_t)attributes.nFileSizeLow;
-    *out_mtime = attributes.ftLastWriteTime;
-    return 1;
-}
-
-/*
- * Encoded bytes for one decode. data points either at the shared cache or at a
- * private allocation; cached tells release_file_bytes how to let go of it.
- */
-typedef struct nv_file_bytes {
-    const uint8_t *data;
-    size_t size;
-    int cached;
-} nv_file_bytes;
-
-/*
- * A cache hit keeps the shared lock and hands out the cached bytes directly.
- * Copying them per call was the dominant cost of GIF playback, where every
- * frame reads the same unchanged file.
- */
-static void release_file_bytes(nv_file_bytes *bytes)
-{
-    if (bytes->cached != 0) {
-        ReleaseSRWLockShared(&g_file_cache_lock);
-    }
-    bytes->data = NULL;
-    bytes->size = 0u;
-    bytes->cached = 0;
-}
-
-static void cache_store(const char *path, const uint8_t *data, size_t size,
-                        uint64_t file_size, FILETIME mtime)
-{
-    char *cache_path;
-    uint8_t *cache_copy;
-
-    if (size > NV_FILE_CACHE_MAX_BYTES) {
-        return;
-    }
-
-    cache_path = (char *)malloc(strlen(path) + 1u);
-    cache_copy = (uint8_t *)malloc(size);
-    if (cache_path != NULL && cache_copy != NULL) {
-        memcpy(cache_path, path, strlen(path) + 1u);
-        memcpy(cache_copy, data, size);
-        AcquireSRWLockExclusive(&g_file_cache_lock);
-        free(g_file_cache.path);
-        free(g_file_cache.data);
-        g_file_cache.path = cache_path;
-        g_file_cache.size = file_size;
-        g_file_cache.mtime = mtime;
-        g_file_cache.data = cache_copy;
-        g_file_cache.data_size = size;
-        ReleaseSRWLockExclusive(&g_file_cache_lock);
-    }
-    else {
-        free(cache_path);
-        free(cache_copy);
-    }
-}
-
-/*
- * Reads a whole file before dispatch. The format ABI accepts raw bytes, so
- * codecs never open a path by name. This keeps UTF-8 host paths working on
- * Windows, where narrow fopen would use the active code page.
- */
-static int read_file_bytes(const char *path, nv_file_bytes *out)
-{
+#if defined(_WIN32)
     int wide_length;
     wchar_t *wide_path;
-    uint64_t file_size = 0u;
-    FILETIME mtime;
-    int have_stamp;
-    HANDLE file;
-    uint8_t *buffer;
-    uint64_t offset;
-    DWORD chunk;
-    DWORD bytes_read;
-
-    out->data = NULL;
-    out->size = 0u;
-    out->cached = 0;
-    memset(&mtime, 0, sizeof(mtime));
+    WIN32_FILE_ATTRIBUTE_DATA attributes;
+    int ok = 0;
 
     wide_length = MultiByteToWideChar(CP_UTF8, 0u, path, -1, NULL, 0);
     if (wide_length <= 0) {
@@ -359,72 +364,369 @@ static int read_file_bytes(const char *path, nv_file_bytes *out)
         return 0;
     }
 
-    have_stamp = file_stamp(wide_path, &file_size, &mtime);
-    if (have_stamp != 0) {
-        AcquireSRWLockShared(&g_file_cache_lock);
-        if (g_file_cache.data != NULL && g_file_cache.path != NULL &&
-            strcmp(g_file_cache.path, path) == 0 &&
-            g_file_cache.size == file_size &&
-            CompareFileTime(&g_file_cache.mtime, &mtime) == 0) {
-            out->data = g_file_cache.data;
-            out->size = g_file_cache.data_size;
-            out->cached = 1;
-            free(wide_path);
-            return 1;
-        }
-        ReleaseSRWLockShared(&g_file_cache_lock);
+    if (GetFileAttributesExW(wide_path, GetFileExInfoStandard, &attributes) &&
+        (attributes.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0u) {
+        *out_size = ((uint64_t)attributes.nFileSizeHigh << 32) |
+                    (uint64_t)attributes.nFileSizeLow;
+        *out_mtime = ((int64_t)attributes.ftLastWriteTime.dwHighDateTime << 32) |
+                     (int64_t)attributes.ftLastWriteTime.dwLowDateTime;
+        ok = 1;
     }
-
-    file = CreateFileW(wide_path, GENERIC_READ, FILE_SHARE_READ, NULL,
-                       OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     free(wide_path);
-    if (file == INVALID_HANDLE_VALUE) {
+    return ok;
+#else
+    struct stat info;
+
+    if (path == NULL || stat(path, &info) != 0 || !S_ISREG(info.st_mode)) {
         return 0;
     }
+    *out_size = (uint64_t)info.st_size;
+    *out_mtime = (int64_t)info.st_mtime;
+    return 1;
+#endif
+}
 
-    if (!have_stamp) {
-        LARGE_INTEGER size;
-        if (!GetFileSizeEx(file, &size) || size.QuadPart <= 0) {
-            CloseHandle(file);
-            return 0;
-        }
-        file_size = (uint64_t)size.QuadPart;
+#ifndef NV_ROUTER_MAX_INPUT_BYTES
+#define NV_ROUTER_MAX_INPUT_BYTES 0
+#endif
+
+/*
+ * Encoded bytes for one decode. data points either at the shared cache or at a
+ * private allocation; cached tells release_file_bytes how to let go of it.
+ */
+typedef struct nv_file_bytes {
+    const uint8_t *data;
+    size_t size;
+    int cached;
+    int owned;
+} nv_file_bytes;
+
+/*
+ * A cache hit keeps the shared lock and hands out the cached bytes directly.
+ * Copying them per call was the dominant cost of GIF playback, where every
+ * frame reads the same unchanged file.
+ */
+static void release_file_bytes(nv_file_bytes *bytes)
+{
+    if (bytes->cached != 0) {
+        nv_rwlock_read_unlock(&g_file_cache_lock);
     }
-    if (file_size == 0u || file_size > (uint64_t)SIZE_MAX) {
-        CloseHandle(file);
+    else if (bytes->owned != 0) {
+        free((void *)bytes->data);
+    }
+    bytes->data = NULL;
+    bytes->size = 0u;
+    bytes->cached = 0;
+    bytes->owned = 0;
+}
+
+static void cache_store(const char *path, const uint8_t *data, size_t size,
+                        uint64_t file_size, int64_t mtime)
+{
+    char *cache_path;
+    uint8_t *cache_copy;
+
+    if (size > NV_FILE_CACHE_MAX_BYTES) {
+        return;
+    }
+
+    cache_path = (char *)malloc(strlen(path) + 1u);
+    cache_copy = (uint8_t *)malloc(size);
+    if (cache_path != NULL && cache_copy != NULL) {
+        memcpy(cache_path, path, strlen(path) + 1u);
+        memcpy(cache_copy, data, size);
+        nv_rwlock_write(&g_file_cache_lock);
+        free(g_file_cache.path);
+        free(g_file_cache.data);
+        g_file_cache.path = cache_path;
+        g_file_cache.size = file_size;
+        g_file_cache.mtime = mtime;
+        g_file_cache.data = cache_copy;
+        g_file_cache.data_size = size;
+        nv_rwlock_write_unlock(&g_file_cache_lock);
+    }
+    else {
+        free(cache_path);
+        free(cache_copy);
+    }
+}
+
+static int nv_input_size_ok(uint64_t size)
+{
+    if (size == 0u || size > (uint64_t)SIZE_MAX) {
         return 0;
     }
-
-    buffer = (uint8_t *)malloc((size_t)file_size);
-    if (buffer == NULL) {
-        CloseHandle(file);
+#if NV_ROUTER_MAX_INPUT_BYTES
+    if (size > (uint64_t)NV_ROUTER_MAX_INPUT_BYTES) {
         return 0;
     }
-
-    offset = 0u;
-    while (offset < file_size) {
-        uint64_t remaining = file_size - offset;
-        chunk = remaining > (uint64_t)INT_MAX ? (DWORD)INT_MAX : (DWORD)remaining;
-        if (!ReadFile(file, buffer + offset, chunk, &bytes_read, NULL) || bytes_read == 0u) {
-            free(buffer);
-            CloseHandle(file);
-            return 0;
-        }
-        offset += (uint64_t)bytes_read;
-    }
-    CloseHandle(file);
-
-    if (have_stamp != 0) {
-        cache_store(path, buffer, (size_t)file_size, file_size, mtime);
-    }
-
-    out->data = buffer;
-    out->size = (size_t)file_size;
+#endif
     return 1;
 }
 
+/*
+ * Reads a whole file before dispatch. The format ABI accepts raw bytes, so
+ * codecs never open a path by name. This keeps UTF-8 host paths working on
+ * Windows, where narrow fopen would use the active code page.
+ */
+static int read_file_bytes(const char *path, nv_file_bytes *out)
+{
+    uint64_t file_size = 0u;
+    int64_t mtime = 0;
+    int have_stamp;
+
+    out->data = NULL;
+    out->size = 0u;
+    out->cached = 0;
+    out->owned = 0;
+
+    have_stamp = file_stamp(path, &file_size, &mtime);
+    if (have_stamp != 0) {
+        nv_rwlock_read(&g_file_cache_lock);
+        if (g_file_cache.data != NULL && g_file_cache.path != NULL &&
+            strcmp(g_file_cache.path, path) == 0 &&
+            g_file_cache.size == file_size &&
+            g_file_cache.mtime == mtime) {
+            out->data = g_file_cache.data;
+            out->size = g_file_cache.data_size;
+            out->cached = 1;
+            return 1;
+        }
+        nv_rwlock_read_unlock(&g_file_cache_lock);
+    }
+
+#if defined(_WIN32)
+    {
+        int wide_length;
+        wchar_t *wide_path;
+        HANDLE file;
+        uint8_t *buffer;
+        uint64_t offset;
+        DWORD chunk;
+        DWORD bytes_read;
+
+        wide_length = MultiByteToWideChar(CP_UTF8, 0u, path, -1, NULL, 0);
+        if (wide_length <= 0) {
+            return 0;
+        }
+        wide_path = (wchar_t *)malloc((size_t)wide_length * sizeof(wchar_t));
+        if (wide_path == NULL) {
+            return 0;
+        }
+        if (MultiByteToWideChar(CP_UTF8, 0u, path, -1, wide_path, wide_length) <= 0) {
+            free(wide_path);
+            return 0;
+        }
+
+        file = CreateFileW(wide_path, GENERIC_READ, FILE_SHARE_READ, NULL,
+                           OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+        free(wide_path);
+        if (file == INVALID_HANDLE_VALUE) {
+            return 0;
+        }
+
+        if (have_stamp == 0) {
+            LARGE_INTEGER size;
+            if (!GetFileSizeEx(file, &size) || size.QuadPart <= 0) {
+                CloseHandle(file);
+                return 0;
+            }
+            file_size = (uint64_t)size.QuadPart;
+        }
+        if (!nv_input_size_ok(file_size)) {
+            CloseHandle(file);
+            return 0;
+        }
+
+        buffer = (uint8_t *)malloc((size_t)file_size);
+        if (buffer == NULL) {
+            CloseHandle(file);
+            return 0;
+        }
+
+        offset = 0u;
+        while (offset < file_size) {
+            uint64_t remaining = file_size - offset;
+            chunk = remaining > (uint64_t)INT_MAX ? (DWORD)INT_MAX : (DWORD)remaining;
+            if (!ReadFile(file, buffer + offset, chunk, &bytes_read, NULL) || bytes_read == 0u) {
+                free(buffer);
+                CloseHandle(file);
+                return 0;
+            }
+            offset += (uint64_t)bytes_read;
+        }
+        CloseHandle(file);
+
+        if (have_stamp != 0) {
+            cache_store(path, buffer, (size_t)file_size, file_size, mtime);
+        }
+
+        out->data = buffer;
+        out->size = (size_t)file_size;
+        out->owned = 1;
+        return 1;
+    }
+#else
+    {
+        int fd;
+        struct stat info;
+        uint8_t *buffer;
+        size_t offset = 0u;
+
+        fd = open(path, O_RDONLY | O_CLOEXEC);
+        if (fd < 0) {
+            return 0;
+        }
+        if (fstat(fd, &info) != 0 || info.st_size <= 0) {
+            close(fd);
+            return 0;
+        }
+        file_size = (uint64_t)info.st_size;
+        if (!nv_input_size_ok(file_size)) {
+            close(fd);
+            return 0;
+        }
+
+        buffer = (uint8_t *)malloc((size_t)file_size);
+        if (buffer == NULL) {
+            close(fd);
+            return 0;
+        }
+
+        while (offset < (size_t)file_size) {
+            ssize_t got = read(fd, buffer + offset, (size_t)file_size - offset);
+            if (got < 0) {
+                if (errno == EINTR) {
+                    continue;
+                }
+                free(buffer);
+                close(fd);
+                return 0;
+            }
+            if (got == 0) {
+                break;
+            }
+            offset += (size_t)got;
+        }
+        close(fd);
+
+        if (offset != (size_t)file_size) {
+            free(buffer);
+            return 0;
+        }
+        if (have_stamp != 0) {
+            cache_store(path, buffer, (size_t)file_size, file_size, mtime);
+        }
+
+        out->data = buffer;
+        out->size = (size_t)file_size;
+        out->owned = 1;
+        return 1;
+    }
+#endif
+}
+
+/*
+ * Reads an open descriptor from the start without moving its file offset.
+ * ParcelFileDescriptor-backed documents have no usable path, so the host
+ * passes the descriptor instead.
+ */
+static int read_fd_bytes(int fd, nv_file_bytes *out)
+{
+    out->data = NULL;
+    out->size = 0u;
+    out->cached = 0;
+    out->owned = 0;
+
+#if defined(_WIN32)
+    (void)fd;
+    return 0;
+#else
+    {
+        struct stat info;
+        uint64_t file_size;
+        uint8_t *buffer;
+        size_t offset = 0u;
+
+        if (fd < 0 || fstat(fd, &info) != 0 || info.st_size <= 0) {
+            return 0;
+        }
+        file_size = (uint64_t)info.st_size;
+        if (!nv_input_size_ok(file_size)) {
+            return 0;
+        }
+
+        buffer = (uint8_t *)malloc((size_t)file_size);
+        if (buffer == NULL) {
+            return 0;
+        }
+
+        while (offset < (size_t)file_size) {
+            ssize_t got = pread(fd, buffer + offset, (size_t)file_size - offset, (off_t)offset);
+            if (got < 0) {
+                if (errno == EINTR) {
+                    continue;
+                }
+                free(buffer);
+                return 0;
+            }
+            if (got == 0) {
+                break;
+            }
+            offset += (size_t)got;
+        }
+
+        if (offset != (size_t)file_size) {
+            free(buffer);
+            return 0;
+        }
+
+        out->data = buffer;
+        out->size = (size_t)file_size;
+        out->owned = 1;
+        return 1;
+    }
+#endif
+}
+
+#if defined(_WIN32)
+typedef const wchar_t *nv_module_path;
+
+static nv_module nv_module_open(nv_module_path path)
+{
+    return LoadLibraryW(path);
+}
+
+static void *nv_module_symbol(nv_module module, const char *name)
+{
+    return (void *)GetProcAddress(module, name);
+}
+
+static void nv_module_close(nv_module module)
+{
+    FreeLibrary(module);
+}
+#else
+typedef const char *nv_module_path;
+
+static nv_module nv_module_open(nv_module_path path)
+{
+    return dlopen(path, RTLD_NOW | RTLD_LOCAL);
+}
+
+static void *nv_module_symbol(nv_module module, const char *name)
+{
+    return dlsym(module, name);
+}
+
+static void nv_module_close(nv_module module)
+{
+    dlclose(module);
+}
+#endif
+
 /* Loads one format library and appends it to the context. */
-static void load_format_library(nv_router_context *context, const wchar_t *full_path)
+static void load_format_library(nv_router_context *context, nv_module_path full_path)
 {
     nv_format_entry entry;
     fn_abi_version abi_version;
@@ -437,36 +739,36 @@ static void load_format_library(nv_router_context *context, const wchar_t *full_
 
     memset(&entry, 0, sizeof(entry));
 
-    entry.module = LoadLibraryW(full_path);
+    entry.module = nv_module_open(full_path);
     if (entry.module == NULL) {
         return;
     }
 
-    abi_version = (fn_abi_version)(void *)GetProcAddress(
+    abi_version = (fn_abi_version)nv_module_symbol(
         entry.module, "nv_format_abi_version");
-    query = (fn_query)(void *)GetProcAddress(entry.module, "nv_format_query");
-    decode = (fn_decode)(void *)GetProcAddress(entry.module, "nv_format_decode");
-    encode = (fn_encode)(void *)GetProcAddress(entry.module, "nv_format_encode");
-    image_free = (fn_image_free)(void *)GetProcAddress(entry.module, "nv_format_image_free");
-    buffer_free = (fn_buffer_free)(void *)GetProcAddress(entry.module, "nv_format_buffer_free");
+    query = (fn_query)nv_module_symbol(entry.module, "nv_format_query");
+    decode = (fn_decode)nv_module_symbol(entry.module, "nv_format_decode");
+    encode = (fn_encode)nv_module_symbol(entry.module, "nv_format_encode");
+    image_free = (fn_image_free)nv_module_symbol(entry.module, "nv_format_image_free");
+    buffer_free = (fn_buffer_free)nv_module_symbol(entry.module, "nv_format_buffer_free");
 
     if (abi_version == NULL || query == NULL || decode == NULL || image_free == NULL) {
         context->abi_mismatch_count++;
-        OutputDebugStringA("nv_router: skipped a format library with missing exports");
-        FreeLibrary(entry.module);
+        nv_log("nv_router: skipped a format library with missing exports");
+        nv_module_close(entry.module);
         return;
     }
     if (strcmp(abi_version(), NV_FORMAT_ABI_VERSION) != 0) {
         context->abi_mismatch_count++;
-        OutputDebugStringA("nv_router: skipped a format library with an ABI mismatch");
-        FreeLibrary(entry.module);
+        nv_log("nv_router: skipped a format library with an ABI mismatch");
+        nv_module_close(entry.module);
         return;
     }
 
     memset(&info, 0, sizeof(info));
     info.struct_size = (uint32_t)sizeof(info);
     if (query(&info) != NV_FORMAT_OK) {
-        FreeLibrary(entry.module);
+        nv_module_close(entry.module);
         return;
     }
 
@@ -479,10 +781,13 @@ static void load_format_library(nv_router_context *context, const wchar_t *full_
     entry.capabilities = info.capabilities;
 
     if (add_entry(context, &entry) == 0) {
-        FreeLibrary(entry.module);
+        nv_module_close(entry.module);
+        return;
     }
+    nv_log_format("nv_router: loaded %s", entry.format_id);
 }
 
+#if defined(_WIN32)
 /* Only files named like <format>_codec.dll are candidate format libraries. */
 static int is_codec_dll(const wchar_t *name)
 {
@@ -546,8 +851,72 @@ static void scan_directory(nv_router_context *context, const wchar_t *directory)
 
     FindClose(find_handle);
 }
+#else
+/* Only files named like <format>_codec.so are candidate format libraries. */
+static int is_codec_so(const char *name)
+{
+    static const char suffix[] = "_codec.so";
+    const size_t suffix_length = sizeof(suffix) - 1u;
+    size_t name_length = strlen(name);
+
+    if (name_length <= suffix_length) {
+        return 0;
+    }
+    return strcmp(name + name_length - suffix_length, suffix) == 0;
+}
+
+/* Scans the native library directory for format codec libraries. */
+static void scan_directory(nv_router_context *context, const char *directory)
+{
+    DIR *dir;
+    struct dirent *entry;
+    size_t directory_length;
+
+    if (directory == NULL) {
+        return;
+    }
+    dir = opendir(directory);
+    if (dir == NULL) {
+        nv_log_format("nv_router: cannot open codec directory %s", directory);
+        return;
+    }
+
+    directory_length = strlen(directory);
+    while ((entry = readdir(dir)) != NULL) {
+        const char *name = entry->d_name;
+        size_t name_length;
+        size_t separator_length;
+        char *full_path;
+
+        if (name[0] == '.') {
+            continue;
+        }
+        if (!is_codec_so(name)) {
+            continue;
+        }
+
+        name_length = strlen(name);
+        separator_length = (directory_length > 0u &&
+                            directory[directory_length - 1u] == '/') ? 0u : 1u;
+        full_path = (char *)malloc(directory_length + separator_length + name_length + 1u);
+        if (full_path == NULL) {
+            continue;
+        }
+        memcpy(full_path, directory, directory_length);
+        if (separator_length != 0u) {
+            full_path[directory_length] = '/';
+        }
+        memcpy(full_path + directory_length + separator_length, name, name_length + 1u);
+        load_format_library(context, full_path);
+        free(full_path);
+    }
+
+    closedir(dir);
+}
+#endif
 
 /* Resolves the router's own directory into a heap buffer owned by the caller. */
+#if defined(_WIN32)
 static wchar_t *default_directory(void)
 {
     HMODULE module = NULL;
@@ -598,6 +967,36 @@ static wchar_t *default_directory(void)
     free(module_path);
     return directory;
 }
+#else
+static char *default_directory(void)
+{
+    Dl_info info;
+    const char *module_path;
+    const char *last_separator;
+    size_t directory_length;
+    char *directory;
+
+    memset(&info, 0, sizeof(info));
+    if (dladdr((void *)&nv_router_abi_version, &info) == 0 ||
+        info.dli_fname == NULL) {
+        return NULL;
+    }
+
+    module_path = info.dli_fname;
+    last_separator = strrchr(module_path, '/');
+    if (last_separator == NULL) {
+        return NULL;
+    }
+
+    directory_length = (size_t)(last_separator - module_path);
+    directory = (char *)malloc(directory_length + 1u);
+    if (directory != NULL) {
+        memcpy(directory, module_path, directory_length);
+        directory[directory_length] = '\0';
+    }
+    return directory;
+}
+#endif
 
 const char *nv_router_abi_version(void)
 {
@@ -606,6 +1005,7 @@ const char *nv_router_abi_version(void)
 
 nv_router_status nv_router_create(const char *codec_dir, nv_router_context **out_context)
 {
+#if defined(_WIN32)
     nv_router_context *context;
     wchar_t *directory = NULL;
     int length;
@@ -650,6 +1050,45 @@ nv_router_status nv_router_create(const char *codec_dir, nv_router_context **out
 
     *out_context = context;
     return NV_ROUTER_OK;
+#else
+    nv_router_context *context;
+    char *directory = NULL;
+
+    if (out_context == NULL) {
+        return NV_ROUTER_ERR_INVALID_ARGUMENT;
+    }
+    *out_context = NULL;
+
+    context = (nv_router_context *)calloc(1u, sizeof(nv_router_context));
+    if (context == NULL) {
+        return NV_ROUTER_ERR_OUT_OF_MEMORY;
+    }
+
+    if (codec_dir != NULL && codec_dir[0] != '\0') {
+        size_t length = strlen(codec_dir) + 1u;
+
+        directory = (char *)malloc(length);
+        if (directory == NULL) {
+            free(context);
+            return NV_ROUTER_ERR_OUT_OF_MEMORY;
+        }
+        memcpy(directory, codec_dir, length);
+    }
+    else {
+        directory = default_directory();
+        if (directory == NULL) {
+            free(context);
+            return NV_ROUTER_ERR_IO;
+        }
+    }
+
+    nv_log_format("nv_router: scanning %s", directory);
+    scan_directory(context, directory);
+    free(directory);
+
+    *out_context = context;
+    return NV_ROUTER_OK;
+#endif
 }
 
 void nv_router_destroy(nv_router_context *context)
@@ -713,23 +1152,8 @@ nv_router_status nv_router_enum_formats(
     return NV_ROUTER_OK;
 }
 
-nv_router_status nv_router_decode_file_ex(
-    nv_router_context *context,
-    const char *path,
-    nv_router_pixel_format desired_pixel_format,
-    uint32_t frame_index,
-    int32_t max_dimension,
-    nv_router_image *out_image)
+static void clear_router_image(nv_router_image *out_image)
 {
-    char extension[32];
-    nv_file_bytes file;
-    nv_router_status last_status;
-    uint32_t index;
-
-    if (context == NULL || path == NULL || out_image == NULL) {
-        return NV_ROUTER_ERR_INVALID_ARGUMENT;
-    }
-
     out_image->width = 0;
     out_image->height = 0;
     out_image->stride = 0;
@@ -740,14 +1164,28 @@ nv_router_status nv_router_decode_file_ex(
     out_image->frame_delay_ms = 0;
     out_image->source_width = 0;
     out_image->source_height = 0;
+}
 
-    path_extension(path, extension, sizeof(extension));
+/*
+ * Dispatches already-read bytes to the first matching codec. extension may be
+ * empty, which asks every decoder to probe the bytes; descriptors have no path
+ * to derive an extension from.
+ */
+static nv_router_status dispatch_decode(
+    nv_router_context *context,
+    const uint8_t *data,
+    size_t data_size,
+    const char *path,
+    const char *extension,
+    nv_router_pixel_format desired_pixel_format,
+    uint32_t frame_index,
+    int32_t max_dimension,
+    nv_router_image *out_image)
+{
+    nv_router_status last_status = NV_ROUTER_ERR_UNSUPPORTED_FORMAT;
+    uint32_t index;
 
-    if (!read_file_bytes(path, &file)) {
-        return NV_ROUTER_ERR_IO;
-    }
-
-    last_status = NV_ROUTER_ERR_UNSUPPORTED_FORMAT;
+    clear_router_image(out_image);
 
     for (index = 0u; index < context->entry_count; index++) {
         const nv_format_entry *entry = &context->entries[index];
@@ -757,14 +1195,15 @@ nv_router_status nv_router_decode_file_ex(
         if ((entry->capabilities & NV_FORMAT_CAP_DECODE) == 0u) {
             continue;
         }
-        if (extension[0] != '\0' && extension_matches(entry->extensions, extension) == 0) {
+        if (extension != NULL && extension[0] != '\0' &&
+            extension_matches(entry->extensions, extension) == 0) {
             continue;
         }
 
         memset(&request, 0, sizeof(request));
         request.struct_size = (uint32_t)sizeof(request);
-        request.data = file.data;
-        request.data_size = file.size;
+        request.data = data;
+        request.data_size = data_size;
         request.path = path;
         request.desired_pixel_format = (nv_format_pixel_format)desired_pixel_format;
         request.frame_index = frame_index;
@@ -781,7 +1220,6 @@ nv_router_status nv_router_decode_file_ex(
 
         if (owner_add(image.pixels, entry->image_free) == 0) {
             entry->image_free(&image);
-            release_file_bytes(&file);
             return NV_ROUTER_ERR_OUT_OF_MEMORY;
         }
 
@@ -796,16 +1234,80 @@ nv_router_status nv_router_decode_file_ex(
         out_image->frame_delay_ms = image.frame_delay_ms;
         out_image->source_width = image.source_width;
         out_image->source_height = image.source_height;
-        release_file_bytes(&file);
         return NV_ROUTER_OK;
     }
 
-    release_file_bytes(&file);
     if (last_status == NV_ROUTER_ERR_UNSUPPORTED_FORMAT &&
         context->abi_mismatch_count > 0u) {
         return NV_ROUTER_ERR_ABI_MISMATCH;
     }
     return last_status;
+}
+
+nv_router_status nv_router_decode_file_ex(
+    nv_router_context *context,
+    const char *path,
+    nv_router_pixel_format desired_pixel_format,
+    uint32_t frame_index,
+    int32_t max_dimension,
+    nv_router_image *out_image)
+{
+    char extension[32];
+    nv_file_bytes file;
+    nv_router_status status;
+
+    if (context == NULL || path == NULL || out_image == NULL) {
+        return NV_ROUTER_ERR_INVALID_ARGUMENT;
+    }
+
+    path_extension(path, extension, sizeof(extension));
+
+    if (!read_file_bytes(path, &file)) {
+        return NV_ROUTER_ERR_IO;
+    }
+
+    status = dispatch_decode(
+        context, file.data, file.size, path, extension,
+        desired_pixel_format, frame_index, max_dimension, out_image);
+    release_file_bytes(&file);
+    return status;
+}
+
+nv_router_status nv_router_decode_fd_ex(
+    nv_router_context *context,
+    int fd,
+    nv_router_pixel_format desired_pixel_format,
+    uint32_t frame_index,
+    int32_t max_dimension,
+    nv_router_image *out_image)
+{
+    nv_file_bytes file;
+    nv_router_status status;
+
+    if (context == NULL || fd < 0 || out_image == NULL) {
+        return NV_ROUTER_ERR_INVALID_ARGUMENT;
+    }
+
+    if (!read_fd_bytes(fd, &file)) {
+        return NV_ROUTER_ERR_IO;
+    }
+
+    status = dispatch_decode(
+        context, file.data, file.size, NULL, "",
+        desired_pixel_format, frame_index, max_dimension, out_image);
+    release_file_bytes(&file);
+    return status;
+}
+
+nv_router_status nv_router_decode_fd(
+    nv_router_context *context,
+    int fd,
+    nv_router_pixel_format desired_pixel_format,
+    uint32_t frame_index,
+    nv_router_image *out_image)
+{
+    return nv_router_decode_fd_ex(
+        context, fd, desired_pixel_format, frame_index, 0, out_image);
 }
 
 /* Kept for callers that only want full-size decoding. */
@@ -823,6 +1325,7 @@ nv_router_status nv_router_decode_file(
 /* Writes bytes to a file, replacing an existing one. The path is UTF-8. */
 static int write_file_bytes(const char *path, const uint8_t *data, size_t size)
 {
+#if defined(_WIN32)
     int wide_length;
     wchar_t *wide_path;
     HANDLE file;
@@ -868,6 +1371,40 @@ static int write_file_bytes(const char *path, const uint8_t *data, size_t size)
     }
     free(wide_path);
     return written_ok;
+#else
+    int fd;
+    size_t offset = 0u;
+    int written_ok = 1;
+
+    fd = open(path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+    if (fd < 0) {
+        return 0;
+    }
+
+    while (offset < size) {
+        ssize_t written = write(fd, data + offset, size - offset);
+        if (written < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            written_ok = 0;
+            break;
+        }
+        if (written == 0) {
+            written_ok = 0;
+            break;
+        }
+        offset += (size_t)written;
+    }
+
+    close(fd);
+
+    if (written_ok == 0) {
+        /* Do not leave a truncated image behind after a failed write. */
+        unlink(path);
+    }
+    return written_ok;
+#endif
 }
 
 nv_router_status nv_router_encode_file(

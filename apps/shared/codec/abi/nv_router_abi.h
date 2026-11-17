@@ -40,7 +40,7 @@ extern "C" {
  * explicitly requests otherwise, only the fourth segment is incremented.
  * Independent from the format ABI and the plugin ABI.
  */
-#define NV_ROUTER_ABI_VERSION "0.0.0.3"
+#define NV_ROUTER_ABI_VERSION "0.0.0.4"
 
 typedef enum nv_router_status {
     NV_ROUTER_OK = 0,
@@ -143,6 +143,31 @@ NV_ROUTER_API nv_router_status nv_router_decode_file_ex(
 
 /* Releases pixels held by an image produced by nv_router_decode_file. */
 NV_ROUTER_API void nv_router_image_free(nv_router_image *image);
+
+/*
+ * Decodes an already-open file descriptor, for hosts whose documents live
+ * behind a content provider instead of a filesystem path. The descriptor is
+ * read with pread where available, so its file offset is left unchanged and
+ * the caller keeps ownership of the descriptor.
+ */
+NV_ROUTER_API nv_router_status nv_router_decode_fd(
+    nv_router_context *context,
+    int fd,
+    nv_router_pixel_format desired_pixel_format,
+    uint32_t frame_index,
+    nv_router_image *out_image);
+
+/*
+ * Same as nv_router_decode_fd with the preview size limit described by
+ * nv_router_decode_file_ex.
+ */
+NV_ROUTER_API nv_router_status nv_router_decode_fd_ex(
+    nv_router_context *context,
+    int fd,
+    nv_router_pixel_format desired_pixel_format,
+    uint32_t frame_index,
+    int32_t max_dimension,
+    nv_router_image *out_image);
 
 /*
  * Encodes an image to a file. The output format is chosen from the path's

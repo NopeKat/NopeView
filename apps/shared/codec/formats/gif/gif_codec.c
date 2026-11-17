@@ -7,6 +7,13 @@
  * copies the requested frame instead of decoding the whole GIF again.
  */
 
+#if defined(NV_CODEC_MEMORY_BUDGET)
+#include "nv_stbi_alloc.h"
+#define STBI_MALLOC nv_stbi_malloc
+#define STBI_REALLOC nv_stbi_realloc
+#define STBI_FREE nv_stbi_free
+#endif
+
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_ONLY_GIF
 #include "stb_image.h"
@@ -14,11 +21,18 @@
 #include "nv_format_abi.h"
 #include "nv_format_common.h"
 
-#include <intrin.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+
+#if defined(_WIN32)
+#include <intrin.h>
+#include <windows.h>
+#else
+#include <stdatomic.h>
+#endif
 
 /* The format ABI carries UTF-8 paths. Use the wide-char CRT entry point on
  * Windows so non-ASCII file names work without depending on the ANSI code
@@ -34,8 +48,8 @@ extern __declspec(dllimport) int __stdcall MultiByteToWideChar(
 
 typedef struct nv_gif_cache {
     char *path;
-    __int64 size;
-    __time64_t mtime;
+    int64_t size;
+    int64_t mtime;
     int width;
     int height;
     int frames;
@@ -47,6 +61,8 @@ typedef struct nv_gif_cache {
 
 static nv_gif_cache g_cache[NV_GIF_CACHE_SLOTS];
 static uint64_t g_cache_tick;
+
+#if defined(_WIN32)
 static volatile long g_cache_lock = 0;
 
 static void cache_lock(void)
@@ -59,7 +75,22 @@ static void cache_unlock(void)
 {
     _InterlockedExchange(&g_cache_lock, 0L);
 }
+#else
+static atomic_flag g_cache_lock = ATOMIC_FLAG_INIT;
 
+static void cache_lock(void)
+{
+    while (atomic_flag_test_and_set_explicit(&g_cache_lock, memory_order_acquire)) {
+    }
+}
+
+static void cache_unlock(void)
+{
+    atomic_flag_clear_explicit(&g_cache_lock, memory_order_release);
+}
+#endif
+
+#if defined(_WIN32)
 static wchar_t *utf8_to_wide(const char *path)
 {
     int count = MultiByteToWideChar(NV_UTF8_CODE_PAGE, 0u, path, -1, NULL, 0);
@@ -78,6 +109,7 @@ static wchar_t *utf8_to_wide(const char *path)
     }
     return wide;
 }
+#endif
 
 static char *duplicate_path(const char *path)
 {
@@ -115,8 +147,9 @@ static uint32_t frame_delay_ms(const nv_gif_cache *cache, uint32_t index)
     return (uint32_t)delay;
 }
 
-static int get_file_stamp(const char *path, __int64 *out_size, __time64_t *out_mtime)
+static int get_file_stamp(const char *path, int64_t *out_size, int64_t *out_mtime)
 {
+#if defined(_WIN32)
     wchar_t *wide = utf8_to_wide(path);
     struct __stat64 info;
     int ok = 0;
@@ -125,15 +158,25 @@ static int get_file_stamp(const char *path, __int64 *out_size, __time64_t *out_m
         return 0;
     }
     if (_wstat64(wide, &info) == 0) {
-        *out_size = info.st_size;
-        *out_mtime = info.st_mtime;
+        *out_size = (int64_t)info.st_size;
+        *out_mtime = (int64_t)info.st_mtime;
         ok = 1;
     }
     free(wide);
     return ok;
+#else
+    struct stat info;
+
+    if (path == NULL || stat(path, &info) != 0) {
+        return 0;
+    }
+    *out_size = (int64_t)info.st_size;
+    *out_mtime = (int64_t)info.st_mtime;
+    return 1;
+#endif
 }
 
-static nv_gif_cache *cache_find(const char *path, __int64 size, __time64_t mtime)
+static nv_gif_cache *cache_find(const char *path, int64_t size, int64_t mtime)
 {
     int index;
 
@@ -176,14 +219,16 @@ static nv_gif_cache *cache_insert(const nv_gif_cache *fresh)
 static int read_file(const char *path, unsigned char **out_data, size_t *out_size)
 {
     FILE *file;
-    __int64 size;
+    int64_t size;
     unsigned char *buffer;
     size_t read_count;
-    wchar_t *wide_path;
-    errno_t open_result;
 
     *out_data = NULL;
     *out_size = 0u;
+
+#if defined(_WIN32)
+    wchar_t *wide_path;
+    errno_t open_result;
 
     wide_path = utf8_to_wide(path);
     if (wide_path == NULL) {
@@ -200,7 +245,7 @@ static int read_file(const char *path, unsigned char **out_data, size_t *out_siz
         return 0;
     }
     size = _ftelli64(file);
-    if (size <= 0 || size > (__int64)NV_MAX_DECODE_BYTES) {
+    if (size <= 0 || size > (int64_t)NV_MAX_DECODE_BYTES) {
         fclose(file);
         return 0;
     }
@@ -208,6 +253,25 @@ static int read_file(const char *path, unsigned char **out_data, size_t *out_siz
         fclose(file);
         return 0;
     }
+#else
+    file = fopen(path, "rb");
+    if (file == NULL) {
+        return 0;
+    }
+    if (fseeko(file, 0, SEEK_END) != 0) {
+        fclose(file);
+        return 0;
+    }
+    size = (int64_t)ftello(file);
+    if (size <= 0 || size > (int64_t)NV_MAX_DECODE_BYTES) {
+        fclose(file);
+        return 0;
+    }
+    if (fseeko(file, 0, SEEK_SET) != 0) {
+        fclose(file);
+        return 0;
+    }
+#endif
 
     buffer = (unsigned char *)malloc((size_t)size);
     if (buffer == NULL) {
@@ -265,8 +329,8 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     size_t frame_bytes;
     int components;
     nv_format_pixel_format output_format;
-    __int64 file_size = 0;
-    __time64_t file_mtime = 0;
+    int64_t file_size = 0;
+    int64_t file_mtime = 0;
     int have_stamp = 0;
     nv_gif_cache *slot;
     nv_gif_cache fresh;

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NopeView</string>
+    <string name="empty_title">还没有打开图片</string>
+    <string name="empty_body">点下面的按钮选一张图片来查看。</string>
+    <string name="selected_hint">正在解码。</string>
+    <string name="decode_failed">这张图解码失败。</string>
+    <string name="open_image">打开图片</string>
+    <string name="version_label">0.0.0.nightly</string>
+</resources>

@@ -5,6 +5,13 @@
  * Decoding and encoding are both supported.
  */
 
+#if defined(NV_CODEC_MEMORY_BUDGET)
+#include "nv_stbi_alloc.h"
+#define STBI_MALLOC nv_stbi_malloc
+#define STBI_REALLOC nv_stbi_realloc
+#define STBI_FREE nv_stbi_free
+#endif
+
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_ONLY_JPEG
 #include "stb_image.h"

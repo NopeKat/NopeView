@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NopeView</string>
+    <string name="empty_title">No image open</string>
+    <string name="empty_body">Pick an image below to view it.</string>
+    <string name="selected_hint">Preparing image.</string>
+    <string name="decode_failed">Could not decode this image.</string>
+    <string name="open_image">Open image</string>
+    <string name="version_label">0.0.0.nightly</string>
+</resources>
