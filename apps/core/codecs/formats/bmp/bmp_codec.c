@@ -9,14 +9,9 @@
 #include "stb_image.h"
 
 #include "nv_format_abi.h"
+#include "nv_format_common.h"
 
 #include <string.h>
-
-/* Returns 1 when the caller-provided struct_size is usable for our layout. */
-static int size_ok(uint32_t struct_size, size_t required)
-{
-    return struct_size == 0u || (size_t)struct_size >= required;
-}
 
 const char *nv_format_abi_version(void)
 {
@@ -28,7 +23,7 @@ nv_format_status nv_format_query(nv_format_info *out_info)
     if (out_info == NULL) {
         return NV_FORMAT_ERR_INVALID_ARGUMENT;
     }
-    if (!size_ok(out_info->struct_size, sizeof(nv_format_info))) {
+    if (!nv_size_ok(out_info->struct_size, sizeof(nv_format_info))) {
         return NV_FORMAT_ERR_ABI_MISMATCH;
     }
 
@@ -49,8 +44,8 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     if (request == NULL || out_image == NULL) {
         return NV_FORMAT_ERR_INVALID_ARGUMENT;
     }
-    if (!size_ok(request->struct_size, sizeof(nv_format_decode_request)) ||
-        !size_ok(out_image->struct_size, sizeof(nv_format_image))) {
+    if (!nv_size_ok(request->struct_size, sizeof(nv_format_decode_request)) ||
+        !nv_size_ok(out_image->struct_size, sizeof(nv_format_image))) {
         return NV_FORMAT_ERR_ABI_MISMATCH;
     }
 
@@ -97,16 +92,7 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
 
 nv_format_status nv_format_encode(const nv_format_encode_request *request, nv_format_buffer *out_buffer)
 {
-    if (request == NULL || out_buffer == NULL) {
-        return NV_FORMAT_ERR_INVALID_ARGUMENT;
-    }
-    if (!size_ok(request->struct_size, sizeof(nv_format_encode_request)) ||
-        !size_ok(out_buffer->struct_size, sizeof(nv_format_buffer))) {
-        return NV_FORMAT_ERR_ABI_MISMATCH;
-    }
-
-    /* BMP encoding is not implemented yet. */
-    return NV_FORMAT_ERR_UNSUPPORTED;
+    return nv_encode_unsupported(request, out_buffer);
 }
 
 void nv_format_image_free(nv_format_image *image)

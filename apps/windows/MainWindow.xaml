@@ -60,7 +60,7 @@
             <!-- The close button keeps the system danger color on hover and press. -->
             <Style x:Key="CloseButtonStyle" TargetType="Button"
                    BasedOn="{StaticResource CaptionButtonStyle}">
-                <Setter Property="Foreground" Value="{ThemeResource CloseGlyphBrush}" />
+                <Setter Property="Foreground" Value="{ThemeResource CaptionGlyphBrush}" />
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
 namespace NopeView.App.Native;
@@ -41,10 +42,16 @@ internal static partial class Win32Window
     [DllImport("comctl32.dll")]
     private static extern nint DefSubclassProc(nint hWnd, uint msg, nint wParam, nint lParam);
 
+    [DllImport("comctl32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool RemoveWindowSubclass(
+        nint hWnd, SubclassProc pfnSubclass, nuint idSubclass);
+
     [LibraryImport("user32.dll", EntryPoint = "GetDpiForWindow")]
     private static partial uint GetDpiForWindow(nint hWnd);
 
-    private static SubclassProc? s_menuFilter;
+    private static readonly object s_menuFilterLock = new();
+    private static readonly Dictionary<nint, SubclassProc> s_menuFilters = new();
 
     /// <summary>
     /// Effective rasterization scale (DPI / 96) of the window, or 1.0 when the
@@ -64,16 +71,53 @@ internal static partial class Win32Window
     /// context menus inside the client area keep working. This leaves
     /// WS_SYSMENU in place so the system keeps laying out the caption buttons
     /// against the visible window edge.
+    /// Returns false when the native subclass could not be installed, so the
+    /// caller can log or degrade instead of assuming suppression succeeded.
     /// </summary>
-    internal static void SuppressSystemMenu(nint hWnd)
+    internal static bool TrySuppressSystemMenu(nint hWnd)
     {
-        if (s_menuFilter != null)
+        if (hWnd == 0)
+        {
+            return false;
+        }
+
+        lock (s_menuFilterLock)
+        {
+            if (s_menuFilters.ContainsKey(hWnd))
+            {
+                return true;
+            }
+
+            SubclassProc filter = MenuFilterProc;
+            if (!SetWindowSubclass(hWnd, filter, SubclassId, 0u))
+            {
+                return false;
+            }
+
+            s_menuFilters.Add(hWnd, filter);
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Removes the filter when its window closes. Tracking one delegate per
+    /// handle avoids the old single-window guard and lets another window (or a
+    /// recycled HWND) install its own filter.
+    /// </summary>
+    internal static void UnsuppressSystemMenu(nint hWnd)
+    {
+        if (hWnd == 0)
         {
             return;
         }
 
-        s_menuFilter = MenuFilterProc;
-        SetWindowSubclass(hWnd, s_menuFilter, SubclassId, 0);
+        lock (s_menuFilterLock)
+        {
+            if (s_menuFilters.Remove(hWnd, out var filter))
+            {
+                RemoveWindowSubclass(hWnd, filter, SubclassId);
+            }
+        }
     }
 
     private static nint MenuFilterProc(

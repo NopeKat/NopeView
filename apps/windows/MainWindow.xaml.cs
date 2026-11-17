@@ -20,12 +20,21 @@ public sealed partial class MainWindow : Window
     // where the preferred size would cover the whole screen.
     private const double RestoreAreaRatio = 0.9;
 
+    // App.xaml's CaptionGlyphBrush is the only source for the active color.
+    // Only the inactive greys are created here, and they are cached.
+    private static readonly SolidColorBrush s_darkInactiveBrush =
+        new(ColorHelper.FromArgb(255, 128, 128, 128));
+    private static readonly SolidColorBrush s_lightInactiveBrush =
+        new(ColorHelper.FromArgb(255, 153, 153, 153));
+
     private bool _titleBarInitialized;
     private bool _windowActive = true;
+    private nint _windowHandle;
 
     public MainWindow()
     {
         InitializeComponent();
+        _windowHandle = Handle;
 
         // Set the window icon explicitly. For an unpackaged WinUI 3 app the
         // executable's ApplicationIcon alone does not reach Explorer, so the
@@ -47,6 +56,7 @@ public sealed partial class MainWindow : Window
         // the native title bar buttons do. Both activation and theme changes
         // re-evaluate the glyph color.
         Activated += MainWindow_Activated;
+        Closed += MainWindow_Closed;
         RootGrid.ActualThemeChanged += (_, _) => UpdateCaptionAppearance();
     }
 
@@ -54,6 +64,11 @@ public sealed partial class MainWindow : Window
     {
         _windowActive = args.WindowActivationState != WindowActivationState.Deactivated;
         UpdateCaptionAppearance();
+    }
+
+    private void MainWindow_Closed(object sender, WindowEventArgs args)
+    {
+        Win32Window.UnsuppressSystemMenu(_windowHandle);
     }
 
     /// <summary>
@@ -70,12 +85,10 @@ public sealed partial class MainWindow : Window
         }
 
         var dark = RootGrid.ActualTheme == ElementTheme.Dark;
-        var color = _windowActive
-            ? (dark ? Colors.White : Colors.Black)
-            : (dark
-                ? ColorHelper.FromArgb(255, 128, 128, 128)
-                : ColorHelper.FromArgb(255, 153, 153, 153));
-        var brush = new SolidColorBrush(color);
+        var activeBrush = (SolidColorBrush)Application.Current.Resources["CaptionGlyphBrush"];
+        var brush = _windowActive
+            ? activeBrush
+            : (dark ? s_darkInactiveBrush : s_lightInactiveBrush);
 
         MinimizeButton.Foreground = brush;
         RestoreButton.Foreground = brush;
@@ -163,7 +176,10 @@ public sealed partial class MainWindow : Window
         // The native system menu is unwanted on the custom title bar. Filter the
         // messages that open it instead of clearing WS_SYSMENU, which would also
         // shift the caption buttons off the visible right edge.
-        Win32Window.SuppressSystemMenu(Handle);
+        if (!Win32Window.TrySuppressSystemMenu(_windowHandle))
+        {
+            System.Diagnostics.Debug.WriteLine("Failed to install the system menu filter.");
+        }
 
         UpdateCaptionAppearance();
     }

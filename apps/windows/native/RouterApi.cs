@@ -115,13 +115,22 @@ internal static partial class RouterApi
         return formats;
     }
 
-    /// <summary>Decodes a file through the router. Release native memory with ImageFree.</summary>
-    internal static bool TryDecodeFile(IntPtr context, string path, out NvRouterImage image, out int status)
+    /// <summary>
+    /// Decodes one frame through the router. Release native memory with
+    /// ImageFree. Defaults keep the original single-image RGBA behavior.
+    /// </summary>
+    internal static bool TryDecodeFile(
+        IntPtr context,
+        string path,
+        out NvRouterImage image,
+        out int status,
+        uint frameIndex = 0u,
+        int pixelFormat = PixelFormatRgba8)
     {
         image = default;
         image.StructSize = (uint)Marshal.SizeOf<NvRouterImage>();
 
-        status = DecodeFile(context, path, PixelFormatRgba8, 0, ref image);
+        status = DecodeFile(context, path, pixelFormat, frameIndex, ref image);
         return status == Ok;
     }
 
