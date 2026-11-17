@@ -24,6 +24,7 @@ internal struct NvRouterFormat
     public IntPtr Extensions;
     public uint CanDecode;
     public uint CanEncode;
+    public uint CanAnimate;
 }
 
 /// <summary>

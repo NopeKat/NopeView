@@ -3,9 +3,8 @@
  * Implements the format ABI (nv_format_abi.h) on top of stb_image.
  *
  * GIF can be animated, so the decoder honours nv_format_decode_request.frame_index.
- * stb exposes every frame at once. The decoded animation is cached for one file
- * at a time, so playback only copies the requested frame instead of decoding
- * the whole GIF again for every frame.
+ * A small LRU cache keeps decoded animations, so playback only converts and
+ * copies the requested frame instead of decoding the whole GIF again.
  */
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -15,6 +14,7 @@
 #include "nv_format_abi.h"
 #include "nv_format_common.h"
 
+#include <intrin.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,6 +24,7 @@
  * Windows so non-ASCII file names work without depending on the ANSI code
  * page. stb_image declares the same function when STBI_WINDOWS_UTF8 is set. */
 #define NV_UTF8_CODE_PAGE 65001u
+#define NV_GIF_CACHE_SLOTS 4
 
 #if defined(_WIN32)
 extern __declspec(dllimport) int __stdcall MultiByteToWideChar(
@@ -40,9 +41,23 @@ typedef struct nv_gif_cache {
     int frames;
     unsigned char *pixels;
     size_t frame_bytes;
+    uint64_t last_used;
 } nv_gif_cache;
 
-static nv_gif_cache g_cache;
+static nv_gif_cache g_cache[NV_GIF_CACHE_SLOTS];
+static uint64_t g_cache_tick;
+static volatile long g_cache_lock = 0;
+
+static void cache_lock(void)
+{
+    while (_InterlockedExchange(&g_cache_lock, 1L) != 0L) {
+    }
+}
+
+static void cache_unlock(void)
+{
+    _InterlockedExchange(&g_cache_lock, 0L);
+}
 
 static wchar_t *utf8_to_wide(const char *path)
 {
@@ -101,6 +116,45 @@ static int get_file_stamp(const char *path, __int64 *out_size, __time64_t *out_m
     return ok;
 }
 
+static nv_gif_cache *cache_find(const char *path, __int64 size, __time64_t mtime)
+{
+    int index;
+
+    for (index = 0; index < NV_GIF_CACHE_SLOTS; index++) {
+        nv_gif_cache *slot = &g_cache[index];
+        if (slot->path != NULL && strcmp(slot->path, path) == 0 &&
+            slot->size == size && slot->mtime == mtime) {
+            slot->last_used = ++g_cache_tick;
+            return slot;
+        }
+    }
+    return NULL;
+}
+
+static nv_gif_cache *cache_insert(const nv_gif_cache *fresh)
+{
+    int index;
+    int oldest = 0;
+
+    for (index = 0; index < NV_GIF_CACHE_SLOTS; index++) {
+        if (g_cache[index].pixels == NULL) {
+            clear_cache(&g_cache[index]);
+            g_cache[index] = *fresh;
+            g_cache[index].last_used = ++g_cache_tick;
+            return &g_cache[index];
+        }
+    }
+    for (index = 1; index < NV_GIF_CACHE_SLOTS; index++) {
+        if (g_cache[index].last_used < g_cache[oldest].last_used) {
+            oldest = index;
+        }
+    }
+    clear_cache(&g_cache[oldest]);
+    g_cache[oldest] = *fresh;
+    g_cache[oldest].last_used = ++g_cache_tick;
+    return &g_cache[oldest];
+}
+
 /* Reads a whole file into memory. The caller frees the buffer with free(). */
 static int read_file(const char *path, unsigned char **out_data, size_t *out_size)
 {
@@ -129,7 +183,7 @@ static int read_file(const char *path, unsigned char **out_data, size_t *out_siz
         return 0;
     }
     size = _ftelli64(file);
-    if (size <= 0 || size > (__int64)0x7fffffff) {
+    if (size <= 0 || size > (__int64)NV_MAX_DECODE_BYTES) {
         fclose(file);
         return 0;
     }
@@ -190,12 +244,17 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     int channels_in_file = 0;
     unsigned char *all_frames = NULL;
     unsigned char *frame_pixels = NULL;
+    size_t pixel_count;
     size_t frame_bytes;
+    int components;
+    nv_format_pixel_format output_format;
     __int64 file_size = 0;
     __time64_t file_mtime = 0;
     int have_stamp = 0;
-    int cache_hit = 0;
-    nv_gif_cache fresh;
+            nv_gif_cache *slot;
+            nv_gif_cache fresh;
+            int image_width;
+            int image_height;
 
     if (request == NULL || out_image == NULL) {
         return NV_FORMAT_ERR_INVALID_ARGUMENT;
@@ -208,39 +267,50 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     memset(out_image, 0, sizeof(*out_image));
     out_image->struct_size = (uint32_t)sizeof(*out_image);
 
+    components = nv_components_for(request->desired_pixel_format);
+    output_format = nv_output_format(request->desired_pixel_format);
+
     if (request->path != NULL) {
         have_stamp = get_file_stamp(request->path, &file_size, &file_mtime);
-        if (have_stamp && g_cache.path != NULL &&
-            strcmp(g_cache.path, request->path) == 0 &&
-            g_cache.size == file_size && g_cache.mtime == file_mtime) {
-            cache_hit = 1;
-        }
     }
 
-    if (cache_hit != 0) {
-        if (request->frame_index >= (uint32_t)g_cache.frames) {
-            return NV_FORMAT_ERR_UNSUPPORTED;
-        }
-        frame_bytes = g_cache.frame_bytes;
-        frame_pixels = (unsigned char *)malloc(frame_bytes);
-        if (frame_pixels == NULL) {
-            return NV_FORMAT_ERR_OUT_OF_MEMORY;
-        }
-        memcpy(frame_pixels,
-               g_cache.pixels + (size_t)request->frame_index * frame_bytes,
-               frame_bytes);
+    if (have_stamp != 0) {
+        cache_lock();
+        slot = cache_find(request->path, file_size, file_mtime);
+        if (slot != NULL) {
+            if (request->frame_index >= (uint32_t)slot->frames) {
+                cache_unlock();
+                return NV_FORMAT_ERR_UNSUPPORTED;
+            }
+            pixel_count = (size_t)slot->width * (size_t)slot->height;
+            frame_bytes = pixel_count * (size_t)components;
+            frame_pixels = (unsigned char *)malloc(frame_bytes);
+            if (frame_pixels == NULL) {
+                cache_unlock();
+                return NV_FORMAT_ERR_OUT_OF_MEMORY;
+            }
+            nv_rgba_to_format(
+                frame_pixels,
+                slot->pixels + (size_t)request->frame_index * slot->frame_bytes,
+                pixel_count,
+                output_format);
+            image_width = slot->width;
+            image_height = slot->height;
+            cache_unlock();
 
-        out_image->width = g_cache.width;
-        out_image->height = g_cache.height;
-        out_image->stride = g_cache.width * 4;
-        out_image->pixel_format = NV_FORMAT_PIXEL_RGBA8;
-        out_image->pixels = frame_pixels;
-        out_image->pixels_size = frame_bytes;
-        return NV_FORMAT_OK;
+            out_image->width = image_width;
+            out_image->height = image_height;
+            out_image->stride = image_width * components;
+            out_image->pixel_format = (nv_format_pixel_format)output_format;
+            out_image->pixels = frame_pixels;
+            out_image->pixels_size = frame_bytes;
+            return NV_FORMAT_OK;
+        }
+        cache_unlock();
     }
 
     if (request->data != NULL && request->data_size > 0u) {
-        if (request->data_size > (size_t)0x7fffffff) {
+        if (request->data_size > NV_MAX_DECODE_BYTES) {
             return NV_FORMAT_ERR_INVALID_ARGUMENT;
         }
         data = (unsigned char *)request->data;
@@ -256,7 +326,6 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
         return NV_FORMAT_ERR_INVALID_ARGUMENT;
     }
 
-    /* Four channels so the output is always RGBA. */
     all_frames = stbi_load_gif_from_memory(
         data,
         (int)data_size,
@@ -280,13 +349,13 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
         return NV_FORMAT_ERR_UNSUPPORTED;
     }
 
-    frame_bytes = (size_t)width * (size_t)height * 4u;
+    pixel_count = (size_t)width * (size_t)height;
     memset(&fresh, 0, sizeof(fresh));
     fresh.pixels = all_frames;
     fresh.width = width;
     fresh.height = height;
     fresh.frames = frames;
-    fresh.frame_bytes = frame_bytes;
+    fresh.frame_bytes = pixel_count * 4u;
     if (request->path != NULL) {
         fresh.path = duplicate_path(request->path);
         if (fresh.path == NULL) {
@@ -297,21 +366,28 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
         fresh.mtime = have_stamp != 0 ? file_mtime : 0;
     }
 
-    clear_cache(&g_cache);
-    g_cache = fresh;
-
+    frame_bytes = pixel_count * (size_t)components;
     frame_pixels = (unsigned char *)malloc(frame_bytes);
+
+    cache_lock();
+    slot = cache_insert(&fresh);
+    if (frame_pixels != NULL) {
+        nv_rgba_to_format(
+            frame_pixels,
+            slot->pixels + (size_t)request->frame_index * slot->frame_bytes,
+            pixel_count,
+            output_format);
+    }
+    cache_unlock();
+
     if (frame_pixels == NULL) {
         return NV_FORMAT_ERR_OUT_OF_MEMORY;
     }
-    memcpy(frame_pixels,
-           g_cache.pixels + (size_t)request->frame_index * frame_bytes,
-           frame_bytes);
 
     out_image->width = width;
     out_image->height = height;
-    out_image->stride = width * 4;
-    out_image->pixel_format = NV_FORMAT_PIXEL_RGBA8;
+    out_image->stride = width * components;
+    out_image->pixel_format = (nv_format_pixel_format)output_format;
     out_image->pixels = frame_pixels;
     out_image->pixels_size = frame_bytes;
     return NV_FORMAT_OK;

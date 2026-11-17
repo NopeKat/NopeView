@@ -89,6 +89,7 @@ typedef struct nv_router_format {
     const char *extensions;  /* Comma-separated, for example "png". */
     uint32_t can_decode;
     uint32_t can_encode;
+    uint32_t can_animate;    /* 1 when the format supports animated frames. */
 } nv_router_format;
 
 /* Returns the router ABI version string. */

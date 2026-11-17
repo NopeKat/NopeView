@@ -39,6 +39,9 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     int width = 0;
     int height = 0;
     int channels_in_file = 0;
+    int components;
+    nv_format_pixel_format output_format;
+    size_t pixel_count;
     unsigned char *pixels = NULL;
 
     if (request == NULL || out_image == NULL) {
@@ -57,21 +60,23 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     memset(out_image, 0, sizeof(*out_image));
     out_image->struct_size = (uint32_t)sizeof(*out_image);
 
+    components = nv_components_for(request->desired_pixel_format);
+    output_format = nv_output_format(request->desired_pixel_format);
+
     if (request->data != NULL && request->data_size > 0u) {
-        if (request->data_size > (size_t)0x7fffffff) {
+        if (request->data_size > NV_MAX_DECODE_BYTES) {
             return NV_FORMAT_ERR_INVALID_ARGUMENT;
         }
-        /* Request four channels so the output is always RGBA. */
         pixels = stbi_load_from_memory(
             request->data,
             (int)request->data_size,
             &width,
             &height,
             &channels_in_file,
-            4);
+            components);
     }
     else if (request->path != NULL) {
-        pixels = stbi_load(request->path, &width, &height, &channels_in_file, 4);
+        pixels = stbi_load(request->path, &width, &height, &channels_in_file, components);
     }
     else {
         return NV_FORMAT_ERR_INVALID_ARGUMENT;
@@ -81,12 +86,20 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
         return NV_FORMAT_ERR_DECODE_FAILED;
     }
 
+    pixel_count = (size_t)width * (size_t)height;
+    if (output_format == NV_FORMAT_PIXEL_BGRA8) {
+        nv_swap_red_blue(pixels, pixel_count, 4);
+    }
+    else if (output_format == NV_FORMAT_PIXEL_BGR8) {
+        nv_swap_red_blue(pixels, pixel_count, 3);
+    }
+
     out_image->width = width;
     out_image->height = height;
-    out_image->stride = width * 4;
-    out_image->pixel_format = NV_FORMAT_PIXEL_RGBA8;
+    out_image->stride = width * components;
+    out_image->pixel_format = (nv_format_pixel_format)output_format;
     out_image->pixels = pixels;
-    out_image->pixels_size = (size_t)width * (size_t)height * 4u;
+    out_image->pixels_size = pixel_count * (size_t)components;
     return NV_FORMAT_OK;
 }
 
