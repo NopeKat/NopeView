@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.Windows.Storage.Pickers;
@@ -42,6 +43,7 @@ public sealed partial class MainWindow : Window
     private bool _windowActive = true;
     private nint _windowHandle;
     private IntPtr _routerContext;
+    private ImageDirectory? _directory;
 
     public MainWindow()
     {
@@ -256,18 +258,10 @@ public sealed partial class MainWindow : Window
             CommitButtonText = "Open image"
         };
 
-        foreach (var format in SupportedFormats())
+        foreach (var extension in SupportedExtensions())
         {
-            if (!format.CanDecode)
-            {
-                continue;
-            }
-            foreach (var raw in format.Extensions.Split(
-                         ',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                var extension = raw.StartsWith('.') ? raw : "." + raw;
-                picker.FileTypeFilter.Add(extension);
-            }
+            var normalized = extension.StartsWith('.') ? extension : "." + extension;
+            picker.FileTypeFilter.Add(normalized);
         }
 
         var result = await picker.PickSingleFileAsync();
@@ -283,6 +277,22 @@ public sealed partial class MainWindow : Window
         return _routerContext == IntPtr.Zero
             ? Array.Empty<RouterFormatInfo>()
             : RouterApi.ListFormats(_routerContext);
+    }
+
+    private IEnumerable<string> SupportedExtensions()
+    {
+        foreach (var format in SupportedFormats())
+        {
+            if (!format.CanDecode)
+            {
+                continue;
+            }
+            foreach (var extension in format.Extensions.Split(
+                         ',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                yield return extension;
+            }
+        }
     }
 
     private void RootGrid_DragOver(object sender, DragEventArgs e)
@@ -308,6 +318,24 @@ public sealed partial class MainWindow : Window
     }
 
     private async Task OpenImageAsync(string path)
+    {
+        _directory = ImageDirectory.Create(path, SupportedExtensions());
+        UpdateNavigationState();
+        await ShowCurrentImageAsync();
+    }
+
+    private async Task ShowCurrentImageAsync()
+    {
+        if (_directory is null)
+        {
+            return;
+        }
+
+        await DecodeAndShowAsync(_directory.CurrentPath);
+        UpdateNavigationState();
+    }
+
+    private async Task DecodeAndShowAsync(string path)
     {
         if (_routerContext == IntPtr.Zero)
         {
@@ -343,6 +371,54 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             ShowError("Failed to open image: " + ex.Message);
+        }
+    }
+
+    private void UpdateNavigationState()
+    {
+        PreviousButton.IsEnabled = _directory?.HasPrevious == true;
+        NextButton.IsEnabled = _directory?.HasNext == true;
+    }
+
+    private async void PreviousButton_Click(object sender, RoutedEventArgs e)
+    {
+        await MovePreviousAsync();
+    }
+
+    private async void NextButton_Click(object sender, RoutedEventArgs e)
+    {
+        await MoveNextAsync();
+    }
+
+    private async void PreviousAccelerator_Invoked(
+        KeyboardAccelerator sender,
+        KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        await MovePreviousAsync();
+    }
+
+    private async void NextAccelerator_Invoked(
+        KeyboardAccelerator sender,
+        KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        await MoveNextAsync();
+    }
+
+    private async Task MovePreviousAsync()
+    {
+        if (_directory is not null && _directory.MovePrevious())
+        {
+            await ShowCurrentImageAsync();
+        }
+    }
+
+    private async Task MoveNextAsync()
+    {
+        if (_directory is not null && _directory.MoveNext())
+        {
+            await ShowCurrentImageAsync();
         }
     }
 

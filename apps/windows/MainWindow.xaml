@@ -7,6 +7,11 @@
 
     <Grid x:Name="RootGrid" Loaded="RootGrid_Loaded"
           AllowDrop="True" DragOver="RootGrid_DragOver" Drop="RootGrid_Drop">
+        <Grid.KeyboardAccelerators>
+            <KeyboardAccelerator Key="Left" Invoked="PreviousAccelerator_Invoked" />
+            <KeyboardAccelerator Key="Right" Invoked="NextAccelerator_Invoked" />
+        </Grid.KeyboardAccelerators>
+
         <Grid.Resources>
             <!-- Caption buttons are drawn in XAML so their tooltips can be omitted.
                  Geometry and colors follow the system caption buttons.
@@ -191,24 +196,62 @@
                     Background="{ThemeResource FloatingPanelBrush}"
                     BorderBrush="{ThemeResource FloatingPanelStrokeBrush}"
                     BorderThickness="1">
-                <Button x:Name="OpenButton"
-                        AutomationProperties.AutomationId="OpenButton"
-                        AutomationProperties.Name="Open image"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        Padding="10,6"
-                        MinHeight="32"
-                        Click="OpenButton_Click"
-                        ToolTipService.ToolTip="Open image (Ctrl+O)">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
+                <StackPanel Orientation="Horizontal" Spacing="2">
+                    <Button x:Name="OpenButton"
+                            AutomationProperties.AutomationId="OpenButton"
+                            AutomationProperties.Name="Open image"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Padding="10,6"
+                            MinHeight="32"
+                            Click="OpenButton_Click"
+                            ToolTipService.ToolTip="Open image (Ctrl+O)">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Width="16" Height="16"
+                                      Data="M13 6a2 2 0 00-2-2H6.17l-1.1-.9a.5.5 0 00-.32-.1H3a2 2 0 00-2 2v6c0 1.1.9 2 2 2h9.25a1.5 1.5 0 001.44-1.08l1.17-4A1.5 1.5 0 0013.42 6H13zM3 4h1.58l1.1.89c.1.07.2.1.32.1h5a1 1 0 011 1V6H4.25a1.5 1.5 0 00-1.44 1.08L2 9.86V5a1 1 0 011-1zm.77 3.36A.5.5 0 014.25 7h9.17a.5.5 0 01.48.64l-1.17 4a.5.5 0 01-.48.36H3.08a.5.5 0 01-.48-.64l1.17-4z" />
+                            <TextBlock Text="Open" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <Button.KeyboardAccelerators>
+                            <KeyboardAccelerator Key="O" Modifiers="Control" />
+                        </Button.KeyboardAccelerators>
+                    </Button>
+
+                    <Border Width="1"
+                            Height="20"
+                            Margin="4,0"
+                            VerticalAlignment="Center"
+                            Background="{ThemeResource FloatingPanelStrokeBrush}" />
+
+                    <Button x:Name="PreviousButton"
+                            AutomationProperties.AutomationId="PreviousButton"
+                            AutomationProperties.Name="Previous image"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Padding="8"
+                            MinHeight="32"
+                            MinWidth="32"
+                            IsEnabled="False"
+                            Click="PreviousButton_Click"
+                            ToolTipService.ToolTip="Previous image (Left)">
                         <PathIcon Width="16" Height="16"
-                                  Data="M13 6a2 2 0 00-2-2H6.17l-1.1-.9a.5.5 0 00-.32-.1H3a2 2 0 00-2 2v6c0 1.1.9 2 2 2h9.25a1.5 1.5 0 001.44-1.08l1.17-4A1.5 1.5 0 0013.42 6H13zM3 4h1.58l1.1.89c.1.07.2.1.32.1h5a1 1 0 011 1V6H4.25a1.5 1.5 0 00-1.44 1.08L2 9.86V5a1 1 0 011-1zm.77 3.36A.5.5 0 014.25 7h9.17a.5.5 0 01.48.64l-1.17 4a.5.5 0 01-.48.36H3.08a.5.5 0 01-.48-.64l1.17-4z" />
-                        <TextBlock Text="Open" VerticalAlignment="Center" />
-                    </StackPanel>
-                    <Button.KeyboardAccelerators>
-                        <KeyboardAccelerator Key="O" Modifiers="Control" />
-                    </Button.KeyboardAccelerators>
-                </Button>
+                                  Data="M10.35 3.15c.2.2.2.5 0 .7L6.21 8l4.14 4.15a.5.5 0 01-.7.7l-4.5-4.5a.5.5 0 010-.7l4.5-4.5c.2-.2.5-.2.7 0z" />
+                    </Button>
+
+                    <Button x:Name="NextButton"
+                            AutomationProperties.AutomationId="NextButton"
+                            AutomationProperties.Name="Next image"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Padding="8"
+                            MinHeight="32"
+                            MinWidth="32"
+                            IsEnabled="False"
+                            Click="NextButton_Click"
+                            ToolTipService.ToolTip="Next image (Right)">
+                        <PathIcon Width="16" Height="16"
+                                  Data="M5.65 3.15a.5.5 0 000 .7L9.79 8l-4.14 4.15a.5.5 0 00.7.7l4.5-4.5a.5.5 0 000-.7l-4.5-4.5a.5.5 0 00-.7 0z" />
+                    </Button>
+                </StackPanel>
             </Border>
 
             <Border x:Name="ErrorPanel"
