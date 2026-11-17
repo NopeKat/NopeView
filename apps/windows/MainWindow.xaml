@@ -5,7 +5,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="NopeView">
 
-    <Grid x:Name="RootGrid" Loaded="RootGrid_Loaded">
+    <Grid x:Name="RootGrid" Loaded="RootGrid_Loaded"
+          AllowDrop="True" DragOver="RootGrid_DragOver" Drop="RootGrid_Drop">
         <Grid.Resources>
             <!-- Caption buttons are drawn in XAML so their tooltips can be omitted.
                  Geometry and colors follow the system caption buttons.
@@ -174,6 +175,75 @@
             </StackPanel>
         </Grid>
 
-        <Grid x:Name="ContentRoot" Grid.Row="1" />
+        <Grid x:Name="ContentRoot" Grid.Row="1">
+            <Image x:Name="ImageView"
+                   AutomationProperties.AutomationId="ImageView"
+                   AutomationProperties.Name="Current image"
+                   Stretch="Uniform"
+                   HorizontalAlignment="Stretch"
+                   VerticalAlignment="Stretch" />
+
+            <Border HorizontalAlignment="Left"
+                    VerticalAlignment="Top"
+                    Margin="12"
+                    Padding="2"
+                    CornerRadius="6"
+                    Background="{ThemeResource FloatingPanelBrush}"
+                    BorderBrush="{ThemeResource FloatingPanelStrokeBrush}"
+                    BorderThickness="1">
+                <Button x:Name="OpenButton"
+                        AutomationProperties.AutomationId="OpenButton"
+                        AutomationProperties.Name="Open image"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Padding="10,6"
+                        MinHeight="32"
+                        Click="OpenButton_Click"
+                        ToolTipService.ToolTip="Open image (Ctrl+O)">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Width="16" Height="16"
+                                  Data="M13 6a2 2 0 00-2-2H6.17l-1.1-.9a.5.5 0 00-.32-.1H3a2 2 0 00-2 2v6c0 1.1.9 2 2 2h9.25a1.5 1.5 0 001.44-1.08l1.17-4A1.5 1.5 0 0013.42 6H13zM3 4h1.58l1.1.89c.1.07.2.1.32.1h5a1 1 0 011 1V6H4.25a1.5 1.5 0 00-1.44 1.08L2 9.86V5a1 1 0 011-1zm.77 3.36A.5.5 0 014.25 7h9.17a.5.5 0 01.48.64l-1.17 4a.5.5 0 01-.48.36H3.08a.5.5 0 01-.48-.64l1.17-4z" />
+                        <TextBlock Text="Open" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <Button.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="O" Modifiers="Control" />
+                    </Button.KeyboardAccelerators>
+                </Button>
+            </Border>
+
+            <Border x:Name="ErrorPanel"
+                    Visibility="Collapsed"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Bottom"
+                    MaxWidth="640"
+                    Margin="24"
+                    Padding="16,12"
+                    CornerRadius="8"
+                    Background="{ThemeResource FloatingPanelBrush}"
+                    BorderBrush="{ThemeResource FloatingPanelStrokeBrush}"
+                    BorderThickness="1">
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <PathIcon Width="16"
+                              Height="16"
+                              VerticalAlignment="Top"
+                              Foreground="{ThemeResource FloatingPanelErrorBrush}"
+                              Data="M8 2a6 6 0 110 12A6 6 0 018 2zm0 1a5 5 0 100 10A5 5 0 008 3zm0 7a.75.75 0 110 1.5.75.75 0 010-1.5zm0-5.5a.5.5 0 01.5.41V8.5a.5.5 0 01-1 .09V5c0-.28.22-.5.5-.5z" />
+                    <StackPanel Grid.Column="1" Spacing="2">
+                        <TextBlock Text="Could not open image"
+                                   FontWeight="SemiBold"
+                                   Foreground="{ThemeResource FloatingPanelPrimaryTextBrush}" />
+                        <TextBlock x:Name="ErrorText"
+                                   AutomationProperties.AutomationId="ErrorText"
+                                   AutomationProperties.Name="Image error"
+                                   Foreground="{ThemeResource FloatingPanelSecondaryTextBrush}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </Window>

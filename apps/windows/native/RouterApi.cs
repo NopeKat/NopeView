@@ -27,6 +27,14 @@ internal struct NvRouterFormat
     public uint CanAnimate;
 }
 
+/// <summary>One format discovered by the router.</summary>
+internal readonly record struct RouterFormatInfo(
+    string Id,
+    string Extensions,
+    bool CanDecode,
+    bool CanEncode,
+    bool CanAnimate);
+
 /// <summary>
 /// Binding to the codec router (nv_router_abi.h).
 /// The app never references a concrete format library; it only knows the router.
@@ -36,7 +44,13 @@ internal static partial class RouterApi
     private const string LibraryName = "router";
     private const int Ok = 0;
     private const int ErrNotFound = -2;
+    internal const int ErrUnsupportedFormat = -3;
+    internal const int ErrDecodeFailed = -4;
+    internal const int ErrOutOfMemory = -5;
+    internal const int ErrIo = -6;
+    internal const int ErrAbiMismatch = -7;
     private const int PixelFormatRgba8 = 1;
+    internal const int PixelFormatBgra8 = 2;
 
     static RouterApi()
     {
@@ -94,10 +108,10 @@ internal static partial class RouterApi
         }
     }
 
-    /// <summary>Lists the format ids the router discovered.</summary>
-    internal static IReadOnlyList<string> ListFormats(IntPtr context)
+    /// <summary>Lists the formats the router discovered.</summary>
+    internal static IReadOnlyList<RouterFormatInfo> ListFormats(IntPtr context)
     {
-        var formats = new List<string>();
+        var formats = new List<RouterFormatInfo>();
 
         for (uint index = 0; ; index++)
         {
@@ -109,8 +123,12 @@ internal static partial class RouterApi
                 break;
             }
 
-            var id = Marshal.PtrToStringUTF8(format.FormatId) ?? "?";
-            formats.Add(id);
+            formats.Add(new RouterFormatInfo(
+                Marshal.PtrToStringUTF8(format.FormatId) ?? "?",
+                Marshal.PtrToStringUTF8(format.Extensions) ?? "",
+                format.CanDecode != 0u,
+                format.CanEncode != 0u,
+                format.CanAnimate != 0u));
         }
 
         return formats;

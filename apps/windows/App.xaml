@@ -10,11 +10,21 @@
                     <SolidColorBrush x:Key="CaptionGlyphBrush" Color="#FFFFFF" />
                     <SolidColorBrush x:Key="CaptionHoverBrush" Color="#3C3C3C" />
                     <SolidColorBrush x:Key="CaptionPressedBrush" Color="#4D4D4D" />
+                    <SolidColorBrush x:Key="FloatingPanelBrush" Color="#E62B2B2B" />
+                    <SolidColorBrush x:Key="FloatingPanelStrokeBrush" Color="#4DFFFFFF" />
+                    <SolidColorBrush x:Key="FloatingPanelPrimaryTextBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="FloatingPanelSecondaryTextBrush" Color="#C5C5C5" />
+                    <SolidColorBrush x:Key="FloatingPanelErrorBrush" Color="#FF99A4" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="CaptionGlyphBrush" Color="#000000" />
                     <SolidColorBrush x:Key="CaptionHoverBrush" Color="#E5E5E5" />
                     <SolidColorBrush x:Key="CaptionPressedBrush" Color="#CCCCCC" />
+                    <SolidColorBrush x:Key="FloatingPanelBrush" Color="#F2FFFFFF" />
+                    <SolidColorBrush x:Key="FloatingPanelStrokeBrush" Color="#1A000000" />
+                    <SolidColorBrush x:Key="FloatingPanelPrimaryTextBrush" Color="#000000" />
+                    <SolidColorBrush x:Key="FloatingPanelSecondaryTextBrush" Color="#5D5D5D" />
+                    <SolidColorBrush x:Key="FloatingPanelErrorBrush" Color="#C42B1C" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>

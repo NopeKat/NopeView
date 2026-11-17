@@ -2,7 +2,7 @@
 
 A fast, lightweight, and extensible cross-platform image viewer.
 
-> **Status: early development.** Only the Windows side has a buildable, runnable skeleton so far: the custom title bar and the codec path (router plus four decoders) are in place, but the window content area is still empty, image display is not wired up, and there is no release yet.
+> **Status: early development.** The Windows side can open JPG, PNG, GIF, and BMP through the file picker or drag and drop, decode them through the router, and display them in the content area. The custom title bar is in place; there is no release yet.
 
 ## Highlights
 
@@ -13,7 +13,7 @@ A fast, lightweight, and extensible cross-platform image viewer.
 ## Current progress
 
 - **Codecs**: the router core and the decoders for PNG, JPG, GIF, and BMP are implemented. The encode entry point exists, but all four formats return "unsupported".
-- **Windows app**: WinUI 3, with content extended into the title bar and a self-drawn title bar whose minimize / maximize / close buttons are XAML buttons using Fluent `PathIcon` (the native title bar strip and its tooltips are collapsed), PerMonitorV2 declared, and the NopeView brand logo shown at the left of the title bar. The app icon is set both in the executable and on the running window for Explorer, taskbar, Alt-Tab and Start. The content area is currently empty.
+- **Windows app**: WinUI 3, with content extended into the title bar and a self-drawn title bar whose minimize / maximize / close buttons are XAML buttons using Fluent `PathIcon` (the native title bar strip and its tooltips are collapsed), PerMonitorV2 declared, and the NopeView brand logo shown at the left of the title bar. The app icon is set both in the executable and on the running window for Explorer, taskbar, Alt-Tab and Start. The content area displays the decoded image, with an open button and drag-and-drop support.
 - **Three ABI boundaries**: router (`nv_router_abi.h`), format (`nv_format_abi.h`), and application plugin (`nv_plugin_abi.h`) are all in place, each versioned `0.0.0.0` (the `x.y.z.n` scheme).
 - **Other modules**: the CLI, application plugins, and the platform capability layer contain only directories and notes; nothing is implemented.
 
@@ -41,7 +41,7 @@ Decoding is built on `apps/core/codecs/third_party/stb/stb_image.h`. More format
 
 ## Planned capabilities
 
-- Open files through a dialog, drag and drop, and file association
+- File association (planned with MSIX packaging)
 - Switch to the previous or next item within the same directory
 - Zoom, pan, and rotate
 - GIF playback
@@ -49,7 +49,7 @@ Decoding is built on `apps/core/codecs/third_party/stb/stb_image.h`. More format
 - Themes: follow system, dark, and light
 - Diagnostic export (crash logs, user settings, and runtime environment, packaged as a zip archive), shared only when the user chooses to send it
 
-None of the above is implemented yet.
+File opening through the picker and drag and drop is implemented; the rest is still planned.
 
 ## Building
 

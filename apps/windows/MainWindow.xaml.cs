@@ -1,9 +1,18 @@
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
+using System.Runtime.InteropServices;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.Windows.Storage.Pickers;
 using NopeView.App.Native;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.Graphics;
+using Windows.Graphics.Imaging;
+using Windows.Storage;
+using Windows.Storage.Streams;
 using WinRT.Interop;
 
 namespace NopeView.App;
@@ -27,14 +36,23 @@ public sealed partial class MainWindow : Window
     private static readonly SolidColorBrush s_lightInactiveBrush =
         new(ColorHelper.FromArgb(255, 153, 153, 153));
 
+    private readonly SoftwareBitmapSource _imageSource = new();
+
     private bool _titleBarInitialized;
     private bool _windowActive = true;
     private nint _windowHandle;
+    private IntPtr _routerContext;
 
     public MainWindow()
     {
         InitializeComponent();
         _windowHandle = Handle;
+        ImageView.Source = _imageSource;
+
+        if (!RouterApi.TryCreate(null, out _routerContext))
+        {
+            _routerContext = IntPtr.Zero;
+        }
 
         // Set the window icon explicitly. For an unpackaged WinUI 3 app the
         // executable's ApplicationIcon alone does not reach Explorer, so the
@@ -69,6 +87,8 @@ public sealed partial class MainWindow : Window
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
         Win32Window.UnsuppressSystemMenu(_windowHandle);
+        RouterApi.Close(_routerContext);
+        _routerContext = IntPtr.Zero;
     }
 
     /// <summary>
@@ -182,6 +202,7 @@ public sealed partial class MainWindow : Window
         }
 
         UpdateCaptionAppearance();
+        OpenImageFromCommandLine();
     }
 
     private void AppWindow_Changed(AppWindow sender, AppWindowChangedEventArgs args)
@@ -211,6 +232,174 @@ public sealed partial class MainWindow : Window
         var offset = maximized ? 0.0 : -0.5;
         MinimizeOffset.Y = offset - 0.5;
         CloseOffset.Y = offset;
+    }
+
+    private void OpenImageFromCommandLine()
+    {
+        var args = Environment.GetCommandLineArgs();
+        for (var index = 1; index + 1 < args.Length; index++)
+        {
+            if (args[index] == "--open")
+            {
+                _ = OpenImageAsync(args[index + 1]);
+                return;
+            }
+        }
+    }
+
+    private async void OpenButton_Click(object sender, RoutedEventArgs e)
+    {
+        var picker = new FileOpenPicker(AppWindow.Id)
+        {
+            SuggestedStartLocation = PickerLocationId.PicturesLibrary,
+            ViewMode = PickerViewMode.Thumbnail,
+            CommitButtonText = "Open image"
+        };
+
+        foreach (var format in SupportedFormats())
+        {
+            if (!format.CanDecode)
+            {
+                continue;
+            }
+            foreach (var raw in format.Extensions.Split(
+                         ',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var extension = raw.StartsWith('.') ? raw : "." + raw;
+                picker.FileTypeFilter.Add(extension);
+            }
+        }
+
+        var result = await picker.PickSingleFileAsync();
+        if (result is null)
+        {
+            return;
+        }
+        await OpenImageAsync(result.Path);
+    }
+
+    private IReadOnlyList<RouterFormatInfo> SupportedFormats()
+    {
+        return _routerContext == IntPtr.Zero
+            ? Array.Empty<RouterFormatInfo>()
+            : RouterApi.ListFormats(_routerContext);
+    }
+
+    private void RootGrid_DragOver(object sender, DragEventArgs e)
+    {
+        e.AcceptedOperation = e.DataView.Contains(StandardDataFormats.StorageItems)
+            ? DataPackageOperation.Copy
+            : DataPackageOperation.None;
+    }
+
+    private async void RootGrid_Drop(object sender, DragEventArgs e)
+    {
+        if (!e.DataView.Contains(StandardDataFormats.StorageItems))
+        {
+            return;
+        }
+
+        var items = await e.DataView.GetStorageItemsAsync();
+        var file = items.OfType<IStorageFile>().FirstOrDefault();
+        if (file is not null)
+        {
+            await OpenImageAsync(file.Path);
+        }
+    }
+
+    private async Task OpenImageAsync(string path)
+    {
+        if (_routerContext == IntPtr.Zero)
+        {
+            ShowError("Codec router is unavailable.");
+            return;
+        }
+
+        ErrorPanel.Visibility = Visibility.Collapsed;
+
+        try
+        {
+            if (!RouterApi.TryDecodeFile(
+                    _routerContext, path, out var image, out var status,
+                    0u, RouterApi.PixelFormatBgra8))
+            {
+                ShowError(DescribeStatus(status));
+                return;
+            }
+
+            SoftwareBitmap bitmap;
+            try
+            {
+                bitmap = ToSoftwareBitmap(ref image);
+            }
+            finally
+            {
+                RouterApi.FreeImage(ref image);
+            }
+
+            await _imageSource.SetBitmapAsync(bitmap);
+            AutomationProperties.SetName(ImageView, "Current image: " + Path.GetFileName(path));
+        }
+        catch (Exception ex)
+        {
+            ShowError("Failed to open image: " + ex.Message);
+        }
+    }
+
+    private static SoftwareBitmap ToSoftwareBitmap(ref NvRouterImage image)
+    {
+        var pixelCount = image.Width * image.Height * 4;
+        var pixels = new byte[pixelCount];
+        Marshal.Copy(image.Pixels, pixels, 0, pixelCount);
+
+        var swap = image.PixelFormat != RouterApi.PixelFormatBgra8;
+        for (var index = 0; index < pixelCount; index += 4)
+        {
+            var first = pixels[index];
+            var third = pixels[index + 2];
+            var alpha = pixels[index + 3];
+
+            if (swap)
+            {
+                pixels[index] = third;
+                pixels[index + 2] = first;
+            }
+
+            // SoftwareBitmap requires premultiplied alpha.
+            pixels[index] = (byte)(pixels[index] * alpha / 255);
+            pixels[index + 1] = (byte)(pixels[index + 1] * alpha / 255);
+            pixels[index + 2] = (byte)(pixels[index + 2] * alpha / 255);
+        }
+
+        using var writer = new DataWriter();
+        writer.WriteBytes(pixels);
+        var buffer = writer.DetachBuffer();
+
+        return SoftwareBitmap.CreateCopyFromBuffer(
+            buffer,
+            BitmapPixelFormat.Bgra8,
+            image.Width,
+            image.Height,
+            BitmapAlphaMode.Premultiplied);
+    }
+
+    private void ShowError(string message)
+    {
+        ErrorText.Text = message;
+        ErrorPanel.Visibility = Visibility.Visible;
+    }
+
+    private static string DescribeStatus(int status)
+    {
+        return status switch
+        {
+            RouterApi.ErrUnsupportedFormat => "Unsupported image format.",
+            RouterApi.ErrDecodeFailed => "The image is damaged or cannot be decoded.",
+            RouterApi.ErrOutOfMemory => "Not enough memory to decode this image.",
+            RouterApi.ErrIo => "The file could not be read.",
+            RouterApi.ErrAbiMismatch => "Codec ABI mismatch.",
+            _ => $"Failed to open image (status {status})."
+        };
     }
 
     private void MinimizeButton_Click(object sender, RoutedEventArgs e)
