@@ -1,5 +1,6 @@
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -17,6 +18,7 @@ using Windows.Foundation;
 using Windows.Graphics.Imaging;
 using Windows.Storage;
 using Windows.Storage.Streams;
+using WinRT;
 using WinRT.Interop;
 
 namespace NopeView.App;
@@ -63,6 +65,19 @@ public sealed partial class MainWindow : Window
     private bool _animationLoop = true;
     private bool _animationBusy;
 
+    // Animation timing runs on absolute deadlines. A relative interval per
+    // tick accumulates the timer's own latency into every frame, which makes a
+    // long animation visibly slower than its declared delays.
+    private readonly Stopwatch _animationClock = new();
+    private TimeSpan _animationDeadline;
+
+    private bool _isFullScreen;
+    private bool _wasMaximizedBeforeFullScreen;
+
+    // The clipboard reads the stream after SetContent returns, so it must
+    // outlive the call.
+    private InMemoryRandomAccessStream? _clipboardImage;
+
     // Frames are decoded on a worker thread. A newer request makes an older
     // one stale, so the generation counter discards the superseded result
     // instead of letting it overwrite the newer image.
@@ -71,11 +86,6 @@ public sealed partial class MainWindow : Window
     // A single source is reused for every frame. Creating a source per frame
     // allocates a new native image object for each animation step.
     private readonly SoftwareBitmapSource _frameSource = new();
-
-    // Marshaling scratch for the decode result. SoftwareBitmap copies the
-    // data, so the same buffer serves the next frame of the same size.
-    private readonly Lock _pixelLock = new();
-    private byte[] _pixelBuffer = [];
 
     private readonly Storyboard _loadingAnimation;
 
@@ -86,6 +96,7 @@ public sealed partial class MainWindow : Window
         _windowHandle = Handle;
         _animationTimer.Tick += AnimationTimer_Tick;
         _animationTimer.Interval = TimeSpan.FromMilliseconds(100);
+        AddOemKeyAccelerators();
 
         if (!RouterApi.TryCreate(null, out _routerContext))
         {
@@ -114,6 +125,32 @@ public sealed partial class MainWindow : Window
         Activated += MainWindow_Activated;
         Closed += MainWindow_Closed;
         RootGrid.ActualThemeChanged += (_, _) => UpdateCaptionAppearance();
+    }
+
+    /// <summary>
+    /// Adds the accelerators for keys that Windows.System.VirtualKey does not
+    /// name. The main keyboard's '+' and '-' are OEM keys, so they exist only
+    /// as raw virtual-key codes and cannot be declared in XAML.
+    /// </summary>
+    private void AddOemKeyAccelerators()
+    {
+        AddAccelerator(0xBB, Windows.System.VirtualKeyModifiers.None, ZoomInAccelerator_Invoked);
+        AddAccelerator(0xBB, Windows.System.VirtualKeyModifiers.Shift, ZoomInAccelerator_Invoked);
+        AddAccelerator(0xBD, Windows.System.VirtualKeyModifiers.None, ZoomOutAccelerator_Invoked);
+    }
+
+    private void AddAccelerator(
+        int key,
+        Windows.System.VirtualKeyModifiers modifiers,
+        TypedEventHandler<KeyboardAccelerator, KeyboardAcceleratorInvokedEventArgs> handler)
+    {
+        var accelerator = new KeyboardAccelerator
+        {
+            Key = (Windows.System.VirtualKey)key,
+            Modifiers = modifiers
+        };
+        accelerator.Invoked += handler;
+        RootGrid.KeyboardAccelerators.Add(accelerator);
     }
 
     private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
@@ -648,14 +685,34 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        _animationTimer.Interval = TimeSpan.FromMilliseconds(
+        if (!_animationClock.IsRunning)
+        {
+            _animationClock.Restart();
+            _animationDeadline = TimeSpan.Zero;
+        }
+
+        var delay = TimeSpan.FromMilliseconds(
             Math.Clamp((double)_frameDelayMs, 20.0, 10000.0));
+        var now = _animationClock.Elapsed;
+
+        // Add the delay to the previous deadline rather than to the moment the
+        // decode finished, so timer latency stays out of the frame duration.
+        _animationDeadline += delay;
+        if (_animationDeadline < now)
+        {
+            // A slow decode put us behind schedule. Resume from now instead of
+            // firing a burst of catch-up frames.
+            _animationDeadline = now;
+        }
+
+        _animationTimer.Interval = _animationDeadline - now;
         _animationTimer.Start();
     }
 
     private void StopAnimation()
     {
         _animationTimer.Stop();
+        _animationClock.Reset();
         _isAnimationPlaying = false;
         _animationBusy = false;
         UpdateAnimationControls();
@@ -672,6 +729,11 @@ public sealed partial class MainWindow : Window
     }
 
     private void PlayPauseButton_Click(object sender, RoutedEventArgs e)
+    {
+        TogglePlayPause();
+    }
+
+    private void TogglePlayPause()
     {
         if (_frameCount <= 1)
         {
@@ -729,6 +791,122 @@ public sealed partial class MainWindow : Window
     {
         args.Handled = true;
         await MoveNextAsync();
+    }
+
+    private void ZoomInAccelerator_Invoked(
+        KeyboardAccelerator sender,
+        KeyboardAcceleratorInvokedEventArgs args)
+    {
+        if (_imagePixelWidth == 0)
+        {
+            return;
+        }
+        args.Handled = true;
+        SetZoom(_zoom * ZoomStep);
+    }
+
+    private void ZoomOutAccelerator_Invoked(
+        KeyboardAccelerator sender,
+        KeyboardAcceleratorInvokedEventArgs args)
+    {
+        if (_imagePixelWidth == 0)
+        {
+            return;
+        }
+        args.Handled = true;
+        SetZoom(_zoom / ZoomStep);
+    }
+
+    private void ActualSizeAccelerator_Invoked(
+        KeyboardAccelerator sender,
+        KeyboardAcceleratorInvokedEventArgs args)
+    {
+        if (_imagePixelWidth == 0)
+        {
+            return;
+        }
+        args.Handled = true;
+        ApplyActualSize();
+    }
+
+    private void FitAccelerator_Invoked(
+        KeyboardAccelerator sender,
+        KeyboardAcceleratorInvokedEventArgs args)
+    {
+        if (_imagePixelWidth == 0)
+        {
+            return;
+        }
+        args.Handled = true;
+        ResetView();
+    }
+
+    private void RotateAccelerator_Invoked(
+        KeyboardAccelerator sender,
+        KeyboardAcceleratorInvokedEventArgs args)
+    {
+        if (_imagePixelWidth == 0)
+        {
+            return;
+        }
+        args.Handled = true;
+        RotateClockwise();
+    }
+
+    private void PlayPauseAccelerator_Invoked(
+        KeyboardAccelerator sender,
+        KeyboardAcceleratorInvokedEventArgs args)
+    {
+        if (_frameCount <= 1)
+        {
+            return;
+        }
+        args.Handled = true;
+        TogglePlayPause();
+    }
+
+    private void EscapeAccelerator_Invoked(
+        KeyboardAccelerator sender,
+        KeyboardAcceleratorInvokedEventArgs args)
+    {
+        if (!_isFullScreen)
+        {
+            return;
+        }
+        args.Handled = true;
+        SetFullScreen(false);
+    }
+
+    private void FullScreenAccelerator_Invoked(
+        KeyboardAccelerator sender,
+        KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        SetFullScreen(!_isFullScreen);
+    }
+
+    private async void CopyImageAccelerator_Invoked(
+        KeyboardAccelerator sender,
+        KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        await CopyCurrentImageAsync();
+    }
+
+    private void CopyPathAccelerator_Invoked(
+        KeyboardAccelerator sender,
+        KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        CopyCurrentPath();
+    }
+
+    private async void SaveAsAccelerator_Invoked(
+        KeyboardAccelerator sender,
+        KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        await SaveAsAsync();
     }
 
     private async Task MovePreviousAsync()
@@ -796,6 +974,11 @@ public sealed partial class MainWindow : Window
 
     private void RotateButton_Click(object sender, RoutedEventArgs e)
     {
+        RotateClockwise();
+    }
+
+    private void RotateClockwise()
+    {
         _rotation = (_rotation + 90) % 360;
         ImageTransform.Rotation = _rotation;
         UpdateViewStatus();
@@ -807,6 +990,11 @@ public sealed partial class MainWindow : Window
     }
 
     private void ActualSizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        ApplyActualSize();
+    }
+
+    private void ApplyActualSize()
     {
         var ratio = FitToPixelRatio;
         if (ratio <= 0)
@@ -897,6 +1085,8 @@ public sealed partial class MainWindow : Window
             : $"{name} | {dimensions} | {format}";
     }
 
+    private string? CurrentPath => _directory?.CurrentPath;
+
     private void SetViewControlsEnabled(bool enabled)
     {
         ZoomOutButton.IsEnabled = enabled;
@@ -904,60 +1094,394 @@ public sealed partial class MainWindow : Window
         RotateButton.IsEnabled = enabled;
         FitButton.IsEnabled = enabled;
         ActualSizeButton.IsEnabled = enabled;
+        CopyImageMenuItem.IsEnabled = enabled;
+        CopyPathMenuItem.IsEnabled = enabled;
+        SaveAsMenuItem.IsEnabled = enabled;
+        ShowInExplorerMenuItem.IsEnabled = enabled;
+        FitMenuItem.IsEnabled = enabled;
+        ActualSizeMenuItem.IsEnabled = enabled;
     }
 
-    private SoftwareBitmap ToSoftwareBitmap(ref NvRouterImage image)
+    private void ActionsButton_Click(object sender, RoutedEventArgs e)
     {
-        var pixelCount = checked(image.Width * image.Height * 4);
-
-        // SoftwareBitmap copies whatever buffer it is given, so one scratch
-        // array serves every frame of the same size. The lock keeps concurrent
-        // decodes from sharing it at the same time.
-        lock (_pixelLock)
+        if (Viewport.ContextFlyout is MenuFlyout menu)
         {
-            if (_pixelBuffer.Length != pixelCount)
-            {
-                _pixelBuffer = new byte[pixelCount];
-            }
-            var pixels = _pixelBuffer;
-            Marshal.Copy(image.Pixels, pixels, 0, pixelCount);
-
-            var swap = image.PixelFormat != RouterApi.PixelFormatBgra8;
-            for (var index = 0; index < pixelCount; index += 4)
-            {
-                var first = pixels[index];
-                var third = pixels[index + 2];
-                var alpha = pixels[index + 3];
-
-                if (swap)
-                {
-                    pixels[index] = third;
-                    pixels[index + 2] = first;
-                }
-
-                // SoftwareBitmap requires premultiplied alpha.
-                pixels[index] = (byte)(pixels[index] * alpha / 255);
-                pixels[index + 1] = (byte)(pixels[index + 1] * alpha / 255);
-                pixels[index + 2] = (byte)(pixels[index + 2] * alpha / 255);
-            }
-
-            using var writer = new DataWriter();
-            writer.WriteBytes(pixels);
-            var buffer = writer.DetachBuffer();
-
-            return SoftwareBitmap.CreateCopyFromBuffer(
-                buffer,
-                BitmapPixelFormat.Bgra8,
-                image.Width,
-                image.Height,
-                BitmapAlphaMode.Premultiplied);
+            menu.ShowAt(ActionsButton);
         }
     }
 
-    private void ShowError(string message)
+    private void FitMenuItem_Click(object sender, RoutedEventArgs e)
     {
+        ResetView();
+    }
+
+    private void ActualSizeMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        ApplyActualSize();
+    }
+
+    private void CopyPathMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        CopyCurrentPath();
+    }
+
+    private void CopyCurrentPath()
+    {
+        var path = CurrentPath;
+        if (path is null)
+        {
+            return;
+        }
+
+        var data = new DataPackage();
+        data.SetText(path);
+        Clipboard.SetContent(data);
+        Clipboard.Flush();
+    }
+
+    private async void CopyImageMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        await CopyCurrentImageAsync();
+    }
+
+    private async Task CopyCurrentImageAsync()
+    {
+        var path = CurrentPath;
+        if (path is null)
+        {
+            return;
+        }
+
+        try
+        {
+            using var bitmap = await DecodeStraightBitmapAsync(path, _frameIndex);
+            if (bitmap is null)
+            {
+                ShowError(
+                    "The current image could not be decoded for copying.",
+                    "Could not copy image");
+                return;
+            }
+
+            // The clipboard accepts a bitmap stream, so the decoded frame is
+            // encoded to PNG in memory. Encoding keeps the alpha channel and
+            // avoids depending on the source format.
+            var stream = new InMemoryRandomAccessStream();
+            var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, stream);
+            encoder.SetSoftwareBitmap(bitmap);
+            await encoder.FlushAsync();
+            stream.Seek(0);
+
+            var data = new DataPackage();
+            data.SetBitmap(RandomAccessStreamReference.CreateFromStream(stream));
+            Clipboard.SetContent(data);
+            Clipboard.Flush();
+
+            _clipboardImage = stream;
+        }
+        catch (Exception ex)
+        {
+            ShowError("Failed to copy image: " + ex.Message, "Could not copy image");
+        }
+    }
+
+    /// <summary>
+    /// Decodes the current frame again as straight (non premultiplied) BGRA,
+    /// which is what an encoder and the clipboard expect.
+    /// </summary>
+    private async Task<SoftwareBitmap?> DecodeStraightBitmapAsync(string path, uint frameIndex)
+    {
+        var context = _routerContext;
+        return await Task.Run(() =>
+        {
+            if (!RouterApi.TryDecodeFile(
+                    context, path, out var image, out _, frameIndex,
+                    RouterApi.PixelFormatBgra8))
+            {
+                return null;
+            }
+
+            try
+            {
+                return CreateStraightBitmap(
+                    image.Pixels, image.Width, image.Height, image.Stride);
+            }
+            finally
+            {
+                RouterApi.FreeImage(ref image);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Copies straight-alpha BGRA pixels into a bitmap. Used by the clipboard,
+    /// which must not receive premultiplied colors.
+    /// </summary>
+    private static unsafe SoftwareBitmap CreateStraightBitmap(
+        IntPtr pixels,
+        int width,
+        int height,
+        int stride)
+    {
+        var rowBytes = width * 4;
+        var bitmap = new SoftwareBitmap(
+            BitmapPixelFormat.Bgra8,
+            width,
+            height,
+            BitmapAlphaMode.Straight);
+
+        using var buffer = bitmap.LockBuffer(BitmapBufferAccessMode.Write);
+        var description = buffer.GetPlaneDescription(0);
+        using var reference = buffer.CreateReference();
+        if (reference.As<IMemoryBufferByteAccess>().GetBuffer(out var destination, out _) < 0)
+        {
+            throw new InvalidOperationException("The image buffer could not be accessed.");
+        }
+
+        for (var y = 0; y < height; y++)
+        {
+            System.Buffer.MemoryCopy(
+                (byte*)pixels + (long)y * stride,
+                (byte*)destination + description.StartIndex + (long)y * description.Stride,
+                rowBytes,
+                rowBytes);
+        }
+
+        return bitmap;
+    }
+
+    private async void SaveAsMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        await SaveAsAsync();
+    }
+
+    private async Task SaveAsAsync()
+    {
+        var path = CurrentPath;
+        if (path is null)
+        {
+            return;
+        }
+
+        var picker = new FileSavePicker(AppWindow.Id)
+        {
+            SuggestedFileName = Path.GetFileNameWithoutExtension(path),
+            SuggestedStartLocation = PickerLocationId.PicturesLibrary,
+            CommitButtonText = "Save"
+        };
+        picker.FileTypeChoices.Add("PNG image", new List<string> { ".png" });
+        picker.FileTypeChoices.Add("JPEG image", new List<string> { ".jpg" });
+        picker.FileTypeChoices.Add("BMP image", new List<string> { ".bmp" });
+
+        var result = await picker.PickSaveFileAsync();
+        if (result is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var context = _routerContext;
+            var frameIndex = _frameIndex;
+            var target = result.Path;
+
+            // The frame is decoded again in its original colors. Reusing the
+            // displayed bitmap would save premultiplied pixels.
+            await Task.Run(() => SaveFrame(context, path, frameIndex, target));
+        }
+        catch (Exception ex)
+        {
+            ShowError("Failed to save image: " + ex.Message, "Could not save image");
+        }
+    }
+
+    private static void SaveFrame(
+        IntPtr context,
+        string sourcePath,
+        uint frameIndex,
+        string targetPath)
+    {
+        if (!RouterApi.TryDecodeFile(
+                context, sourcePath, out var image, out var status, frameIndex,
+                RouterApi.PixelFormatRgba8))
+        {
+            throw new InvalidOperationException(DescribeStatus(status));
+        }
+
+        try
+        {
+            var encodeStatus = RouterApi.EncodeToFile(context, targetPath, ref image);
+            if (encodeStatus != 0)
+            {
+                throw new InvalidOperationException(DescribeEncodeStatus(encodeStatus));
+            }
+        }
+        finally
+        {
+            RouterApi.FreeImage(ref image);
+        }
+    }
+
+    private void ShowInExplorerMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var path = CurrentPath;
+        if (path is null)
+        {
+            return;
+        }
+
+        Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"")
+        {
+            UseShellExecute = true
+        });
+    }
+
+    private void SetFullScreen(bool fullScreen)
+    {
+        if (fullScreen == _isFullScreen)
+        {
+            return;
+        }
+
+        if (fullScreen)
+        {
+            _wasMaximizedBeforeFullScreen =
+                AppWindow.Presenter is OverlappedPresenter presenter &&
+                presenter.State == OverlappedPresenterState.Maximized;
+            AppWindow.SetPresenter(AppWindowPresenterKind.FullScreen);
+            _isFullScreen = true;
+        }
+        else
+        {
+            AppWindow.SetPresenter(AppWindowPresenterKind.Overlapped);
+            _isFullScreen = false;
+            if (_wasMaximizedBeforeFullScreen &&
+                AppWindow.Presenter is OverlappedPresenter presenter)
+            {
+                presenter.Maximize();
+            }
+        }
+
+        UpdateCaptionIcons();
+    }
+
+    /// <summary>
+    /// Copies a decoded frame into a SoftwareBitmap by writing the bitmap's
+    /// own memory. The earlier path went through a scratch array, DataWriter
+    /// and CreateCopyFromBuffer, which copied every pixel three times.
+    /// </summary>
+    private unsafe SoftwareBitmap ToSoftwareBitmap(ref NvRouterImage image)
+    {
+        var pixelCount = checked(image.Width * image.Height * 4);
+        var rowBytes = image.Width * 4;
+        var swap = image.PixelFormat != RouterApi.PixelFormatBgra8;
+        var opaque = IsOpaque((byte*)image.Pixels, pixelCount);
+
+        var bitmap = new SoftwareBitmap(
+            BitmapPixelFormat.Bgra8,
+            image.Width,
+            image.Height,
+            BitmapAlphaMode.Premultiplied);
+
+        using var buffer = bitmap.LockBuffer(BitmapBufferAccessMode.Write);
+        var description = buffer.GetPlaneDescription(0);
+        using var reference = buffer.CreateReference();
+        if (reference.As<IMemoryBufferByteAccess>().GetBuffer(out var destination, out _) < 0)
+        {
+            throw new InvalidOperationException("The image buffer could not be accessed.");
+        }
+
+        for (var y = 0; y < image.Height; y++)
+        {
+            var source = (byte*)image.Pixels + (long)y * image.Stride;
+            var target = (byte*)destination
+                + description.StartIndex
+                + (long)y * description.Stride;
+
+            if (!swap && opaque)
+            {
+                // Already BGRA with no transparency: no per-pixel work needed.
+                System.Buffer.MemoryCopy(source, target, rowBytes, rowBytes);
+                continue;
+            }
+
+            for (var x = 0; x < rowBytes; x += 4)
+            {
+                var blue = source[x];
+                var green = source[x + 1];
+                var red = source[x + 2];
+                var alpha = source[x + 3];
+
+                if (swap)
+                {
+                    (red, blue) = (blue, red);
+                }
+
+                if (!opaque)
+                {
+                    // SoftwareBitmap requires premultiplied alpha.
+                    blue = (byte)(blue * alpha / 255);
+                    green = (byte)(green * alpha / 255);
+                    red = (byte)(red * alpha / 255);
+                }
+
+                target[x] = blue;
+                target[x + 1] = green;
+                target[x + 2] = red;
+                target[x + 3] = alpha;
+            }
+        }
+
+        return bitmap;
+    }
+
+    /// <summary>
+    /// True when every pixel is fully opaque. Premultiplication is a no-op in
+    /// that case, which removes a multiply per channel from the common path.
+    /// </summary>
+    private static unsafe bool IsOpaque(byte* pixels, int byteCount)
+    {
+        for (var index = 3; index < byteCount; index += 4)
+        {
+            if (pixels[index] != 255)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Gives direct access to the bytes of an IMemoryBufferReference. WinRT
+    /// exposes the pointer through this non-WinRT interface, which lets pixels
+    /// be written into a bitmap without an intermediate buffer.
+    /// </summary>
+    [ComImport]
+    [Guid("5b0d3235-4dba-4d44-865e-8f1d0e4fd04d")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IMemoryBufferByteAccess
+    {
+        [PreserveSig]
+        int GetBuffer(out IntPtr buffer, out uint capacity);
+    }
+
+    private void ShowError(string message, string title = "Could not open image")
+    {
+        ErrorTitle.Text = title;
         ErrorText.Text = message;
         ErrorPanel.Visibility = Visibility.Visible;
+    }
+
+    private static string DescribeEncodeStatus(int status)
+    {
+        return status switch
+        {
+            RouterApi.ErrUnsupportedFormat => "The target format cannot be encoded.",
+            RouterApi.ErrEncodeFailed => "The image could not be encoded.",
+            RouterApi.ErrOutOfMemory => "Not enough memory to encode this image.",
+            RouterApi.ErrIo => "The file could not be written.",
+            _ => $"The image could not be saved (status {status})."
+        };
     }
 
     private static string DescribeStatus(int status)

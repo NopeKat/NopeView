@@ -51,7 +51,8 @@ internal static partial class RouterApi
     internal const int ErrOutOfMemory = -5;
     internal const int ErrIo = -6;
     internal const int ErrAbiMismatch = -7;
-    private const int PixelFormatRgba8 = 1;
+    internal const int ErrEncodeFailed = -8;
+    internal const int PixelFormatRgba8 = 1;
     internal const int PixelFormatBgra8 = 2;
 
     static RouterApi()
@@ -78,6 +79,9 @@ internal static partial class RouterApi
 
     [LibraryImport(LibraryName, EntryPoint = "nv_router_image_free")]
     private static partial void ImageFree(ref NvRouterImage image);
+
+    [LibraryImport(LibraryName, EntryPoint = "nv_router_encode_file", StringMarshalling = StringMarshalling.Utf8)]
+    private static partial int EncodeFile(IntPtr context, string path, ref NvRouterImage image, int quality);
 
     internal static string Version()
     {
@@ -146,6 +150,19 @@ internal static partial class RouterApi
     internal static void FreeImage(ref NvRouterImage image)
     {
         ImageFree(ref image);
+    }
+
+    /// <summary>
+    /// Encodes an image to a file. The format comes from the file extension.
+    /// A quality of 0 selects the format default.
+    /// </summary>
+    internal static int EncodeToFile(
+        IntPtr context,
+        string path,
+        ref NvRouterImage image,
+        int quality = 0)
+    {
+        return EncodeFile(context, path, ref image, quality);
     }
 
     internal static bool IsNotFound(int status)

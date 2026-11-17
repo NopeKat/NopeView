@@ -10,6 +10,17 @@
         <Grid.KeyboardAccelerators>
             <KeyboardAccelerator Key="Left" Invoked="PreviousAccelerator_Invoked" />
             <KeyboardAccelerator Key="Right" Invoked="NextAccelerator_Invoked" />
+            <KeyboardAccelerator Key="Add" Invoked="ZoomInAccelerator_Invoked" />
+            <KeyboardAccelerator Key="Subtract" Invoked="ZoomOutAccelerator_Invoked" />
+            <KeyboardAccelerator Key="Number0" Invoked="ActualSizeAccelerator_Invoked" />
+            <KeyboardAccelerator Key="F" Invoked="FitAccelerator_Invoked" />
+            <KeyboardAccelerator Key="R" Invoked="RotateAccelerator_Invoked" />
+            <KeyboardAccelerator Key="Space" Invoked="PlayPauseAccelerator_Invoked" />
+            <KeyboardAccelerator Key="Escape" Invoked="EscapeAccelerator_Invoked" />
+            <KeyboardAccelerator Key="F11" Invoked="FullScreenAccelerator_Invoked" />
+            <KeyboardAccelerator Key="C" Modifiers="Control" Invoked="CopyImageAccelerator_Invoked" />
+            <KeyboardAccelerator Key="C" Modifiers="Control,Shift" Invoked="CopyPathAccelerator_Invoked" />
+            <KeyboardAccelerator Key="S" Modifiers="Control" Invoked="SaveAsAccelerator_Invoked" />
         </Grid.KeyboardAccelerators>
 
         <Grid.Resources>
@@ -186,6 +197,51 @@
             <Grid x:Name="Viewport"
                   Background="#01000000"
                   SizeChanged="Viewport_SizeChanged">
+                <Grid.ContextFlyout>
+                    <!-- The same menu is shown from the toolbar's actions
+                         button, so every command stays reachable without a
+                         right-click. -->
+                    <MenuFlyout>
+                        <MenuFlyoutItem x:Name="CopyImageMenuItem"
+                                        Text="Copy image"
+                                        AutomationProperties.AutomationId="CopyImageMenuItem"
+                                        KeyboardAcceleratorTextOverride="Ctrl+C"
+                                        IsEnabled="False"
+                                        Click="CopyImageMenuItem_Click" />
+                        <MenuFlyoutItem x:Name="CopyPathMenuItem"
+                                        Text="Copy path"
+                                        AutomationProperties.AutomationId="CopyPathMenuItem"
+                                        KeyboardAcceleratorTextOverride="Ctrl+Shift+C"
+                                        IsEnabled="False"
+                                        Click="CopyPathMenuItem_Click" />
+                        <MenuFlyoutItem x:Name="SaveAsMenuItem"
+                                        Text="Save as..."
+                                        AutomationProperties.AutomationId="SaveAsMenuItem"
+                                        KeyboardAcceleratorTextOverride="Ctrl+S"
+                                        IsEnabled="False"
+                                        Click="SaveAsMenuItem_Click" />
+                        <MenuFlyoutSeparator />
+                        <MenuFlyoutItem x:Name="ShowInExplorerMenuItem"
+                                        Text="Show in Explorer"
+                                        AutomationProperties.AutomationId="ShowInExplorerMenuItem"
+                                        IsEnabled="False"
+                                        Click="ShowInExplorerMenuItem_Click" />
+                        <MenuFlyoutSeparator />
+                        <MenuFlyoutItem x:Name="FitMenuItem"
+                                        Text="Fit"
+                                        AutomationProperties.AutomationId="FitMenuItem"
+                                        KeyboardAcceleratorTextOverride="F"
+                                        IsEnabled="False"
+                                        Click="FitMenuItem_Click" />
+                        <MenuFlyoutItem x:Name="ActualSizeMenuItem"
+                                        Text="Actual size"
+                                        AutomationProperties.AutomationId="ActualSizeMenuItem"
+                                        KeyboardAcceleratorTextOverride="0"
+                                        IsEnabled="False"
+                                        Click="ActualSizeMenuItem_Click" />
+                    </MenuFlyout>
+                </Grid.ContextFlyout>
+
                 <Image x:Name="ImageView"
                        AutomationProperties.AutomationId="ImageView"
                        AutomationProperties.Name="Current image"
@@ -428,6 +484,27 @@
                             <TextBlock Text="1:1" FontSize="12" VerticalAlignment="Center" />
                         </Button>
                     </StackPanel>
+
+                    <Border Width="1"
+                            Height="20"
+                            Margin="4,0"
+                            VerticalAlignment="Center"
+                            Background="{ThemeResource FloatingPanelStrokeBrush}" />
+
+                    <!-- Opens the same menu the image area shows on right-click. -->
+                    <Button x:Name="ActionsButton"
+                            AutomationProperties.AutomationId="ActionsButton"
+                            AutomationProperties.Name="More actions"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Padding="8"
+                            MinHeight="32"
+                            MinWidth="32"
+                            Click="ActionsButton_Click"
+                            ToolTipService.ToolTip="More actions">
+                        <PathIcon Width="16" Height="16"
+                                  Data="M2 8a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM6.5 8a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM11 8a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0z" />
+                    </Button>
                 </StackPanel>
             </Border>
 
@@ -453,7 +530,9 @@
                               Foreground="{ThemeResource FloatingPanelErrorBrush}"
                               Data="M8 2a6 6 0 110 12A6 6 0 018 2zm0 1a5 5 0 100 10A5 5 0 008 3zm0 7a.75.75 0 110 1.5.75.75 0 010-1.5zm0-5.5a.5.5 0 01.5.41V8.5a.5.5 0 01-1 .09V5c0-.28.22-.5.5-.5z" />
                     <StackPanel Grid.Column="1" Spacing="2">
-                        <TextBlock Text="Could not open image"
+                        <TextBlock x:Name="ErrorTitle"
+                                   AutomationProperties.AutomationId="ErrorTitle"
+                                   Text="Could not open image"
                                    FontWeight="SemiBold"
                                    Foreground="{ThemeResource FloatingPanelPrimaryTextBrush}" />
                         <TextBlock x:Name="ErrorText"
