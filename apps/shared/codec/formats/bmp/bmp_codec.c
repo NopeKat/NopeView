@@ -45,6 +45,10 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     int height = 0;
     int channels_in_file = 0;
     int components;
+    int stride;
+    int source_width = 0;
+    int source_height = 0;
+    int32_t max_dimension;
     nv_format_pixel_format output_format;
     size_t pixel_count;
     unsigned char *pixels = NULL;
@@ -91,6 +95,17 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
         return NV_FORMAT_ERR_DECODE_FAILED;
     }
 
+    /* A preview request scales down after decoding, because stb_image has no
+     * decode-time scaling. The full-size buffer is released right away. */
+    max_dimension = nv_request_max_dimension(request);
+    stride = width * components;
+    if (!nv_limit_decoded_size(
+            &pixels, &width, &height, &stride, components, max_dimension,
+            stbi_image_free, &source_width, &source_height)) {
+        stbi_image_free(pixels);
+        return NV_FORMAT_ERR_OUT_OF_MEMORY;
+    }
+
     pixel_count = (size_t)width * (size_t)height;
     if (output_format == NV_FORMAT_PIXEL_BGRA8) {
         nv_swap_red_blue(pixels, pixel_count, 4);
@@ -101,10 +116,12 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
 
     out_image->width = width;
     out_image->height = height;
-    out_image->stride = width * components;
+    out_image->stride = stride;
     out_image->pixel_format = (nv_format_pixel_format)output_format;
     out_image->pixels = pixels;
     out_image->pixels_size = pixel_count * (size_t)components;
+    out_image->source_width = source_width;
+    out_image->source_height = source_height;
     return NV_FORMAT_OK;
 }
 

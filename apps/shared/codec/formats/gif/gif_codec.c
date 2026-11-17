@@ -272,6 +272,10 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     nv_gif_cache fresh;
     int image_width;
     int image_height;
+    int frame_stride;
+    int source_width = 0;
+    int source_height = 0;
+    int32_t max_dimension;
 
     if (request == NULL || out_image == NULL) {
         return NV_FORMAT_ERR_INVALID_ARGUMENT;
@@ -286,6 +290,7 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
 
     components = nv_components_for(request->desired_pixel_format);
     output_format = nv_output_format(request->desired_pixel_format);
+    max_dimension = nv_request_max_dimension(request);
 
     if (request->path != NULL) {
         have_stamp = get_file_stamp(request->path, &file_size, &file_mtime);
@@ -313,16 +318,28 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
                 output_format);
             image_width = slot->width;
             image_height = slot->height;
+            frame_stride = image_width * components;
             cache_unlock();
+
+            /* The cached animation stays at full size; only the returned frame
+             * is scaled down for a preview request. */
+            if (!nv_limit_decoded_size(
+                    &frame_pixels, &image_width, &image_height, &frame_stride,
+                    components, max_dimension, free, &source_width, &source_height)) {
+                free(frame_pixels);
+                return NV_FORMAT_ERR_OUT_OF_MEMORY;
+            }
 
             out_image->width = image_width;
             out_image->height = image_height;
-            out_image->stride = image_width * components;
+            out_image->stride = frame_stride;
             out_image->pixel_format = (nv_format_pixel_format)output_format;
             out_image->pixels = frame_pixels;
-            out_image->pixels_size = frame_bytes;
+            out_image->pixels_size = (size_t)frame_stride * (size_t)image_height;
             out_image->frame_count = (uint32_t)slot->frames;
             out_image->frame_delay_ms = frame_delay_ms(slot, request->frame_index);
+            out_image->source_width = source_width;
+            out_image->source_height = source_height;
             return NV_FORMAT_OK;
         }
         cache_unlock();
@@ -406,14 +423,26 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
         return NV_FORMAT_ERR_OUT_OF_MEMORY;
     }
 
+    /* The cached animation stays at full size; only the returned frame is
+     * scaled down for a preview request. */
+    frame_stride = width * components;
+    if (!nv_limit_decoded_size(
+            &frame_pixels, &width, &height, &frame_stride, components,
+            max_dimension, free, &source_width, &source_height)) {
+        free(frame_pixels);
+        return NV_FORMAT_ERR_OUT_OF_MEMORY;
+    }
+
     out_image->width = width;
     out_image->height = height;
-    out_image->stride = width * components;
+    out_image->stride = frame_stride;
     out_image->pixel_format = (nv_format_pixel_format)output_format;
     out_image->pixels = frame_pixels;
-    out_image->pixels_size = frame_bytes;
+    out_image->pixels_size = (size_t)frame_stride * (size_t)height;
     out_image->frame_count = (uint32_t)slot->frames;
     out_image->frame_delay_ms = frame_delay_ms(slot, request->frame_index);
+    out_image->source_width = source_width;
+    out_image->source_height = source_height;
     return NV_FORMAT_OK;
 }
 

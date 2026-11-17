@@ -713,11 +713,12 @@ nv_router_status nv_router_enum_formats(
     return NV_ROUTER_OK;
 }
 
-nv_router_status nv_router_decode_file(
+nv_router_status nv_router_decode_file_ex(
     nv_router_context *context,
     const char *path,
     nv_router_pixel_format desired_pixel_format,
     uint32_t frame_index,
+    int32_t max_dimension,
     nv_router_image *out_image)
 {
     char extension[32];
@@ -737,6 +738,8 @@ nv_router_status nv_router_decode_file(
     out_image->pixels_size = 0;
     out_image->frame_count = 0;
     out_image->frame_delay_ms = 0;
+    out_image->source_width = 0;
+    out_image->source_height = 0;
 
     path_extension(path, extension, sizeof(extension));
 
@@ -765,6 +768,7 @@ nv_router_status nv_router_decode_file(
         request.path = path;
         request.desired_pixel_format = (nv_format_pixel_format)desired_pixel_format;
         request.frame_index = frame_index;
+        request.max_dimension = max_dimension;
 
         memset(&image, 0, sizeof(image));
         image.struct_size = (uint32_t)sizeof(image);
@@ -790,6 +794,8 @@ nv_router_status nv_router_decode_file(
         out_image->pixels_size = image.pixels_size;
         out_image->frame_count = image.frame_count;
         out_image->frame_delay_ms = image.frame_delay_ms;
+        out_image->source_width = image.source_width;
+        out_image->source_height = image.source_height;
         release_file_bytes(&file);
         return NV_ROUTER_OK;
     }
@@ -800,6 +806,18 @@ nv_router_status nv_router_decode_file(
         return NV_ROUTER_ERR_ABI_MISMATCH;
     }
     return last_status;
+}
+
+/* Kept for callers that only want full-size decoding. */
+nv_router_status nv_router_decode_file(
+    nv_router_context *context,
+    const char *path,
+    nv_router_pixel_format desired_pixel_format,
+    uint32_t frame_index,
+    nv_router_image *out_image)
+{
+    return nv_router_decode_file_ex(
+        context, path, desired_pixel_format, frame_index, 0, out_image);
 }
 
 /* Writes bytes to a file, replacing an existing one. The path is UTF-8. */
@@ -957,4 +975,6 @@ void nv_router_image_free(nv_router_image *image)
     image->stride = 0;
     image->frame_count = 0;
     image->frame_delay_ms = 0;
+    image->source_width = 0;
+    image->source_height = 0;
 }

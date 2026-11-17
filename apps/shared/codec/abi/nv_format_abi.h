@@ -42,7 +42,7 @@ extern "C" {
  * explicitly requests otherwise, only the fourth segment is incremented.
  * Independent from the router ABI and the plugin ABI.
  */
-#define NV_FORMAT_ABI_VERSION "0.0.0.1"
+#define NV_FORMAT_ABI_VERSION "0.0.0.2"
 
 /* Status codes. Zero means success; any negative value means failure. */
 typedef enum nv_format_status {
@@ -101,12 +101,16 @@ typedef struct nv_format_image {
     size_t pixels_size;        /* Total bytes in pixels. */
     uint32_t frame_count;      /* 1 for still images; total frames otherwise. */
     uint32_t frame_delay_ms;   /* Display duration for this frame, in milliseconds. */
+    int32_t source_width;      /* Dimensions before max_dimension scaling. */
+    int32_t source_height;     /* Equal to width/height when no scaling happened. */
 } nv_format_image;
 
 /*
  * Decode request. All fields are optional except struct_size.
  * desired_pixel_format of NV_FORMAT_PIXEL_UNKNOWN lets the format choose.
  * For animated formats, frame_index selects the frame (0 = first).
+ * max_dimension limits the long edge of the decoded pixels; 0 means full size.
+ * Codecs read it only when struct_size covers the field.
  */
 typedef struct nv_format_decode_request {
     uint32_t struct_size;
@@ -115,6 +119,7 @@ typedef struct nv_format_decode_request {
     const char *path;          /* File path, UTF-8. May be NULL when data is set. */
     nv_format_pixel_format desired_pixel_format;
     uint32_t frame_index;
+    int32_t max_dimension;
 } nv_format_decode_request;
 
 /*

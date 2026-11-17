@@ -40,7 +40,7 @@ extern "C" {
  * explicitly requests otherwise, only the fourth segment is incremented.
  * Independent from the format ABI and the plugin ABI.
  */
-#define NV_ROUTER_ABI_VERSION "0.0.0.2"
+#define NV_ROUTER_ABI_VERSION "0.0.0.3"
 
 typedef enum nv_router_status {
     NV_ROUTER_OK = 0,
@@ -80,6 +80,8 @@ typedef struct nv_router_image {
     size_t pixels_size;
     uint32_t frame_count;      /* 1 for still images; total frames otherwise. */
     uint32_t frame_delay_ms;   /* Display duration for this frame, in milliseconds. */
+    int32_t source_width;      /* Dimensions before max_dimension scaling. */
+    int32_t source_height;     /* Equal to width/height when no scaling happened. */
 } nv_router_image;
 
 /*
@@ -123,6 +125,20 @@ NV_ROUTER_API nv_router_status nv_router_decode_file(
     const char *path,
     nv_router_pixel_format desired_pixel_format,
     uint32_t frame_index,
+    nv_router_image *out_image);
+
+/*
+ * Decodes a file with an optional size limit. max_dimension caps the long edge
+ * of the returned pixels while the aspect ratio is preserved; 0 keeps the full
+ * size. source_width and source_height in out_image always report the original
+ * dimensions, so a preview stays distinguishable from a full decode.
+ */
+NV_ROUTER_API nv_router_status nv_router_decode_file_ex(
+    nv_router_context *context,
+    const char *path,
+    nv_router_pixel_format desired_pixel_format,
+    uint32_t frame_index,
+    int32_t max_dimension,
     nv_router_image *out_image);
 
 /* Releases pixels held by an image produced by nv_router_decode_file. */

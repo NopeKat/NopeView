@@ -193,6 +193,172 @@ static inline int nv_read_pixel_rgba(
 }
 
 /*
+ * Returns the max_dimension a caller asked for. The field was appended in ABI
+ * 0.0.0.2, so older callers with a smaller struct_size report 0 (full size).
+ */
+static inline int32_t nv_request_max_dimension(const nv_format_decode_request *request)
+{
+    if (request == NULL || request->struct_size == 0u) {
+        return 0;
+    }
+    if ((size_t)request->struct_size <
+        offsetof(nv_format_decode_request, max_dimension) + sizeof(int32_t)) {
+        return 0;
+    }
+    return request->max_dimension > 0 ? request->max_dimension : 0;
+}
+
+/*
+ * Box-average downscale for tightly packed pixels with 1 to 4 components.
+ * The longest edge becomes max_dimension and the aspect ratio is preserved.
+ * Returns a malloc'ed buffer whose rows are new_width * components bytes.
+ */
+static inline unsigned char *nv_downscale_pixels(
+    const unsigned char *source,
+    int width,
+    int height,
+    int stride,
+    int components,
+    int32_t max_dimension,
+    int *out_width,
+    int *out_height,
+    int *out_stride)
+{
+    int target_width;
+    int target_height;
+    size_t row_bytes;
+    size_t total;
+    unsigned char *result;
+    int y;
+
+    if (source == NULL || width <= 0 || height <= 0 || stride <= 0 ||
+        components < 1 || components > 4 || max_dimension <= 0) {
+        return NULL;
+    }
+    if (width <= max_dimension && height <= max_dimension) {
+        return NULL;
+    }
+
+    if (width >= height) {
+        target_width = max_dimension;
+        target_height = (int)(((int64_t)height * max_dimension + width / 2) / width);
+    }
+    else {
+        target_height = max_dimension;
+        target_width = (int)(((int64_t)width * max_dimension + height / 2) / height);
+    }
+    if (target_width < 1) {
+        target_width = 1;
+    }
+    if (target_height < 1) {
+        target_height = 1;
+    }
+
+    row_bytes = (size_t)target_width * (size_t)components;
+    total = row_bytes * (size_t)target_height;
+    result = (unsigned char *)malloc(total);
+    if (result == NULL) {
+        return NULL;
+    }
+
+    for (y = 0; y < target_height; y++) {
+        int source_y0 = (int)(((int64_t)y * height) / target_height);
+        int source_y1 = (int)(((int64_t)(y + 1) * height) / target_height);
+        int x;
+
+        if (source_y1 <= source_y0) {
+            source_y1 = source_y0 + 1;
+        }
+        if (source_y1 > height) {
+            source_y1 = height;
+        }
+
+        for (x = 0; x < target_width; x++) {
+            int source_x0 = (int)(((int64_t)x * width) / target_width);
+            int source_x1 = (int)(((int64_t)(x + 1) * width) / target_width);
+            int64_t sum[4] = {0, 0, 0, 0};
+            int64_t count = 0;
+            int channel;
+            int source_y;
+
+            if (source_x1 <= source_x0) {
+                source_x1 = source_x0 + 1;
+            }
+            if (source_x1 > width) {
+                source_x1 = width;
+            }
+
+            for (source_y = source_y0; source_y < source_y1; source_y++) {
+                const unsigned char *row = source + (size_t)source_y * (size_t)stride;
+                int source_x;
+
+                for (source_x = source_x0; source_x < source_x1; source_x++) {
+                    const unsigned char *pixel = row + (size_t)source_x * (size_t)components;
+
+                    for (channel = 0; channel < components; channel++) {
+                        sum[channel] += pixel[channel];
+                    }
+                    count++;
+                }
+            }
+
+            for (channel = 0; channel < components; channel++) {
+                result[(size_t)y * row_bytes + (size_t)x * (size_t)components + (size_t)channel] =
+                    (unsigned char)(sum[channel] / count);
+            }
+        }
+    }
+
+    *out_width = target_width;
+    *out_height = target_height;
+    *out_stride = (int)row_bytes;
+    return result;
+}
+
+/*
+ * Replaces decoded pixels with a smaller box-averaged copy when the request
+ * asks for one. The original buffer is released with release. Returns 1 on
+ * success, including when no scaling was needed, and 0 on allocation failure.
+ */
+static inline int nv_limit_decoded_size(
+    unsigned char **pixels,
+    int *width,
+    int *height,
+    int *stride,
+    int components,
+    int32_t max_dimension,
+    void (*release)(void *),
+    int *source_width,
+    int *source_height)
+{
+    unsigned char *scaled;
+    int scaled_width = 0;
+    int scaled_height = 0;
+    int scaled_stride = 0;
+
+    *source_width = *width;
+    *source_height = *height;
+
+    if (max_dimension <= 0 || (*width <= max_dimension && *height <= max_dimension)) {
+        return 1;
+    }
+
+    scaled = nv_downscale_pixels(
+        *pixels, *width, *height, *stride, components, max_dimension,
+        &scaled_width, &scaled_height, &scaled_stride);
+    if (scaled == NULL) {
+        return 0;
+    }
+
+    release(*pixels);
+    *pixels = scaled;
+    *width = scaled_width;
+    *height = scaled_height;
+    *stride = scaled_stride;
+    return 1;
+}
+
+/*
  * Packs an image into tightly packed RGB (components 3) or RGBA (components 4)
  * rows, which is the layout stb_image_write expects.
  */
