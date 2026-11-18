@@ -19,7 +19,7 @@
          segment z is the default increment; the fourth segment n stays 0 and is
          reserved for nightly builds. Keep app.manifest's assemblyIdentity in
          sync; MSBuild cannot substitute this value into the static manifest. -->
-    <Version>0.0.0.0</Version>
+    <Version>0.0.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
