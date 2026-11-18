@@ -1,4 +1,5 @@
 using Microsoft.UI;
+using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
 using System.Diagnostics;
@@ -109,9 +110,18 @@ public sealed partial class MainWindow : Window
 
     private readonly Storyboard _loadingAnimation;
 
+    // User preferences are loaded at startup and saved as soon as a choice is
+    // made on the settings page. Theme is applied to the root grid so the local
+    // ThemeDictionaries in App.xaml switch without touching system brushes.
+    private readonly SettingsService _settings = new();
+    private bool _settingsVisible;
+
     public MainWindow()
     {
         InitializeComponent();
+        // Mica is the Fluent window backdrop. It only becomes visible while
+        // the settings page is shown; the viewer keeps its own solid surface.
+        SystemBackdrop = new MicaBackdrop();
         _loadingAnimation = CreateLoadingAnimation();
         // The thumb marks pointer events as handled while it drags, so the
         // pinch tracking below listens to handled events as well.
@@ -144,6 +154,9 @@ public sealed partial class MainWindow : Window
         {
             _routerContext = IntPtr.Zero;
         }
+
+        _settings.Load();
+        ApplyTheme(_settings.Theme);
 
         // Set the window icon explicitly. For an unpackaged WinUI 3 app the
         // executable's ApplicationIcon alone does not reach Explorer, so the
@@ -179,6 +192,7 @@ public sealed partial class MainWindow : Window
         AddAccelerator(0xBB, Windows.System.VirtualKeyModifiers.None, ZoomInAccelerator_Invoked);
         AddAccelerator(0xBB, Windows.System.VirtualKeyModifiers.Shift, ZoomInAccelerator_Invoked);
         AddAccelerator(0xBD, Windows.System.VirtualKeyModifiers.None, ZoomOutAccelerator_Invoked);
+        AddAccelerator(0xBC, Windows.System.VirtualKeyModifiers.Control, SettingsAccelerator_Invoked);
     }
 
     private void AddAccelerator(
@@ -964,6 +978,13 @@ public sealed partial class MainWindow : Window
         KeyboardAccelerator sender,
         KeyboardAcceleratorInvokedEventArgs args)
     {
+        if (_settingsVisible)
+        {
+            CloseSettings();
+            args.Handled = true;
+            return;
+        }
+
         if (!_isFullScreen)
         {
             return;
@@ -1338,6 +1359,96 @@ public sealed partial class MainWindow : Window
         {
             menu.ShowAt(ActionsButton);
         }
+    }
+
+    private void SettingsMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        OpenSettings();
+    }
+
+    // Ctrl+, stays live in both views so it toggles between the viewer and
+    // the settings page, just like the back button in the title bar.
+    private void SettingsAccelerator_Invoked(
+        KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        if (_settingsVisible)
+        {
+            CloseSettings();
+        }
+        else
+        {
+            OpenSettings();
+        }
+        args.Handled = true;
+    }
+
+    private void OpenSettings()
+    {
+        if (_settingsVisible)
+        {
+            return;
+        }
+
+        _settingsVisible = true;
+        ContentFrame.Navigate(
+            typeof(SettingsPage),
+            new SettingsPageParameter(_settings, ApplyTheme));
+        ContentFrame.Visibility = Visibility.Visible;
+        ContentRoot.Visibility = Visibility.Collapsed;
+        SettingsBackButton.Visibility = Visibility.Visible;
+        SetViewerInteractionsEnabled(false);
+    }
+
+    private void CloseSettings()
+    {
+        if (!_settingsVisible)
+        {
+            return;
+        }
+
+        _settingsVisible = false;
+        ContentFrame.Visibility = Visibility.Collapsed;
+        ContentFrame.Navigate(typeof(Page));
+        ContentRoot.Visibility = Visibility.Visible;
+        SettingsBackButton.Visibility = Visibility.Collapsed;
+        SetViewerInteractionsEnabled(true);
+    }
+
+    private void SettingsBackButton_Click(object sender, RoutedEventArgs e)
+    {
+        CloseSettings();
+    }
+
+    /// <summary>
+    /// Keeps viewer shortcuts and drag-and-drop from acting while the settings
+    /// page covers the image. Escape and Ctrl+, are deliberately left enabled
+    /// so both views can still be exited from the keyboard.
+    /// </summary>
+    private void SetViewerInteractionsEnabled(bool enabled)
+    {
+        RootGrid.AllowDrop = enabled;
+        foreach (var accelerator in RootGrid.KeyboardAccelerators)
+        {
+            if (accelerator.Key == Windows.System.VirtualKey.Escape ||
+                (int)accelerator.Key == 0xBC)
+            {
+                continue;
+            }
+            accelerator.IsEnabled = enabled;
+        }
+    }
+
+    private void ApplyTheme(AppTheme theme)
+    {
+        // System means "no override", so the OS theme flows through. Explicit
+        // choices pin the root element, which makes the local Dark/Light
+        // dictionaries in App.xaml take effect.
+        RootGrid.RequestedTheme = theme switch
+        {
+            AppTheme.Light => ElementTheme.Light,
+            AppTheme.Dark => ElementTheme.Dark,
+            _ => ElementTheme.Default
+        };
     }
 
     private void FitMenuItem_Click(object sender, RoutedEventArgs e)
