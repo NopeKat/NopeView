@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="NopeView.App.SettingsWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Settings">
+
+    <!-- No system title bar: the content starts at the top and the only
+         control up there is a self-drawn close button. The transparent root
+         lets the Mica backdrop show through. -->
+    <Grid x:Name="RootGrid" Background="Transparent" Loaded="RootGrid_Loaded">
+        <Grid.Resources>
+            <!-- A standard Fluent icon button: 32 x 32 with 4 px corners,
+                 transparent at rest and a subtle fill on hover and press. -->
+            <Style x:Key="SettingsCloseButtonStyle" TargetType="Button">
+                <Setter Property="Width" Value="32" />
+                <Setter Property="Height" Value="32" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="HorizontalContentAlignment" Value="Center" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+                <Setter Property="Background" Value="{ThemeResource SubtleFillColorTransparentBrush}" />
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="CornerRadius" Value="4" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Grid x:Name="CloseRoot"
+                                  Background="{TemplateBinding Background}"
+                                  CornerRadius="{TemplateBinding CornerRadius}">
+                                <ContentPresenter x:Name="CloseGlyph"
+                                                  Content="{TemplateBinding Content}"
+                                                  ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                  Foreground="{TemplateBinding Foreground}"
+                                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal" />
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Target="CloseRoot.Background"
+                                                        Value="{ThemeResource ButtonBackgroundPointerOver}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Target="CloseRoot.Background"
+                                                        Value="{ThemeResource ButtonBackgroundPressed}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Disabled">
+                                            <VisualState.Setters>
+                                                <Setter Target="CloseGlyph.Opacity" Value="0.4" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+        </Grid.Resources>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="40" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- The empty part of the strip drags the window; the close button is
+             laid out beside it so its clicks never start a drag. -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Grid x:Name="TitleBarDragRegion" Grid.Column="0" Background="Transparent" />
+
+            <Button x:Name="SettingsCloseButton"
+                    Grid.Column="1"
+                    Margin="0,4,8,4"
+                    Style="{StaticResource SettingsCloseButtonStyle}"
+                    AutomationProperties.AutomationId="SettingsCloseButton"
+                    AutomationProperties.Name="Close settings"
+                    Click="SettingsCloseButton_Click">
+                <!-- Fluent UI System Icons dismiss_16_regular. -->
+                <PathIcon Width="16" Height="16"
+                          Data="M3.1297 3.2441L3.1818 3.1818C3.3380 3.0256 3.5805 3.0082 3.7559 3.1297L3.8182 3.1818L8 7.3637L12.1818 3.1818C12.3575 3.0061 12.6425 3.0061 12.8182 3.1818C12.9939 3.3575 12.9939 3.6425 12.8182 3.8182L8.6363 8L12.8182 12.1818C12.9744 12.3380 12.9918 12.5805 12.8703 12.7559L12.8182 12.8182C12.6620 12.9744 12.4195 12.9918 12.2441 12.8703L12.1818 12.8182L8 8.6363L3.8182 12.8182C3.6425 12.9939 3.3575 12.9939 3.1818 12.8182C3.0061 12.6425 3.0061 12.3575 3.1818 12.1818L7.3637 8L3.1818 3.8182C3.0256 3.6620 3.0082 3.4195 3.1297 3.2441L3.1818 3.1818L3.1297 3.2441Z" />
+            </Button>
+        </Grid>
+
+        <Frame x:Name="SettingsFrame" Grid.Row="1" Background="Transparent" />
+    </Grid>
+</Window>

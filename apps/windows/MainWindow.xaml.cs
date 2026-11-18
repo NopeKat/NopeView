@@ -115,7 +115,13 @@ public sealed partial class MainWindow : Window
     // made on the settings page. Theme is applied to the root grid so the local
     // ThemeDictionaries in App.xaml switch without touching system brushes.
     private readonly SettingsService _settings = new();
-    private bool _settingsVisible;
+
+    // Settings lives in its own window so the viewer stays usable while the
+    // page is open. A null field means no settings window is on screen.
+    private SettingsWindow? _settingsWindow;
+
+    // The settings window opens at 80% of the viewer's current size.
+    private const double SettingsSizeRatio = 0.8;
 
     public MainWindow()
     {
@@ -123,8 +129,7 @@ public sealed partial class MainWindow : Window
         // Mica is the Fluent window backdrop. It only becomes visible while
         // the settings page is shown; the viewer keeps its own solid surface.
         SystemBackdrop = new MicaBackdrop();
-        _loadingAnimation = CreateLoadingAnimation();
-        // The thumb marks pointer events as handled while it drags, so the
+        _loadingAnimation = CreateLoadingAnimation();        // The thumb marks pointer events as handled while it drags, so the
         // pinch tracking below listens to handled events as well.
         PanThumb.AddHandler(
             UIElement.PointerPressedEvent,
@@ -218,6 +223,11 @@ public sealed partial class MainWindow : Window
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
+        // The settings window is independent, so closing the viewer must also
+        // close it or the process would keep running without a main window.
+        _settingsWindow?.Close();
+        _settingsWindow = null;
+
         _animationTimer.Stop();
         Win32Window.UnsuppressSystemMenu(_windowHandle);
         Win32Window.UninstallCaptionPressFilter(_windowHandle);
@@ -248,7 +258,6 @@ public sealed partial class MainWindow : Window
             MinimizeButton.ClearValue(Control.ForegroundProperty);
             RestoreButton.ClearValue(Control.ForegroundProperty);
             CloseButton.ClearValue(Control.ForegroundProperty);
-            SettingsBackButton.ClearValue(Control.ForegroundProperty);
             TitleText.ClearValue(TextBlock.ForegroundProperty);
             return;
         }
@@ -264,7 +273,6 @@ public sealed partial class MainWindow : Window
         MinimizeButton.Foreground = inactiveBrush;
         RestoreButton.Foreground = inactiveBrush;
         CloseButton.Foreground = inactiveBrush;
-        SettingsBackButton.Foreground = inactiveBrush;
         TitleText.Foreground = inactiveBrush;
     }
 
@@ -478,7 +486,7 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private Button? FindCaptionButtonAt(double x, double y)
     {
-        foreach (var button in new[] { SettingsBackButton, MinimizeButton, RestoreButton, CloseButton })
+        foreach (var button in new[] { MinimizeButton, RestoreButton, CloseButton })
         {
             if (button.Visibility != Visibility.Visible ||
                 button.ActualWidth <= 0 ||
@@ -1111,13 +1119,6 @@ public sealed partial class MainWindow : Window
         KeyboardAccelerator sender,
         KeyboardAcceleratorInvokedEventArgs args)
     {
-        if (_settingsVisible)
-        {
-            CloseSettings();
-            args.Handled = true;
-            return;
-        }
-
         if (!_isFullScreen)
         {
             return;
@@ -1499,12 +1500,11 @@ public sealed partial class MainWindow : Window
         OpenSettings();
     }
 
-    // Ctrl+, stays live in both views so it toggles between the viewer and
-    // the settings page, just like the back button in the title bar.
+    // Ctrl+, opens the settings window, or closes it when it is already open.
     private void SettingsAccelerator_Invoked(
         KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
-        if (_settingsVisible)
+        if (_settingsWindow is not null)
         {
             CloseSettings();
         }
@@ -1517,71 +1517,47 @@ public sealed partial class MainWindow : Window
 
     private void OpenSettings()
     {
-        if (_settingsVisible)
+        if (_settingsWindow is not null)
         {
+            _settingsWindow.Activate();
             return;
         }
 
-        _settingsVisible = true;
-        ContentFrame.Navigate(
-            typeof(SettingsPage),
-            new SettingsPageParameter(_settings, ApplyTheme));
-        ContentFrame.Visibility = Visibility.Visible;
-        ContentRoot.Visibility = Visibility.Collapsed;
-        SettingsBackButton.Visibility = Visibility.Visible;
-        SetViewerInteractionsEnabled(false);
+        var window = new SettingsWindow(_settings, ApplyTheme, _settings.Theme, Handle);
+        window.Closed += (_, _) => _settingsWindow = null;
+        _settingsWindow = window;
+
+        // The window opens at 80% of the viewer's current size and is centered
+        // over it, so both windows land on the same monitor and read as one
+        // task instead of a stray dialog on another screen.
+        var mainPosition = AppWindow.Position;
+        var mainSize = AppWindow.Size;
+        if (mainSize.Width > 0 && mainSize.Height > 0)
+        {
+            var settingsWidth = (int)Math.Round(mainSize.Width * SettingsSizeRatio);
+            var settingsHeight = (int)Math.Round(mainSize.Height * SettingsSizeRatio);
+            window.AppWindow.Resize(new SizeInt32(settingsWidth, settingsHeight));
+            window.AppWindow.Move(new PointInt32(
+                mainPosition.X + (mainSize.Width - settingsWidth) / 2,
+                mainPosition.Y + (mainSize.Height - settingsHeight) / 2));
+        }
+
+        window.Activate();
     }
 
     private void CloseSettings()
     {
-        if (!_settingsVisible)
-        {
-            return;
-        }
-
-        _settingsVisible = false;
-        ContentFrame.Visibility = Visibility.Collapsed;
-        ContentFrame.Navigate(typeof(Page));
-        ContentRoot.Visibility = Visibility.Visible;
-        SettingsBackButton.Visibility = Visibility.Collapsed;
-        SetViewerInteractionsEnabled(true);
-    }
-
-    private void SettingsBackButton_Click(object sender, RoutedEventArgs e)
-    {
-        CloseSettings();
-    }
-
-    /// <summary>
-    /// Keeps viewer shortcuts and drag-and-drop from acting while the settings
-    /// page covers the image. Escape and Ctrl+, are deliberately left enabled
-    /// so both views can still be exited from the keyboard.
-    /// </summary>
-    private void SetViewerInteractionsEnabled(bool enabled)
-    {
-        RootGrid.AllowDrop = enabled;
-        foreach (var accelerator in RootGrid.KeyboardAccelerators)
-        {
-            if (accelerator.Key == Windows.System.VirtualKey.Escape ||
-                (int)accelerator.Key == 0xBC)
-            {
-                continue;
-            }
-            accelerator.IsEnabled = enabled;
-        }
+        _settingsWindow?.Close();
     }
 
     private void ApplyTheme(AppTheme theme)
     {
         // System means "no override", so the OS theme flows through. Explicit
         // choices pin the root element, which makes the local Dark/Light
-        // dictionaries in App.xaml take effect.
-        RootGrid.RequestedTheme = theme switch
-        {
-            AppTheme.Light => ElementTheme.Light,
-            AppTheme.Dark => ElementTheme.Dark,
-            _ => ElementTheme.Default
-        };
+        // dictionaries in App.xaml take effect. The settings window pins its
+        // own root so both windows follow the same choice.
+        ThemeApplication.Apply(RootGrid, theme);
+        _settingsWindow?.ApplyTheme(theme);
     }
 
     private void FitMenuItem_Click(object sender, RoutedEventArgs e)
