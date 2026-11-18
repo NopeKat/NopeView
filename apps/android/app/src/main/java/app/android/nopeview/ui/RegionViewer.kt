@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -88,7 +89,8 @@ fun RegionViewer(
                 onClick = onExit,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(8.dp),
+                    .padding(8.dp)
+                    .testTag("region_back"),
             ) {
                 Text(stringResource(R.string.back_to_preview))
             }
@@ -152,11 +154,14 @@ fun RegionViewer(
     }
 
     Box(
-        modifier = modifier.onSizeChanged { viewport = it },
+        modifier = modifier
+            .testTag("region_viewer")
+            .onSizeChanged { viewport = it },
     ) {
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
+                .testTag("region_canvas")
                 .clipToBounds()
                 .pointerInput(viewport, sourceWidth, sourceHeight) {
                     detectTransformGestures { centroid, pan, gestureZoom, _ ->
@@ -237,7 +242,8 @@ fun RegionViewer(
             onClick = onExit,
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(8.dp),
+                .padding(8.dp)
+                .testTag("region_back"),
         ) {
             Text(stringResource(R.string.back_to_preview))
         }
@@ -259,7 +265,8 @@ fun RegionViewer(
             },
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(8.dp),
+                .padding(8.dp)
+                .testTag("region_zoom"),
             style = MaterialTheme.typography.labelMedium,
             color = Color.White.copy(alpha = 0.55f),
         )
