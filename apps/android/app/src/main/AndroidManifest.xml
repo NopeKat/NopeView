@@ -19,6 +19,24 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" android:mimeType="image/png" />
+                <data android:scheme="content" android:mimeType="image/jpeg" />
+                <data android:scheme="content" android:mimeType="image/gif" />
+                <data android:scheme="content" android:mimeType="image/bmp" />
+                <data android:scheme="content" android:mimeType="image/x-ms-bmp" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/png" />
+                <data android:mimeType="image/jpeg" />
+                <data android:mimeType="image/gif" />
+                <data android:mimeType="image/bmp" />
+                <data android:mimeType="image/x-ms-bmp" />
+            </intent-filter>
         </activity>
     </application>
 

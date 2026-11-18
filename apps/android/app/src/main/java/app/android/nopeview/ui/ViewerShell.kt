@@ -52,6 +52,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.android.nopeview.CodecSession
 import app.android.nopeview.DecodedImage
+import app.android.nopeview.OpenRequest
 import app.android.nopeview.R
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -74,7 +75,7 @@ private const val KEY_LAST_URI = "last_uri"
 private const val FRAME_BUFFER_COUNT = 2
 
 @Composable
-fun ViewerShell() {
+fun ViewerShell(incomingRequest: OpenRequest? = null) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val prefs = remember(context) {
@@ -144,12 +145,18 @@ fun ViewerShell() {
         isPlaying = true
 
         if (!restored) {
-            prefs.edit { putString(KEY_LAST_URI, uri.toString()) }
-            runCatching {
+            val persisted = runCatching {
                 context.contentResolver.takePersistableUriPermission(
                     uri,
                     Intent.FLAG_GRANT_READ_URI_PERMISSION,
                 )
+            }.isSuccess
+            prefs.edit {
+                if (persisted) {
+                    putString(KEY_LAST_URI, uri.toString())
+                } else {
+                    remove(KEY_LAST_URI)
+                }
             }
         }
 
@@ -368,7 +375,15 @@ fun ViewerShell() {
         }
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(incomingRequest?.id) {
+        val request = incomingRequest ?: return@LaunchedEffect
+        openImage(request.uri, restored = false)
+    }
+
+    LaunchedEffect(incomingRequest?.id) {
+        if (incomingRequest != null) {
+            return@LaunchedEffect
+        }
         val saved = prefs.getString(KEY_LAST_URI, null) ?: return@LaunchedEffect
         val uri = runCatching { saved.toUri() }.getOrNull() ?: return@LaunchedEffect
         val hasPermission = context.contentResolver.persistedUriPermissions.any {
