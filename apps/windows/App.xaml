@@ -27,6 +27,10 @@
                          not follow the accent color, so these stay fixed per
                          theme instead of deriving from SystemAccentColor. -->
 
+                    <SolidColorBrush x:Key="CaptionCloseHoverBrush" Color="#E81123" />
+                    <SolidColorBrush x:Key="CaptionCloseHoverGlyphBrush" Color="#FCE1E3" />
+                    <SolidColorBrush x:Key="CaptionClosePressedBrush" Color="#C42B1C" />
+                    <SolidColorBrush x:Key="CaptionClosePressedGlyphBrush" Color="#FFFFFF" />
                     <SolidColorBrush x:Key="FloatingPanelBrush" Color="#E62B2B2B" />
                     <SolidColorBrush x:Key="FloatingPanelStrokeBrush" Color="#4DFFFFFF" />
                     <SolidColorBrush x:Key="FloatingPanelPrimaryTextBrush" Color="#FFFFFF" />
@@ -230,6 +234,10 @@
                     <SolidColorBrush x:Key="CaptionHoverBrush" Color="#E5E5E5" />
                     <SolidColorBrush x:Key="CaptionPressedBrush" Color="#CCCCCC" />
 
+                    <SolidColorBrush x:Key="CaptionCloseHoverBrush" Color="#E81123" />
+                    <SolidColorBrush x:Key="CaptionCloseHoverGlyphBrush" Color="#FCE1E3" />
+                    <SolidColorBrush x:Key="CaptionClosePressedBrush" Color="#C42B1C" />
+                    <SolidColorBrush x:Key="CaptionClosePressedGlyphBrush" Color="#FFFFFF" />
                     <SolidColorBrush x:Key="FloatingPanelBrush" Color="#F2FFFFFF" />
                     <SolidColorBrush x:Key="FloatingPanelStrokeBrush" Color="#1A000000" />
                     <SolidColorBrush x:Key="FloatingPanelPrimaryTextBrush" Color="#000000" />

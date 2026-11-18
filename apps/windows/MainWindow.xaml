@@ -105,14 +105,14 @@
                                         <VisualState x:Name="Normal" />
                                         <VisualState x:Name="PointerOver">
                                             <VisualState.Setters>
-                                                <Setter Target="RootGrid.Background" Value="#E81123" />
-                                                <Setter Target="ContentPresenter.Foreground" Value="#FCE1E3" />
+                                                <Setter Target="RootGrid.Background" Value="{ThemeResource CaptionCloseHoverBrush}" />
+                                                <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource CaptionCloseHoverGlyphBrush}" />
                                             </VisualState.Setters>
                                         </VisualState>
                                         <VisualState x:Name="Pressed">
                                             <VisualState.Setters>
-                                                <Setter Target="RootGrid.Background" Value="#C42B1C" />
-                                                <Setter Target="ContentPresenter.Foreground" Value="#FFFFFF" />
+                                                <Setter Target="RootGrid.Background" Value="{ThemeResource CaptionClosePressedBrush}" />
+                                                <Setter Target="ContentPresenter.Foreground" Value="{ThemeResource CaptionClosePressedGlyphBrush}" />
                                             </VisualState.Setters>
                                         </VisualState>
                                         <VisualState x:Name="Disabled" />
