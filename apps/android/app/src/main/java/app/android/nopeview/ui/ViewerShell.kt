@@ -770,26 +770,22 @@ private fun fullPixelBudget(context: Context): Long {
 }
 
 private fun displayName(context: Context, uri: Uri): String {
-    var name: String? = null
-    val cursor = context.contentResolver.query(
-        uri,
-        arrayOf(OpenableColumns.DISPLAY_NAME),
-        null,
-        null,
-        null,
-    )
-    if (cursor != null) {
-        try {
+    val name = runCatching {
+        context.contentResolver.query(
+            uri,
+            arrayOf(OpenableColumns.DISPLAY_NAME),
+            null,
+            null,
+            null,
+        )?.use { cursor ->
             if (cursor.moveToFirst()) {
                 val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (index >= 0) {
-                    name = cursor.getString(index)
-                }
+                if (index >= 0) cursor.getString(index) else null
+            } else {
+                null
             }
-        } finally {
-            cursor.close()
         }
-    }
+    }.getOrNull()
     return name ?: uri.lastPathSegment ?: uri.toString()
 }
 
@@ -805,13 +801,15 @@ private fun canRead(context: Context, uri: Uri): Boolean {
 }
 
 private fun queryFileSize(context: Context, uri: Uri): Long? {
-    val cursor = context.contentResolver.query(
-        uri,
-        arrayOf(OpenableColumns.SIZE),
-        null,
-        null,
-        null,
-    ) ?: return null
+    val cursor = runCatching {
+        context.contentResolver.query(
+            uri,
+            arrayOf(OpenableColumns.SIZE),
+            null,
+            null,
+            null,
+        )
+    }.getOrNull() ?: return null
     return try {
         if (cursor.moveToFirst()) {
             val index = cursor.getColumnIndex(OpenableColumns.SIZE)
