@@ -50,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -547,6 +548,7 @@ fun ViewerShell(incomingRequest: OpenRequest? = null) {
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .testTag("viewer_shell")
             .background(ViewerCanvas)
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .padding(horizontal = 24.dp, vertical = 16.dp),
@@ -695,6 +697,7 @@ fun ViewerShell(incomingRequest: OpenRequest? = null) {
         image?.let { current ->
             AlertDialog(
                 onDismissRequest = { infoVisible = false },
+                modifier = Modifier.testTag("info_dialog"),
                 title = { Text(stringResource(R.string.image_info)) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -881,24 +884,26 @@ private fun ViewerControls(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            ControlButton(stringResource(R.string.rotate_image), !loading, onRotate)
-            ControlButton(stringResource(R.string.reset_view), !loading, onReset)
-            ControlButton(stringResource(R.string.image_info), !loading, onInfo)
+            ControlButton(stringResource(R.string.rotate_image), !loading, "control_rotate", onRotate)
+            ControlButton(stringResource(R.string.reset_view), !loading, "control_reset", onReset)
+            ControlButton(stringResource(R.string.image_info), !loading, "control_info", onInfo)
             ControlButton(
                 stringResource(R.string.share_image),
                 !loading && canShare,
+                "control_share",
                 onShare,
             )
             ControlButton(
                 stringResource(R.string.save_image),
                 !loading && canShare,
+                "control_save",
                 onSave,
             )
             if (frameCount > 1) {
-                ControlButton(pauseLabel, !loading, onTogglePlay)
+                ControlButton(pauseLabel, !loading, "control_play", onTogglePlay)
             }
-            ControlButton(stringResource(R.string.open_image), !loading, onOpen)
-            ControlButton(stringResource(R.string.recent_files), !loading, onRecent)
+            ControlButton(stringResource(R.string.open_image), !loading, "control_open", onOpen)
+            ControlButton(stringResource(R.string.recent_files), !loading, "control_recent", onRecent)
         }
         return
     }
@@ -909,9 +914,9 @@ private fun ViewerControls(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            ControlButton(stringResource(R.string.rotate_image), !loading, onRotate)
-            ControlButton(stringResource(R.string.reset_view), !loading, onReset)
-            ControlButton(stringResource(R.string.image_info), !loading, onInfo)
+            ControlButton(stringResource(R.string.rotate_image), !loading, "control_rotate", onRotate)
+            ControlButton(stringResource(R.string.reset_view), !loading, "control_reset", onReset)
+            ControlButton(stringResource(R.string.image_info), !loading, "control_info", onInfo)
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -921,15 +926,17 @@ private fun ViewerControls(
             ControlButton(
                 stringResource(R.string.share_image),
                 !loading && canShare,
+                "control_share",
                 onShare,
             )
             ControlButton(
                 stringResource(R.string.save_image),
                 !loading && canShare,
+                "control_save",
                 onSave,
             )
             if (frameCount > 1) {
-                ControlButton(pauseLabel, !loading, onTogglePlay)
+                ControlButton(pauseLabel, !loading, "control_play", onTogglePlay)
             }
         }
         Row(
@@ -937,15 +944,24 @@ private fun ViewerControls(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            ControlButton(stringResource(R.string.open_image), !loading, onOpen)
-            ControlButton(stringResource(R.string.recent_files), !loading, onRecent)
+            ControlButton(stringResource(R.string.open_image), !loading, "control_open", onOpen)
+            ControlButton(stringResource(R.string.recent_files), !loading, "control_recent", onRecent)
         }
     }
 }
 
 @Composable
-private fun ControlButton(label: String, enabled: Boolean, onClick: () -> Unit) {
-    FilledTonalButton(onClick = onClick, enabled = enabled) {
+private fun ControlButton(
+    label: String,
+    enabled: Boolean,
+    tag: String,
+    onClick: () -> Unit,
+) {
+    FilledTonalButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.testTag(tag),
+    ) {
         Text(label)
     }
 }

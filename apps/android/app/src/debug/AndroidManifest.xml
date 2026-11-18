@@ -1,8 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <application>
         <activity
             android:name=".RegionTestActivity"
             android:exported="true" />
+        <!-- Debug-only, read-only test images. Exported so the shell can grant
+             the URI to the activity under test; never shipped in release. -->
+        <provider
+            android:name=".TestImageProvider"
+            android:authorities="${applicationId}.testimages"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            tools:ignore="ExportedContentProvider" />
     </application>
 </manifest>

@@ -73,6 +73,7 @@ fun RegionViewer(
     sourceHeight: Int,
     onExit: () -> Unit,
     modifier: Modifier = Modifier,
+    onTilesChanged: ((Int) -> Unit)? = null,
 ) {
     BackHandler { onExit() }
 
@@ -125,6 +126,7 @@ fun RegionViewer(
                 tile.bitmap.recycle()
             }
             tiles.clear()
+            onTilesChanged?.invoke(0)
         }
     }
 
@@ -150,6 +152,7 @@ fun RegionViewer(
                 tiles.remove(victim)?.bitmap?.recycle()
             }
             tiles[key] = RegionTile(tile, tile.asImageBitmap())
+            onTilesChanged?.invoke(tiles.size)
         }
     }
 

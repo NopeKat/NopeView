@@ -1,6 +1,7 @@
 package app.android.nopeview
 
 import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -26,11 +28,24 @@ import app.android.nopeview.ui.RegionViewer
  */
 object RegionTestState {
     var preview by mutableStateOf<Bitmap?>(null)
+    var uri by mutableStateOf<Uri?>(null)
+    var sourceWidth by mutableIntStateOf(2000)
+    var sourceHeight by mutableIntStateOf(1000)
+    var tileCount by mutableIntStateOf(0)
     var exited by mutableStateOf(false)
     var landscape by mutableStateOf(false)
 
-    fun reset(previewBitmap: Bitmap) {
+    fun reset(
+        previewBitmap: Bitmap,
+        imageUri: Uri? = null,
+        width: Int = 2000,
+        height: Int = 1000,
+    ) {
         preview = previewBitmap
+        uri = imageUri
+        sourceWidth = width
+        sourceHeight = height
+        tileCount = 0
         exited = false
         landscape = false
     }
@@ -56,12 +71,14 @@ class RegionTestActivity : ComponentActivity() {
                             Text("preview", modifier = Modifier.testTag("preview"))
                         } else if (preview != null) {
                             RegionViewer(
-                                uri = "content://app.android.nopeview.test/missing".toUri(),
+                                uri = RegionTestState.uri
+                                    ?: "content://app.android.nopeview.test/missing".toUri(),
                                 preview = preview,
-                                sourceWidth = 2000,
-                                sourceHeight = 1000,
+                                sourceWidth = RegionTestState.sourceWidth,
+                                sourceHeight = RegionTestState.sourceHeight,
                                 onExit = { RegionTestState.exited = true },
                                 modifier = Modifier.fillMaxSize(),
+                                onTilesChanged = { RegionTestState.tileCount = it },
                             )
                         }
                     }

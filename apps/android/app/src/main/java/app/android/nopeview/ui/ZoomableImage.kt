@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -206,7 +207,8 @@ fun ZoomableImage(
             },
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(8.dp),
+                .padding(8.dp)
+                .testTag("image_zoom_button"),
         ) {
             Text(
                 text = when {
@@ -227,7 +229,8 @@ fun ZoomableImage(
                     "${bitmap.width}×${bitmap.height}",
                 modifier = Modifier
                     .align(Alignment.TopStart)
-                    .padding(8.dp),
+                    .padding(8.dp)
+                    .testTag("image_preview_label"),
                 style = MaterialTheme.typography.labelMedium,
                 color = Color.White.copy(alpha = 0.55f),
             )
@@ -237,7 +240,8 @@ fun ZoomableImage(
             text = "${(zoom * 100f).roundToInt()}%",
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(8.dp),
+                .padding(8.dp)
+                .testTag("image_zoom"),
             style = MaterialTheme.typography.labelMedium,
             color = Color.White.copy(alpha = 0.55f),
         )
@@ -247,7 +251,8 @@ fun ZoomableImage(
                 text = "${frameIndex + 1} / $frameCount",
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(8.dp),
+                    .padding(8.dp)
+                    .testTag("frame_label"),
                 style = MaterialTheme.typography.labelMedium,
                 color = Color.White.copy(alpha = 0.55f),
             )

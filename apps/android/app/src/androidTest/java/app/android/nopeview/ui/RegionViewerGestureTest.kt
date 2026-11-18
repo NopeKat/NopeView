@@ -15,8 +15,11 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.test.espresso.Espresso
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
+import androidx.test.runner.lifecycle.Stage
 import app.android.nopeview.RegionTestState
 import app.android.nopeview.R
+import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -36,11 +39,25 @@ class RegionViewerGestureTest {
 
     @Before
     fun setUp() {
+        finishResumedActivities()
         preview = Bitmap.createBitmap(200, 100, Bitmap.Config.ARGB_8888).apply {
             eraseColor(Color.GRAY)
         }
         RegionTestState.reset(preview)
         launchHost()
+    }
+
+    @After
+    fun tearDown() {
+        finishResumedActivities()
+    }
+
+    private fun finishResumedActivities() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            ActivityLifecycleMonitorRegistry.getInstance()
+                .getActivitiesInStage(Stage.RESUMED)
+                .forEach { it.finish() }
+        }
     }
 
     @Test
