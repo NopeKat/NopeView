@@ -47,6 +47,9 @@ public sealed partial class MainWindow : Window
     private bool _titleBarInitialized;
     private bool _windowActive = true;
     private nint _windowHandle;
+    // Pressed visual state of a caption button held down while the window
+    // move loop is active; reported by the native caption press filter.
+    private Button? _movePressedButton;
     private const double MinZoom = 0.1;
     private const double MaxZoom = 8.0;
     private const double ZoomStep = 1.2;
@@ -217,6 +220,7 @@ public sealed partial class MainWindow : Window
     {
         _animationTimer.Stop();
         Win32Window.UnsuppressSystemMenu(_windowHandle);
+        Win32Window.UninstallCaptionPressFilter(_windowHandle);
         RouterApi.Close(_routerContext);
         _routerContext = IntPtr.Zero;
     }
@@ -354,6 +358,22 @@ public sealed partial class MainWindow : Window
         // is gone. AppTitleBar owns the whole caption area.
         SetTitleBar(AppTitleBar);
 
+        // Presses on the caption buttons start the window move loop before
+        // the XAML buttons see the pointer, so their pressed visual state
+        // never engages on its own (hover and click still work). The native
+        // subclass below reports the non-client presses so the pressed state
+        // can be shown manually. The WinRT InputNonClientPointerSource is not
+        // usable for this on the current SDK: obtaining it switches the title
+        // bar input routing away from the SetTitleBar regions and stops the
+        // button clicks from working entirely.
+        if (!Win32Window.TryInstallCaptionPressFilter(
+                _windowHandle,
+                OnCaptionPressFeedback,
+                OnCaptionReleaseFeedback))
+        {
+            System.Diagnostics.Debug.WriteLine("Failed to install the caption press filter.");
+        }
+
         // Keep the maximize/restore glyph in sync with the window state, both
         // on button clicks and on state changes from elsewhere (double click,
         // snap layouts, keyboard).
@@ -399,6 +419,84 @@ public sealed partial class MainWindow : Window
         var offset = maximized ? 0.0 : -0.5;
         MinimizeOffset.Y = offset - 0.5;
         CloseOffset.Y = offset;
+    }
+
+    /// <summary>
+    /// Shows the pressed visual state on the caption button the user is
+    /// holding, called from the native filter when a non-client press lands
+    /// in the button. The state is reverted when the press ends. The work is
+    /// queued instead of running inline: the filter callback happens inside
+    /// the window message procedure, and re-entering XAML synchronously
+    /// there breaks the move loop that follows the press.
+    /// </summary>
+    private void OnCaptionPressFeedback(int screenX, int screenY)
+    {
+        RootGrid.DispatcherQueue.TryEnqueue(() => ApplyCaptionPressedState(screenX, screenY));
+    }
+
+    private void OnCaptionReleaseFeedback()
+    {
+        RootGrid.DispatcherQueue.TryEnqueue(ClearCaptionPressedState);
+    }
+
+    private void ApplyCaptionPressedState(int screenX, int screenY)
+    {
+        var scale = Win32Window.GetScaleFactor(_windowHandle);
+        if (scale <= 0)
+        {
+            return;
+        }
+
+        // The screen coordinates and the window origin are physical pixels.
+        var x = (screenX - AppWindow.Position.X) / scale;
+        var y = (screenY - AppWindow.Position.Y) / scale;
+        var button = FindCaptionButtonAt(x, y);
+        if (button is null)
+        {
+            return;
+        }
+
+        _movePressedButton = button;
+        VisualStateManager.GoToState(button, "Pressed", false);
+    }
+
+    private void ClearCaptionPressedState()
+    {
+        if (_movePressedButton is null)
+        {
+            return;
+        }
+
+        VisualStateManager.GoToState(_movePressedButton, "Normal", false);
+        _movePressedButton = null;
+    }
+
+    /// <summary>
+    /// Returns the visible caption button whose bounds contain the given
+    /// window coordinate in XAML units, or null when the point is outside
+    /// every button (a plain window move or resize press).
+    /// </summary>
+    private Button? FindCaptionButtonAt(double x, double y)
+    {
+        foreach (var button in new[] { SettingsBackButton, MinimizeButton, RestoreButton, CloseButton })
+        {
+            if (button.Visibility != Visibility.Visible ||
+                button.ActualWidth <= 0 ||
+                button.ActualHeight <= 0)
+            {
+                continue;
+            }
+
+            var bounds = button.TransformToVisual(null).TransformBounds(
+                new Rect(0, 0, button.ActualWidth, button.ActualHeight));
+            if (x >= bounds.X && x <= bounds.X + bounds.Width &&
+                y >= bounds.Y && y <= bounds.Y + bounds.Height)
+            {
+                return button;
+            }
+        }
+
+        return null;
     }
 
     private void OpenImageFromCommandLine()

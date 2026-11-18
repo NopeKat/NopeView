@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
@@ -18,10 +19,14 @@ internal static partial class Win32Window
     private const uint WM_KEYDOWN = 0x0100;
     private const uint WM_SYSKEYDOWN = 0x0104;
     private const uint WM_CONTEXTMENU = 0x007B;
+    private const uint WM_NCLBUTTONDOWN = 0x00A1;
+    private const uint WM_NCLBUTTONUP = 0x00A2;
+    private const uint WM_NCLBUTTONDBLCLK = 0x00A3;
     private const uint WM_SYSCOMMAND = 0x0112;
     private const uint WM_NCRBUTTONDOWN = 0x00A4;
     private const uint WM_NCRBUTTONUP = 0x00A5;
     private const uint WM_NCRBUTTONDBLCLK = 0x00A6;
+    private const uint WM_EXITSIZEMOVE = 0x0232;
 
     private const long SC_KEYMENU = 0xF100;
     private const long VK_SPACE = 0x20;
@@ -29,6 +34,7 @@ internal static partial class Win32Window
     private const long VK_APPS = 0x5D;
 
     private const nuint SubclassId = 0x4E56; // "NV"
+    private const nuint PressFilterSubclassId = 0x4E57; // "NW"
 
     [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     private delegate nint SubclassProc(
@@ -52,6 +58,9 @@ internal static partial class Win32Window
 
     private static readonly object s_menuFilterLock = new();
     private static readonly Dictionary<nint, SubclassProc> s_menuFilters = new();
+
+    private static readonly object s_pressFilterLock = new();
+    private static readonly Dictionary<nint, SubclassProc> s_pressFilters = new();
 
     /// <summary>
     /// Effective rasterization scale (DPI / 96) of the window, or 1.0 when the
@@ -152,6 +161,91 @@ internal static partial class Win32Window
         if (msg is WM_NCRBUTTONDOWN or WM_NCRBUTTONUP or WM_NCRBUTTONDBLCLK)
         {
             return 0;
+        }
+
+        return DefSubclassProc(hWnd, msg, wParam, lParam);
+    }
+
+    /// <summary>
+    /// Reports non-client left-button presses on the window so the caller can
+    /// show caption button pressed feedback. Presses inside the drag region
+    /// start the window move loop before the XAML buttons see the pointer, so
+    /// the XAML state machine never shows pressed on its own.
+    /// Returns false when the native subclass could not be installed.
+    /// </summary>
+    internal static bool TryInstallCaptionPressFilter(
+        nint hWnd,
+        Action<int, int> onCaptionPress,
+        Action onCaptionRelease)
+    {
+        if (hWnd == 0)
+        {
+            return false;
+        }
+
+        lock (s_pressFilterLock)
+        {
+            if (s_pressFilters.ContainsKey(hWnd))
+            {
+                return true;
+            }
+
+            SubclassProc filter = CaptionPressFilterProc;
+            if (!SetWindowSubclass(hWnd, filter, PressFilterSubclassId, 0u))
+            {
+                return false;
+            }
+
+            s_pressFilters.Add(hWnd, filter);
+            s_pressCallbacks[hWnd] = (onCaptionPress, onCaptionRelease);
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Removes the caption press filter when its window closes.
+    /// </summary>
+    internal static void UninstallCaptionPressFilter(nint hWnd)
+    {
+        if (hWnd == 0)
+        {
+            return;
+        }
+
+        lock (s_pressFilterLock)
+        {
+            if (s_pressFilters.Remove(hWnd, out var filter))
+            {
+                RemoveWindowSubclass(hWnd, filter, PressFilterSubclassId);
+            }
+
+            s_pressCallbacks.Remove(hWnd);
+        }
+    }
+
+    private static readonly Dictionary<nint, (Action<int, int> Press, Action Release)> s_pressCallbacks = new();
+
+    private static nint CaptionPressFilterProc(
+        nint hWnd, uint msg, nint wParam, nint lParam, nuint idSubclass, nuint refData)
+    {
+        // Non-client left-button messages only reach the window when the
+        // press started in the drag region or on the frame, which is exactly
+        // the case where the XAML buttons miss their pressed state.
+        if (msg is WM_NCLBUTTONDOWN or WM_NCLBUTTONUP or WM_NCLBUTTONDBLCLK or WM_EXITSIZEMOVE)
+        {
+            if (s_pressCallbacks.TryGetValue(hWnd, out var callbacks))
+            {
+                if (msg == WM_NCLBUTTONDOWN)
+                {
+                    var x = (short)(lParam & 0xFFFF);
+                    var y = (short)((lParam >> 16) & 0xFFFF);
+                    callbacks.Press(x, y);
+                }
+                else
+                {
+                    callbacks.Release();
+                }
+            }
         }
 
         return DefSubclassProc(hWnd, msg, wParam, lParam);
