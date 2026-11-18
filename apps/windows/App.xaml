@@ -469,11 +469,18 @@
 
 
             <!-- Flyout surface from the official MenuFlyout presenter style:
-                 8 px overlay radius, 1 px flyout stroke, 0,2 inner padding.
-                 The default presenter in this runtime ignores those values, so
-                 they are restated here without a template. -->
+                 acrylic backdrop, 8 px overlay radius, 1 px flyout stroke,
+                 0,2 inner padding. The official content-driven minimum width
+                 makes the first open narrower than later ones because the
+                 shortcut column is measured late, so a fixed 280 px minimum
+                 keeps every open the same width. -->
             <Style TargetType="MenuFlyoutPresenter">
-                <Setter Property="Background" Value="{ThemeResource SolidBackgroundFillColorTertiaryBrush}" />
+                <Setter Property="SystemBackdrop">
+                    <Setter.Value>
+                        <DesktopAcrylicBackdrop />
+                    </Setter.Value>
+                </Setter>
+                <Setter Property="Background" Value="{ThemeResource MenuFlyoutPresenterBackground}" />
                 <Setter Property="BorderBrush" Value="{ThemeResource SurfaceStrokeColorFlyoutBrush}" />
                 <Setter Property="BorderThickness" Value="1" />
                 <Setter Property="CornerRadius" Value="8" />
@@ -487,7 +494,9 @@
                  shortcut text left aligned inside the reserved box, so the
                  shortcuts only line up on their left edge. Restating the
                  template with right aligned shortcut text keeps every shortcut
-                 flush with the menu's right padding on every open. -->
+                 flush with the menu's right padding on every open. The 4 px
+                 root margin is the official MenuFlyoutItemMargin, which keeps
+                 the hover highlight inset from the acrylic edge. -->
             <Style TargetType="MenuFlyoutItem">
                 <Setter Property="Background" Value="{ThemeResource SubtleFillColorTransparentBrush}" />
                 <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
@@ -501,6 +510,7 @@
                         <ControlTemplate TargetType="MenuFlyoutItem">
                             <Grid x:Name="LayoutRoot"
                                   Padding="{TemplateBinding Padding}"
+                                  Margin="4,2,4,2"
                                   Background="{TemplateBinding Background}"
                                   BorderBrush="{TemplateBinding BorderBrush}"
                                   BorderThickness="{TemplateBinding BorderThickness}"
@@ -558,7 +568,7 @@
                                         <VisualState x:Name="DefaultPadding" />
                                         <VisualState x:Name="NarrowPadding">
                                             <VisualState.Setters>
-                                                <Setter Target="LayoutRoot.Padding" Value="11,4,11,7" />
+                                                <Setter Target="LayoutRoot.Padding" Value="11,4,11,5" />
                                             </VisualState.Setters>
                                         </VisualState>
                                     </VisualStateGroup>
@@ -595,7 +605,7 @@
                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                            FontSize="12"
                                            MinWidth="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=TemplateSettings.KeyboardAcceleratorTextMinWidth}"
-                                           Margin="24,0,0,0"
+                                           Margin="24,4,0,0"
                                            TextAlignment="Right"
                                            HorizontalAlignment="Right"
                                            VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
