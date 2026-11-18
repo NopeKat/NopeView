@@ -21,8 +21,9 @@
             <Setter Property="HorizontalContentAlignment" Value="Left" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="16,10,16,10" />
-            <Setter Property="Margin" Value="8,2,8,2" />
+            <Setter Property="Padding" Value="16,8,16,8" />
+            <Setter Property="MinHeight" Value="36" />
+            <Setter Property="Margin" Value="4,2,4,2" />
             <Setter Property="CornerRadius" Value="4" />
             <Setter Property="FontSize" Value="14" />
         </Style>
@@ -46,18 +47,43 @@
                        Margin="24,0,16,20"
                        Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
             <StackPanel Margin="0,56,0,0">
-                <Button x:Name="AppearanceNavButton"
-                        Style="{StaticResource SettingsNavButtonStyle}"
-                        Content="Appearance"
-                        Tag="Appearance"
-                        AutomationProperties.AutomationId="AppearanceNavItem"
-                        Click="SettingsNavButton_Click" />
-                <Button x:Name="AboutNavButton"
-                        Style="{StaticResource SettingsNavButtonStyle}"
-                        Content="About"
-                        Tag="About"
-                        AutomationProperties.AutomationId="AboutNavItem"
-                        Click="SettingsNavButton_Click" />
+                <Grid>
+                    <Button x:Name="AppearanceNavButton"
+                            Style="{StaticResource SettingsNavButtonStyle}"
+                            Content="Appearance"
+                            Tag="Appearance"
+                            AutomationProperties.AutomationId="AppearanceNavItem"
+                            Click="SettingsNavButton_Click" />
+                    <Rectangle x:Name="AppearanceNavIndicator"
+                               Width="3"
+                               Height="16"
+                               RadiusX="2"
+                               RadiusY="2"
+                               Margin="4,0,0,0"
+                               HorizontalAlignment="Left"
+                               VerticalAlignment="Center"
+                               Fill="{ThemeResource AccentFillColorDefaultBrush}"
+                               IsHitTestVisible="False" />
+                </Grid>
+                <Grid>
+                    <Button x:Name="AboutNavButton"
+                            Style="{StaticResource SettingsNavButtonStyle}"
+                            Content="About"
+                            Tag="About"
+                            AutomationProperties.AutomationId="AboutNavItem"
+                            Click="SettingsNavButton_Click" />
+                    <Rectangle x:Name="AboutNavIndicator"
+                               Width="3"
+                               Height="16"
+                               RadiusX="2"
+                               RadiusY="2"
+                               Margin="4,0,0,0"
+                               HorizontalAlignment="Left"
+                               VerticalAlignment="Center"
+                               Fill="{ThemeResource AccentFillColorDefaultBrush}"
+                               IsHitTestVisible="False"
+                               Visibility="Collapsed" />
+                </Grid>
             </StackPanel>
         </Grid>
 

@@ -35,6 +35,8 @@ public sealed partial class SettingsPage : Page
             (Brush)Application.Current.Resources["SubtleFillColorSecondaryBrush"];
         AboutNavButton.Background =
             (Brush)Application.Current.Resources["SubtleFillColorTransparentBrush"];
+        AppearanceNavIndicator.Visibility = Visibility.Visible;
+        AboutNavIndicator.Visibility = Visibility.Collapsed;
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -58,6 +60,8 @@ public sealed partial class SettingsPage : Page
         var normal = (Brush)Application.Current.Resources["SubtleFillColorTransparentBrush"];
         AppearanceNavButton.Background = showAbout ? normal : selected;
         AboutNavButton.Background = showAbout ? selected : normal;
+        AppearanceNavIndicator.Visibility = showAbout ? Visibility.Collapsed : Visibility.Visible;
+        AboutNavIndicator.Visibility = showAbout ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void ThemeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
