@@ -11,6 +11,10 @@
     <string name="view_preview">Preview</string>
     <string name="view_preview_actual">Preview 1:1</string>
     <string name="load_full">Full image</string>
+    <string name="load_region">Region 1:1</string>
+    <string name="back_to_preview">Back to preview</string>
+    <string name="region_label">Region 1:1</string>
+    <string name="region_unsupported">This device cannot decode image regions.</string>
     <string name="full_too_large">This image is too large for full size.</string>
     <string name="pause_animation">Pause</string>
     <string name="resume_animation">Play</string>

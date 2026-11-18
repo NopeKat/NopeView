@@ -1,12 +1,12 @@
 package app.android.nopeview.ui
 
+import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.widget.Toast
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -49,6 +49,7 @@ import androidx.core.graphics.createBitmap
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.android.nopeview.CodecSession
 import app.android.nopeview.DecodedImage
 import app.android.nopeview.R
@@ -64,7 +65,10 @@ import kotlinx.coroutines.withContext
 
 private val ViewerCanvas = Color(0xFF0B0C0E)
 private const val PREVIEW_MAX_DIMENSION = 4096
-private const val MAX_FULL_PIXELS = 24_000_000L
+private const val MAX_FULL_PIXELS_CEILING = 24_000_000L
+private const val MIN_FULL_PIXELS = 4_000_000L
+private const val FULL_HEAP_CAP_BYTES = 96L * 1024L * 1024L
+private const val LOW_RAM_FULL_PIXELS = 8_000_000L
 private const val PREFS_NAME = "viewer"
 private const val KEY_LAST_URI = "last_uri"
 private const val FRAME_BUFFER_COUNT = 2
@@ -72,7 +76,7 @@ private const val FRAME_BUFFER_COUNT = 2
 @Composable
 fun ViewerShell() {
     val context = LocalContext.current
-    val activity = context as? ComponentActivity
+    val lifecycleOwner = LocalLifecycleOwner.current
     val prefs = remember(context) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
@@ -85,11 +89,11 @@ fun ViewerShell() {
     var imageEpoch by remember { mutableIntStateOf(0) }
     var isPlaying by remember { mutableStateOf(true) }
     var startAtActual by remember { mutableStateOf(false) }
+    var regionMode by remember { mutableStateOf(false) }
     var lifecycleStarted by remember {
-        mutableStateOf(
-            activity?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.STARTED) ?: true,
-        )
+        mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
     }
+    val fullPixelLimit = remember(context) { fullPixelBudget(context) }
     val decodeFailed = stringResource(R.string.decode_failed)
     val fullTooLarge = stringResource(R.string.full_too_large)
 
@@ -106,36 +110,36 @@ fun ViewerShell() {
         }
     }
 
-    DisposableEffect(activity) {
-        if (activity == null) {
-            onDispose { }
-        } else {
-            val observer = LifecycleEventObserver { _, event ->
-                when (event) {
-                    Lifecycle.Event.ON_START -> lifecycleStarted = true
-                    Lifecycle.Event.ON_STOP -> lifecycleStarted = false
-                    else -> Unit
-                }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> lifecycleStarted = true
+                Lifecycle.Event.ON_STOP -> lifecycleStarted = false
+                else -> Unit
             }
-            activity.lifecycle.addObserver(observer)
-            onDispose { activity.lifecycle.removeObserver(observer) }
         }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     fun openImage(uri: Uri, restored: Boolean) {
         val previousImage = image
-        val previousJobActive = animationJob?.isActive == true
         image = null
         animationJob?.cancel()
         animationJob = null
-        if (previousImage != null && !previousJobActive) {
-            previousImage.bitmap.recycle()
+        // The region viewer still draws the preview until it is disposed, so
+        // recycling here would race with the next frame. Let that path drop the
+        // bitmap through normal garbage collection instead.
+        if (!regionMode) {
+            previousImage?.bitmap?.recycle()
         }
         selectedUri = uri
         selectedName = displayName(context, uri)
         imageEpoch += 1
+        val generation = imageEpoch
         loading = true
         error = null
+        regionMode = false
         startAtActual = false
         isPlaying = true
 
@@ -173,11 +177,18 @@ fun ViewerShell() {
                     }
                 }
                 if (first == null) {
+                    if (generation != imageEpoch) {
+                        return@launch
+                    }
                     if (restored) {
                         prefs.edit { remove(KEY_LAST_URI) }
                     }
                     loading = false
                     error = decodeFailed
+                    return@launch
+                }
+                if (generation != imageEpoch) {
+                    first.bitmap.recycle()
                     return@launch
                 }
 
@@ -196,7 +207,7 @@ fun ViewerShell() {
                     }.getOrNull()
 
                     var frameIndex = 0
-                    while (isActive) {
+                    while (isActive && generation == imageEpoch) {
                         val current = image ?: break
                         if (current.frameCount <= 1) {
                             break
@@ -249,15 +260,20 @@ fun ViewerShell() {
 
                         currentBuffer = targetIndex
                         frameIndex = nextIndex
+                        if (generation != imageEpoch) {
+                            break
+                        }
                         image = next
                     }
                 }
             } catch (cancel: CancellationException) {
                 throw cancel
             } catch (_: Exception) {
-                loading = false
-                if (image == null) {
-                    error = decodeFailed
+                if (generation == imageEpoch) {
+                    loading = false
+                    if (image == null) {
+                        error = decodeFailed
+                    }
                 }
             } finally {
                 for (buffer in buffers) {
@@ -277,19 +293,23 @@ fun ViewerShell() {
             return
         }
         val pixels = current.sourceWidth.toLong() * current.sourceHeight.toLong()
-        if (pixels > MAX_FULL_PIXELS) {
+        if (pixels > fullPixelLimit) {
             Toast.makeText(context, fullTooLarge, Toast.LENGTH_SHORT).show()
             return
         }
 
+        val generation = imageEpoch
         loading = true
+        regionMode = false
         scope.launch {
             val descriptor = runCatching {
                 context.contentResolver.openFileDescriptor(uri, "r")
             }.getOrNull()
             if (descriptor == null) {
-                loading = false
-                Toast.makeText(context, decodeFailed, Toast.LENGTH_SHORT).show()
+                if (generation == imageEpoch) {
+                    loading = false
+                    Toast.makeText(context, decodeFailed, Toast.LENGTH_SHORT).show()
+                }
                 return@launch
             }
             try {
@@ -299,8 +319,14 @@ fun ViewerShell() {
                     }
                 }
                 if (full == null) {
-                    loading = false
-                    Toast.makeText(context, decodeFailed, Toast.LENGTH_SHORT).show()
+                    if (generation == imageEpoch) {
+                        loading = false
+                        Toast.makeText(context, decodeFailed, Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
+                }
+                if (generation != imageEpoch) {
+                    full.bitmap.recycle()
                     return@launch
                 }
                 val previousImage = image
@@ -315,12 +341,23 @@ fun ViewerShell() {
             } catch (cancel: CancellationException) {
                 throw cancel
             } catch (_: Exception) {
-                loading = false
-                Toast.makeText(context, decodeFailed, Toast.LENGTH_SHORT).show()
+                if (generation == imageEpoch) {
+                    loading = false
+                    Toast.makeText(context, decodeFailed, Toast.LENGTH_SHORT).show()
+                }
             } finally {
                 runCatching { descriptor.close() }
             }
         }
+    }
+
+    fun requestRegionView() {
+        val current = image ?: return
+        if (selectedUri == null || !current.isPreview || current.frameCount != 1) {
+            return
+        }
+        regionMode = true
+        isPlaying = false
     }
 
     val openDocument = rememberLauncherForActivityResult(
@@ -344,9 +381,14 @@ fun ViewerShell() {
         }
     }
 
+    val imagePixels = image?.let {
+        it.sourceWidth.toLong() * it.sourceHeight.toLong()
+    } ?: 0L
     val canLoadFull = image?.let {
-        it.isPreview && it.frameCount == 1 &&
-            it.sourceWidth.toLong() * it.sourceHeight.toLong() <= MAX_FULL_PIXELS
+        it.isPreview && it.frameCount == 1 && imagePixels <= fullPixelLimit
+    } == true
+    val canViewRegion = image?.let {
+        it.isPreview && it.frameCount == 1 && imagePixels > fullPixelLimit
     } == true
 
     Box(
@@ -372,6 +414,14 @@ fun ViewerShell() {
             ) {
                 when {
                     loading -> CircularProgressIndicator()
+                    image != null && regionMode && selectedUri != null -> RegionViewer(
+                        uri = selectedUri!!,
+                        preview = image!!.bitmap,
+                        sourceWidth = image!!.sourceWidth,
+                        sourceHeight = image!!.sourceHeight,
+                        onExit = { regionMode = false },
+                        modifier = Modifier.fillMaxSize(),
+                    )
                     image != null -> ZoomableImage(
                         bitmap = image!!.bitmap,
                         isPreview = image!!.isPreview,
@@ -379,6 +429,11 @@ fun ViewerShell() {
                         startAtActual = startAtActual,
                         onRequestFull = if (canLoadFull) {
                             { requestFullImage() }
+                        } else {
+                            null
+                        },
+                        onRequestRegion = if (canViewRegion) {
+                            { requestRegionView() }
                         } else {
                             null
                         },
@@ -449,6 +504,28 @@ fun ViewerShell() {
                 color = Color.White.copy(alpha = 0.4f),
             )
         }
+    }
+}
+
+private fun fullPixelBudget(context: Context): Long {
+    val activityManager = context.getSystemService(ActivityManager::class.java)
+    val memoryInfo = ActivityManager.MemoryInfo()
+    activityManager?.getMemoryInfo(memoryInfo)
+    val totalMb = memoryInfo.totalMem / (1024L * 1024L)
+    val totalBudgetBytes = when {
+        totalMb >= 6_000L -> 96L * 1024L * 1024L
+        totalMb >= 4_000L -> 80L * 1024L * 1024L
+        totalMb >= 3_000L -> 64L * 1024L * 1024L
+        else -> 48L * 1024L * 1024L
+    }
+    val heapBudgetBytes = Runtime.getRuntime().maxMemory() / 2L
+    val byteBudget = minOf(heapBudgetBytes, totalBudgetBytes, FULL_HEAP_CAP_BYTES)
+    val pixels = (byteBudget / 4L)
+        .coerceIn(MIN_FULL_PIXELS, MAX_FULL_PIXELS_CEILING)
+    return if (activityManager?.isLowRamDevice == true) {
+        pixels.coerceAtMost(LOW_RAM_FULL_PIXELS)
+    } else {
+        pixels
     }
 }
 

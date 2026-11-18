@@ -54,6 +54,7 @@ fun ZoomableImage(
     resetKey: Any? = null,
     startAtActual: Boolean = false,
     onRequestFull: (() -> Unit)? = null,
+    onRequestRegion: (() -> Unit)? = null,
     frameIndex: Int = 0,
     frameCount: Int = 1,
 ) {
@@ -160,6 +161,10 @@ fun ZoomableImage(
                     onRequestFull.invoke()
                     return@FilledTonalButton
                 }
+                if (isPreview && onRequestRegion != null) {
+                    onRequestRegion.invoke()
+                    return@FilledTonalButton
+                }
                 val goToActual = abs(zoom - 1f) >= 0.01f
                 val target = if (goToActual) {
                     1f
@@ -183,6 +188,8 @@ fun ZoomableImage(
                 text = when {
                     isPreview && onRequestFull != null ->
                         stringResource(R.string.load_full)
+                    isPreview && onRequestRegion != null ->
+                        stringResource(R.string.load_region)
                     abs(zoom - 1f) < 0.01f -> stringResource(R.string.view_fit)
                     isPreview -> stringResource(R.string.view_preview_actual)
                     else -> stringResource(R.string.view_actual)

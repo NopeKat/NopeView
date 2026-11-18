@@ -11,6 +11,10 @@
     <string name="view_preview">预览</string>
     <string name="view_preview_actual">预览 1:1</string>
     <string name="load_full">原图</string>
+    <string name="load_region">区域 1:1</string>
+    <string name="back_to_preview">返回预览</string>
+    <string name="region_label">区域 1:1</string>
+    <string name="region_unsupported">当前设备不支持区域解码。</string>
     <string name="full_too_large">这张图太大，无法加载原图。</string>
     <string name="pause_animation">暂停</string>
     <string name="resume_animation">播放</string>
