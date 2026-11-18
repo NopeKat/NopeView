@@ -1,8 +1,10 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
+using Windows.System;
 
 namespace NopeView.App;
 
@@ -31,12 +33,9 @@ public sealed partial class SettingsPage : Page
             ThemeComboBox.DispatcherQueue.TryEnqueue(() => _selectionReady = true);
         };
         VersionText.Text = typeof(App).Assembly.GetName().Version?.ToString() ?? "0.0.0.0";
-        AppearanceNavButton.Background =
-            (Brush)Application.Current.Resources["SubtleFillColorSecondaryBrush"];
-        AboutNavButton.Background =
-            (Brush)Application.Current.Resources["SubtleFillColorTransparentBrush"];
-        AppearanceNavIndicator.Visibility = Visibility.Visible;
-        AboutNavIndicator.Visibility = Visibility.Collapsed;
+        AppearanceNavButton.SelectionRequested = SelectFromItem;
+        AboutNavButton.SelectionRequested = SelectFromItem;
+        SelectSection(false, null);
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -50,9 +49,35 @@ public sealed partial class SettingsPage : Page
         RefreshTheme();
     }
 
+    private void SelectFromItem(SettingsNavItem item) => SelectSection(item == AboutNavButton, item);
+
     private void SettingsNavButton_Click(object sender, RoutedEventArgs e)
     {
-        bool showAbout = (sender as Button)?.Tag as string == "About";
+        if (sender is SettingsNavItem item)
+        {
+            SelectSection(item == AboutNavButton, null);
+        }
+    }
+
+    private void SettingsNavItem_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case VirtualKey.Up:
+            case VirtualKey.Home:
+                SelectSection(false, AppearanceNavButton);
+                e.Handled = true;
+                break;
+            case VirtualKey.Down:
+            case VirtualKey.End:
+                SelectSection(true, AboutNavButton);
+                e.Handled = true;
+                break;
+        }
+    }
+
+    private void SelectSection(bool showAbout, SettingsNavItem? focusTarget)
+    {
         AppearancePanel.Visibility = showAbout ? Visibility.Collapsed : Visibility.Visible;
         AboutPanel.Visibility = showAbout ? Visibility.Visible : Visibility.Collapsed;
 
@@ -62,6 +87,22 @@ public sealed partial class SettingsPage : Page
         AboutNavButton.Background = showAbout ? selected : normal;
         AppearanceNavIndicator.Visibility = showAbout ? Visibility.Collapsed : Visibility.Visible;
         AboutNavIndicator.Visibility = showAbout ? Visibility.Visible : Visibility.Collapsed;
+
+        SetSelected(AppearanceNavButton, !showAbout);
+        SetSelected(AboutNavButton, showAbout);
+
+        focusTarget?.Focus(FocusState.Keyboard);
+    }
+
+    private static void SetSelected(SettingsNavItem item, bool selected)
+    {
+        if (item.IsSelected == selected)
+        {
+            return;
+        }
+        bool previous = item.IsSelected;
+        item.IsSelected = selected;
+        item.RaiseSelectedChanged(previous);
     }
 
     private void ThemeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
