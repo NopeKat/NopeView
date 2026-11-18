@@ -435,6 +435,30 @@
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
 
+            <!-- Text styles replicated from the WinUI 3 theme dictionaries.
+                 The runtime does not resolve BodyStrongTextBlockStyle at all,
+                 and its TitleTextBlockStyle drops the optical margin, so the
+                 official definitions live here under their published names. -->
+            <Style x:Key="TitleTextBlockStyle" TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="XamlAutoFontFamily" />
+                <Setter Property="FontSize" Value="28" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+                <Setter Property="LineStackingStrategy" Value="MaxHeight" />
+                <Setter Property="TextLineBounds" Value="Full" />
+                <Setter Property="OpticalMarginAlignment" Value="TrimSideBearings" />
+            </Style>
+            <Style x:Key="BodyStrongTextBlockStyle" TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="XamlAutoFontFamily" />
+                <Setter Property="FontSize" Value="14" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+                <Setter Property="LineStackingStrategy" Value="MaxHeight" />
+                <Setter Property="TextLineBounds" Value="Full" />
+            </Style>
+
             <!-- Non-color tokens referenced by the toolkit SettingsCard and
                  ComboBox templates. The framework copies are unavailable here. -->
             <CornerRadius x:Key="ControlCornerRadius">4</CornerRadius>
