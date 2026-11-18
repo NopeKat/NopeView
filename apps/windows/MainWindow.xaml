@@ -45,6 +45,7 @@
                         <ControlTemplate TargetType="Button">
                             <Grid x:Name="RootGrid" Background="Transparent">
                                 <ContentPresenter x:Name="ContentPresenter"
+                                                  Foreground="{TemplateBinding Foreground}"
                                                   HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                                   VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
                                 <VisualStateManager.VisualStateGroups>
@@ -91,7 +92,6 @@
                  used, matching the native close button. -->
             <Style x:Key="CloseButtonStyle" TargetType="Button"
                    BasedOn="{StaticResource CaptionButtonStyle}">
-                <Setter Property="Foreground" Value="{ThemeResource CaptionGlyphBrush}" />
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">

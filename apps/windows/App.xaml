@@ -20,6 +20,7 @@
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="CaptionGlyphBrush" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="CaptionGlyphInactiveBrush" Color="#808080" />
                     <SolidColorBrush x:Key="CaptionHoverBrush" Color="#3C3C3C" />
                     <SolidColorBrush x:Key="CaptionPressedBrush" Color="#4D4D4D" />
                     <!-- Close button danger colors. The native close button does
@@ -225,6 +226,7 @@
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="CaptionGlyphBrush" Color="#000000" />
+                    <SolidColorBrush x:Key="CaptionGlyphInactiveBrush" Color="#999999" />
                     <SolidColorBrush x:Key="CaptionHoverBrush" Color="#E5E5E5" />
                     <SolidColorBrush x:Key="CaptionPressedBrush" Color="#CCCCCC" />
 

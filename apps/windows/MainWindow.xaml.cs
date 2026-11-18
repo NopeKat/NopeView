@@ -37,12 +37,10 @@ public sealed partial class MainWindow : Window
     // where the preferred size would cover the whole screen.
     private const double RestoreAreaRatio = 0.9;
 
-    // App.xaml's CaptionGlyphBrush is the only source for the active color.
-    // Only the inactive greys are created here, and they are cached.
-    private static readonly SolidColorBrush s_darkInactiveBrush =
-        new(ColorHelper.FromArgb(255, 128, 128, 128));
-    private static readonly SolidColorBrush s_lightInactiveBrush =
-        new(ColorHelper.FromArgb(255, 153, 153, 153));
+    // Caption glyph colors live in App.xaml's theme dictionaries. The active
+    // color comes from each element's own theme default, and the inactive
+    // greys are looked up per element theme, so the title bar follows the app
+    // theme instead of the application-level (system) theme.
 
     private readonly DispatcherTimer _animationTimer = new();
 
@@ -236,16 +234,53 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        var dark = RootGrid.ActualTheme == ElementTheme.Dark;
-        var activeBrush = (SolidColorBrush)Application.Current.Resources["CaptionGlyphBrush"];
-        var brush = _windowActive
-            ? activeBrush
-            : (dark ? s_darkInactiveBrush : s_lightInactiveBrush);
+        var theme = RootGrid.ActualTheme;
+        if (_windowActive)
+        {
+            // Clearing the local value restores the style setter, so the glyph
+            // resolves against this element's theme. Reading a brush from
+            // Application.Current.Resources would resolve against the system
+            // theme instead, which painted white glyphs on a light title bar.
+            MinimizeButton.ClearValue(Control.ForegroundProperty);
+            RestoreButton.ClearValue(Control.ForegroundProperty);
+            CloseButton.ClearValue(Control.ForegroundProperty);
+            SettingsBackButton.ClearValue(Control.ForegroundProperty);
+            TitleText.ClearValue(TextBlock.ForegroundProperty);
+            return;
+        }
 
-        MinimizeButton.Foreground = brush;
-        RestoreButton.Foreground = brush;
-        CloseButton.Foreground = brush;
-        TitleText.Foreground = brush;
+        // High contrast has no key of its own yet, so a missing brush leaves
+        // the elements on their theme default rather than throwing.
+        var inactiveBrush = GetThemeBrush("CaptionGlyphInactiveBrush", theme);
+        if (inactiveBrush is null)
+        {
+            return;
+        }
+
+        MinimizeButton.Foreground = inactiveBrush;
+        RestoreButton.Foreground = inactiveBrush;
+        CloseButton.Foreground = inactiveBrush;
+        SettingsBackButton.Foreground = inactiveBrush;
+        TitleText.Foreground = inactiveBrush;
+    }
+
+    /// <summary>
+    /// Looks a brush up in App.xaml's theme dictionary for a specific element
+    /// theme, bypassing the application-level theme that a direct
+    /// Application.Current.Resources lookup would use.
+    /// </summary>
+    private static Brush? GetThemeBrush(string key, ElementTheme theme)
+    {
+        var dictionaryKey = theme == ElementTheme.Dark ? "Dark" : "Light";
+        var dictionaries = Application.Current.Resources.ThemeDictionaries;
+        if (!dictionaries.TryGetValue(dictionaryKey, out var entry) ||
+            entry is not ResourceDictionary dictionary ||
+            !dictionary.TryGetValue(key, out var value))
+        {
+            return null;
+        }
+
+        return value as Brush;
     }
 
     private nint Handle => WindowNative.GetWindowHandle(this);
