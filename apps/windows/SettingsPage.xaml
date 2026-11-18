@@ -26,7 +26,7 @@
             <Setter Property="HorizontalContentAlignment" Value="Left" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="16,8,16,8" />
+            <Setter Property="Padding" Value="12,8,12,8" />
             <Setter Property="MinHeight" Value="36" />
             <Setter Property="Margin" Value="4,2,4,2" />
             <Setter Property="CornerRadius" Value="4" />
@@ -53,10 +53,23 @@
                 <Grid>
                     <Button x:Name="AppearanceNavButton"
                             Style="{StaticResource SettingsNavButtonStyle}"
-                            Content="Appearance"
                             Tag="Appearance"
+                            AutomationProperties.Name="Appearance"
                             AutomationProperties.AutomationId="AppearanceNavItem"
-                            Click="SettingsNavButton_Click" />
+                            Click="SettingsNavButton_Click">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <PathIcon Width="16" Height="16" VerticalAlignment="Center"
+                                      Data="M 7.5,5.5 A 0.5,0.5,0,1,0,7.5,4.5 A 0.5,0.5,0,0,0,7.5,5.5 M 10,5.5 A 0.5,0.5,0,1,1,9,5.5 A 0.5,0.5,0,0,1,10,5.5 M 11.5,7 A 0.5,0.5,0,1,1,10.5,7 A 0.5,0.5,0,0,1,11.5,7 M 11,9.5 A 0.5,0.5,0,1,0,11,8.5 A 0.5,0.5,0,0,0,11,9.5 M 10.5,11 A 0.5,0.5,0,1,1,9.5,11 A 0.5,0.5,0,0,1,10.5,11 M 8,2 A 6,6,0,0,0,2,8 A 2,2,0,0,0,4,10 C 4.708,10,5.085,9.622,5.34,9.367 L 5.354,9.354 C 5.598,9.109,5.72,9,6,9 A 1,1,0,0,1,7,10 L 7,11 A 3,3,0,0,0,10,14 C 11.334,14,12.354,13.254,13.017,12.146 C 13.672,11.05,14,9.579,14,8 A 6,6,0,0,0,8,2 M 3,8 A 5,5,0,0,1,13,8 C 13,9.458,12.695,10.737,12.159,11.632 C 11.63,12.515,10.9,13,10,13 A 2,2,0,0,1,8,11 L 8,10 A 2,2,0,0,0,6,8 C 5.292,8,4.915,8.378,4.66,8.633 L 4.646,8.646 C 4.402,8.891,4.28,9,4,9 A 1,1,0,0,1,3,8" />
+                            <TextBlock Grid.Column="1"
+                                       Text="Appearance"
+                                       Margin="12,0,0,0"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                    </Button>
                     <Rectangle x:Name="AppearanceNavIndicator"
                                Width="3"
                                Height="16"
@@ -71,10 +84,23 @@
                 <Grid>
                     <Button x:Name="AboutNavButton"
                             Style="{StaticResource SettingsNavButtonStyle}"
-                            Content="About"
                             Tag="About"
+                            AutomationProperties.Name="About"
                             AutomationProperties.AutomationId="AboutNavItem"
-                            Click="SettingsNavButton_Click" />
+                            Click="SettingsNavButton_Click">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <PathIcon Width="16" Height="16" VerticalAlignment="Center"
+                                      Data="M 8.499,7.5 A 0.5,0.5,0,1,0,7.499,7.5 L 7.499,10.5 A 0.5,0.5,0,0,0,8.499,10.5 Z M 8.749,5.5 A 0.749,0.749,0,1,1,7.25,5.5 A 0.749,0.749,0,0,1,8.748,5.5 M 8,1 A 7,7,0,1,0,8,15 A 7,7,0,0,0,8,1 M 2,8 A 6,6,0,1,1,14,8 A 6,6,0,0,1,2,8" />
+                            <TextBlock Grid.Column="1"
+                                       Text="About"
+                                       Margin="12,0,0,0"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                    </Button>
                     <Rectangle x:Name="AboutNavIndicator"
                                Width="3"
                                Height="16"
