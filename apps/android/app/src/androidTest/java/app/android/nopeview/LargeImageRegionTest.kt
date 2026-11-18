@@ -45,8 +45,12 @@ class LargeImageRegionTest {
             ActivityLifecycleMonitorRegistry.getInstance()
                 .getActivitiesInStage(Stage.RESUMED)
                 .forEach { it.finish() }
+            // The host window can record one more frame after finish(), so
+            // recycling the preview here races with RegionViewer's draw pass.
+            // Drop the shared reference and let the garbage collector reclaim
+            // the bitmap instead.
+            RegionTestState.preview = null
         }
-        preview?.recycle()
         preview = null
     }
 
