@@ -13,6 +13,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
 import org.junit.After
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -30,6 +31,7 @@ class ViewerShellTest {
     @Before
     fun setUp() {
         context = InstrumentationRegistry.getInstrumentation().targetContext
+        SystemUi.wake()
         finishResumedActivities()
         TestImages.reset(context)
     }
@@ -98,6 +100,42 @@ class ViewerShellTest {
     }
 
     @Test
+    fun shareOpensSystemChooser() {
+        val uri = TestImages.writePng(context, "share.png", 40, 20)
+        TestShell.startImage(Intent.ACTION_VIEW, uri, "image/png")
+        awaitTag("control_open")
+        SystemUi.wake()
+
+        rule.onNodeWithTag("control_share").performClick()
+        val resumed = SystemUi.waitForResumed(
+            listOf("intentresolver", "ResolverActivity", "ChooserActivity"),
+        )
+        assertTrue("share chooser was not resumed: $resumed", resumed.isNotEmpty())
+
+        SystemUi.back()
+        SystemUi.wake()
+        awaitTag("control_open")
+    }
+
+    @Test
+    fun saveOpensSystemPicker() {
+        val uri = TestImages.writePng(context, "save.png", 40, 20)
+        TestShell.startImage(Intent.ACTION_VIEW, uri, "image/png")
+        awaitTag("control_open")
+        SystemUi.wake()
+
+        rule.onNodeWithTag("control_save").performClick()
+        val resumed = SystemUi.waitForResumed(
+            listOf("documentsui", "CreateDocument", "SaveActivity", "picker"),
+        )
+        assertTrue("save picker was not resumed: $resumed", resumed.isNotEmpty())
+
+        SystemUi.back()
+        SystemUi.wake()
+        awaitTag("control_open")
+    }
+
+    @Test
     fun gifPauseAndResumeToggle() {
         val uri = TestImages.copyGif(context, "animated.gif", "rotating-earth.gif")
         TestShell.startImage(Intent.ACTION_VIEW, uri, "image/gif")
@@ -117,6 +155,9 @@ class ViewerShellTest {
     private fun awaitTag(tag: String) {
         rule.waitUntil(timeoutMillis = 15_000) {
             rule.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
+        }
+        if (tag == "control_open") {
+            SystemUi.keepOn()
         }
     }
 

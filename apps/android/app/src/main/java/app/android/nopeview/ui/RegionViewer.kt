@@ -74,6 +74,7 @@ fun RegionViewer(
     onExit: () -> Unit,
     modifier: Modifier = Modifier,
     onTilesChanged: ((Int) -> Unit)? = null,
+    onTileEvicted: (() -> Unit)? = null,
 ) {
     BackHandler { onExit() }
 
@@ -149,7 +150,10 @@ fun RegionViewer(
             }
             while (tiles.size >= TILE_CACHE_LIMIT) {
                 val victim = tiles.keys.firstOrNull { it !in visible } ?: break
-                tiles.remove(victim)?.bitmap?.recycle()
+                tiles.remove(victim)?.let { tile ->
+                    tile.bitmap.recycle()
+                    onTileEvicted?.invoke()
+                }
             }
             tiles[key] = RegionTile(tile, tile.asImageBitmap())
             onTilesChanged?.invoke(tiles.size)

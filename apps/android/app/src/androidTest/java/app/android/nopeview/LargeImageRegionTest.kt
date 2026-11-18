@@ -35,6 +35,7 @@ class LargeImageRegionTest {
     @Before
     fun setUp() {
         context = InstrumentationRegistry.getInstrumentation().targetContext
+        SystemUi.wake()
         TestImages.reset(context)
     }
 
@@ -64,12 +65,18 @@ class LargeImageRegionTest {
         }
         assertTrue(RegionTestState.tileCount <= 24)
 
-        repeat(4) {
+        repeat(8) {
             rule.onNodeWithTag("region_canvas").performTouchInput { swipeLeft() }
             rule.waitForIdle()
             rule.waitUntil(timeoutMillis = 20_000) {
                 RegionTestState.tileCount <= 24
             }
+        }
+        rule.waitUntil(timeoutMillis = 20_000) {
+            RegionTestState.tileCount == 24
+        }
+        rule.waitUntil(timeoutMillis = 20_000) {
+            RegionTestState.evictions > 0
         }
         assertTrue(RegionTestState.tileCount in 1..24)
     }

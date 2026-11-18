@@ -26,7 +26,7 @@ class RestoreAfterRestartTest {
         rule.onNodeWithTag("control_info").performClick()
         awaitTag("info_dialog")
         val name = context.getString(R.string.image_info_name) + ": restore.png"
-        val dimensions = context.getString(R.string.image_info_dimensions) + ": 70 x 35"
+        val dimensions = context.getString(R.string.image_info_dimensions) + ": 80 x 40"
         rule.onNodeWithText(name).assertExists()
         rule.onNodeWithText(dimensions).assertExists()
     }

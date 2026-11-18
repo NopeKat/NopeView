@@ -2,7 +2,9 @@ package app.android.nopeview
 
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
@@ -32,6 +34,7 @@ object RegionTestState {
     var sourceWidth by mutableIntStateOf(2000)
     var sourceHeight by mutableIntStateOf(1000)
     var tileCount by mutableIntStateOf(0)
+    var evictions by mutableIntStateOf(0)
     var exited by mutableStateOf(false)
     var landscape by mutableStateOf(false)
 
@@ -46,6 +49,7 @@ object RegionTestState {
         sourceWidth = width
         sourceHeight = height
         tileCount = 0
+        evictions = 0
         exited = false
         landscape = false
     }
@@ -54,6 +58,11 @@ object RegionTestState {
 class RegionTestActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        }
         setContent {
             MaterialTheme {
                 Box(
@@ -79,6 +88,7 @@ class RegionTestActivity : ComponentActivity() {
                                 onExit = { RegionTestState.exited = true },
                                 modifier = Modifier.fillMaxSize(),
                                 onTilesChanged = { RegionTestState.tileCount = it },
+                                onTileEvicted = { RegionTestState.evictions += 1 },
                             )
                         }
                     }

@@ -30,8 +30,12 @@ class RestoreSeedTest {
 
     @Test
     fun openImageForRestore() {
-        val uri = TestImages.writePng(context, "restore.png", 70, 35)
-        TestShell.startImage(Intent.ACTION_VIEW, uri, "image/png")
+        val older = TestImages.writePng(context, "restore-old.png", 60, 30)
+        TestShell.startImage(Intent.ACTION_VIEW, older, "image/png")
+        awaitTag("control_open")
+
+        val latest = TestImages.writePng(context, "restore.png", 80, 40)
+        TestShell.startImage(Intent.ACTION_VIEW, latest, "image/png")
         awaitTag("control_open")
 
         rule.onNodeWithTag("control_info").performClick()

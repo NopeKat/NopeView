@@ -19,6 +19,7 @@ import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
 import app.android.nopeview.RegionTestState
 import app.android.nopeview.R
+import app.android.nopeview.TestShell
 import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -116,10 +117,7 @@ class RegionViewerGestureTest {
     }
 
     private fun launchHost() {
-        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
-        automation.executeShellCommand(
-            "am start -W -n app.android.nopeview/.RegionTestActivity",
-        ).close()
+        TestShell.startActivity("app.android.nopeview/.RegionTestActivity")
         rule.waitUntil(timeoutMillis = 10_000) {
             rule.onAllNodesWithTag("region_viewer")
                 .fetchSemanticsNodes()

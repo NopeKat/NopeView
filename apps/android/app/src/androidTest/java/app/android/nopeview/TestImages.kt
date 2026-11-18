@@ -96,6 +96,10 @@ object TestImages {
         return uri(name)
     }
 
+    fun delete(context: Context, name: String) {
+        file(context, name).delete()
+    }
+
     private fun file(context: Context, name: String): File {
         val directory = testImageDir(context)
         directory.mkdirs()
