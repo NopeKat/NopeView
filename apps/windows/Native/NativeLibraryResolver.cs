@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 namespace NopeView.App.Native;
 
 /// <summary>
-/// Loads the native DLLs staged under native/x64. Only one resolver can be
+/// Loads the native DLLs staged under Native/x64. Only one resolver can be
 /// registered per assembly, so every binding goes through this gate.
 /// </summary>
 internal static class NativeLibraryResolver
@@ -37,7 +37,7 @@ internal static class NativeLibraryResolver
         }
 
         var candidate = Path.Combine(
-            AppContext.BaseDirectory, "native", "x64", libraryName + ".dll");
+            AppContext.BaseDirectory, "Native", "x64", libraryName + ".dll");
         return File.Exists(candidate) ? NativeLibrary.Load(candidate) : IntPtr.Zero;
     }
 }

@@ -33,22 +33,22 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="native\x64\png_codec.dll">
+    <None Update="Native\x64\png_codec.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="native\x64\jpg_codec.dll">
+    <None Update="Native\x64\jpg_codec.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="native\x64\gif_codec.dll">
+    <None Update="Native\x64\gif_codec.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="native\x64\bmp_codec.dll">
+    <None Update="Native\x64\bmp_codec.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="native\x64\router.dll">
+    <None Update="Native\x64\router.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="native\x64\files.dll">
+    <None Update="Native\x64\files.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
