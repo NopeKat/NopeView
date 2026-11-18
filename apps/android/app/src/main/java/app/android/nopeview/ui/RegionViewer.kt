@@ -5,9 +5,11 @@ import android.graphics.Bitmap
 import android.graphics.Rect
 import android.net.Uri
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -18,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,7 +33,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -42,12 +44,14 @@ import app.android.nopeview.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
-import kotlin.math.ceil
+import kotlin.math.abs
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 private const val TILE_SIZE = 512
 private const val TILE_CACHE_LIMIT = 24
 private const val TILE_MARGIN = 1
+private const val MAX_REGION_ZOOM = 4f
 
 private data class RegionTile(
     val bitmap: Bitmap,
@@ -69,6 +73,8 @@ fun RegionViewer(
     onExit: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    BackHandler { onExit() }
+
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P ||
         sourceWidth <= 0 ||
         sourceHeight <= 0
@@ -99,11 +105,16 @@ fun RegionViewer(
     val failed = remember { mutableSetOf<Int>() }
     var viewport by remember { mutableStateOf(IntSize.Zero) }
     var offset by remember { mutableStateOf(Offset.Zero) }
+    var zoom by remember { mutableFloatStateOf(1f) }
 
     val tileCols = ((sourceWidth + TILE_SIZE - 1) / TILE_SIZE).coerceAtLeast(1)
     val tileRows = ((sourceHeight + TILE_SIZE - 1) / TILE_SIZE).coerceAtLeast(1)
-    val visible = remember(viewport, offset, sourceWidth, sourceHeight, tileCols, tileRows) {
-        visibleTileKeys(viewport, offset, sourceWidth, sourceHeight, tileCols, tileRows)
+    val visible = remember(viewport, offset, zoom, sourceWidth, sourceHeight, tileCols, tileRows) {
+        if (zoom < 1f) {
+            emptyList()
+        } else {
+            visibleTileKeys(viewport, offset, zoom, sourceWidth, sourceHeight, tileCols, tileRows)
+        }
     }
 
     DisposableEffect(loader) {
@@ -148,41 +159,78 @@ fun RegionViewer(
                 .fillMaxSize()
                 .clipToBounds()
                 .pointerInput(viewport, sourceWidth, sourceHeight) {
-                    detectDragGestures { change, dragAmount ->
-                        change.consume()
+                    detectTransformGestures { centroid, pan, gestureZoom, _ ->
+                        val oldZoom = zoom
+                        val minimum = fitRegionZoom(viewport, sourceWidth, sourceHeight)
+                        val newZoom = (oldZoom * gestureZoom)
+                            .coerceIn(minimum, MAX_REGION_ZOOM)
+                        val center = Offset(size.width / 2f, size.height / 2f)
+
+                        if (oldZoom > 0f) {
+                            val focal = centroid - center
+                            offset = focal - (focal - offset) * (newZoom / oldZoom)
+                        }
+                        offset += pan
+                        zoom = newZoom
                         offset = clampRegionOffset(
-                            offset + dragAmount,
+                            offset,
                             viewport,
                             sourceWidth,
                             sourceHeight,
+                            newZoom,
                         )
                     }
+                }
+                .pointerInput(sourceWidth, sourceHeight, viewport) {
+                    detectTapGestures(
+                        onDoubleTap = { point ->
+                            val fit = fitRegionZoom(viewport, sourceWidth, sourceHeight)
+                            val target = if (abs(zoom - 1f) < 0.01f) fit else 1f
+                            val center = Offset(size.width / 2f, size.height / 2f)
+                            val focal = point - center
+
+                            if (abs(target - fit) < 0.001f) {
+                                offset = Offset.Zero
+                            } else if (zoom > 0f) {
+                                offset = focal - (focal - offset) * (target / zoom)
+                            }
+                            zoom = target
+                            offset = clampRegionOffset(
+                                offset,
+                                viewport,
+                                sourceWidth,
+                                sourceHeight,
+                                target,
+                            )
+                        },
+                    )
                 },
         ) {
-            withTransform({
-                translate(size.width / 2f + offset.x, size.height / 2f + offset.y)
-                translate(-sourceWidth / 2f, -sourceHeight / 2f)
-            }) {
+            val canvas = drawContext.canvas
+            canvas.save()
+            canvas.translate(size.width / 2f + offset.x, size.height / 2f + offset.y)
+            canvas.scale(zoom, zoom)
+            canvas.translate(-sourceWidth / 2f, -sourceHeight / 2f)
+            drawImage(
+                image = previewImage,
+                dstOffset = IntOffset.Zero,
+                dstSize = IntSize(sourceWidth, sourceHeight),
+                filterQuality = FilterQuality.Low,
+            )
+            for ((key, tile) in tiles) {
+                val column = key and 0xFFFF
+                val row = key shr 16
                 drawImage(
-                    image = previewImage,
-                    dstOffset = IntOffset.Zero,
-                    dstSize = IntSize(sourceWidth, sourceHeight),
-                    filterQuality = FilterQuality.Low,
+                    image = tile.image,
+                    dstOffset = IntOffset(column * TILE_SIZE, row * TILE_SIZE),
+                    dstSize = IntSize(
+                        min(TILE_SIZE, sourceWidth - column * TILE_SIZE),
+                        min(TILE_SIZE, sourceHeight - row * TILE_SIZE),
+                    ),
+                    filterQuality = FilterQuality.None,
                 )
-                for ((key, tile) in tiles) {
-                    val column = key and 0xFFFF
-                    val row = key shr 16
-                    drawImage(
-                        image = tile.image,
-                        dstOffset = IntOffset(column * TILE_SIZE, row * TILE_SIZE),
-                        dstSize = IntSize(
-                            min(TILE_SIZE, sourceWidth - column * TILE_SIZE),
-                            min(TILE_SIZE, sourceHeight - row * TILE_SIZE),
-                        ),
-                        filterQuality = FilterQuality.None,
-                    )
-                }
             }
+            canvas.restore()
         }
 
         FilledTonalButton(
@@ -204,7 +252,11 @@ fun RegionViewer(
         )
 
         Text(
-            text = "100%",
+            text = if (zoom < 1f) {
+                stringResource(R.string.view_fit)
+            } else {
+                "${(zoom * 100f).roundToInt()}%"
+            },
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .padding(8.dp),
@@ -235,18 +287,21 @@ private class RegionTileLoader(
 private fun visibleTileKeys(
     viewport: IntSize,
     offset: Offset,
+    zoom: Float,
     sourceWidth: Int,
     sourceHeight: Int,
     tileCols: Int,
     tileRows: Int,
 ): List<Int> {
-    if (viewport.width <= 0 || viewport.height <= 0) {
+    if (viewport.width <= 0 || viewport.height <= 0 || zoom <= 0f) {
         return emptyList()
     }
-    val left = sourceWidth / 2f - viewport.width / 2f - offset.x
-    val right = sourceWidth / 2f + viewport.width / 2f - offset.x
-    val top = sourceHeight / 2f - viewport.height / 2f - offset.y
-    val bottom = sourceHeight / 2f + viewport.height / 2f - offset.y
+    val halfWidth = viewport.width / (2f * zoom)
+    val halfHeight = viewport.height / (2f * zoom)
+    val left = sourceWidth / 2f - halfWidth - offset.x / zoom
+    val right = sourceWidth / 2f + halfWidth - offset.x / zoom
+    val top = sourceHeight / 2f - halfHeight - offset.y / zoom
+    val bottom = sourceHeight / 2f + halfHeight - offset.y / zoom
     val firstColumn = ((left / TILE_SIZE).toInt() - TILE_MARGIN).coerceAtLeast(0)
     val lastColumn = ((right / TILE_SIZE).toInt() + TILE_MARGIN).coerceAtMost(tileCols - 1)
     val firstRow = ((top / TILE_SIZE).toInt() - TILE_MARGIN).coerceAtLeast(0)
@@ -283,11 +338,31 @@ private fun clampRegionOffset(
     viewport: IntSize,
     sourceWidth: Int,
     sourceHeight: Int,
+    zoom: Float,
 ): Offset {
-    val maxX = ((sourceWidth - viewport.width) / 2f).coerceAtLeast(0f)
-    val maxY = ((sourceHeight - viewport.height) / 2f).coerceAtLeast(0f)
+    val maxX = ((sourceWidth * zoom - viewport.width) / 2f).coerceAtLeast(0f)
+    val maxY = ((sourceHeight * zoom - viewport.height) / 2f).coerceAtLeast(0f)
     return Offset(
         candidate.x.coerceIn(-maxX, maxX),
         candidate.y.coerceIn(-maxY, maxY),
+    )
+}
+
+private fun fitRegionZoom(
+    viewport: IntSize,
+    sourceWidth: Int,
+    sourceHeight: Int,
+): Float {
+    if (viewport.width <= 0 || viewport.height <= 0 ||
+        sourceWidth <= 0 || sourceHeight <= 0
+    ) {
+        return 1f
+    }
+    return min(
+        1f,
+        min(
+            viewport.width.toFloat() / sourceWidth,
+            viewport.height.toFloat() / sourceHeight,
+        ),
     )
 }

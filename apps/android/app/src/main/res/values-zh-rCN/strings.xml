@@ -18,5 +18,25 @@
     <string name="full_too_large">这张图太大，无法加载原图。</string>
     <string name="pause_animation">暂停</string>
     <string name="resume_animation">播放</string>
+    <string name="rotate_image">旋转 90°</string>
+    <string name="reset_view">复位</string>
+    <string name="image_info">图片信息</string>
+    <string name="share_image">分享</string>
+    <string name="save_image">另存</string>
+    <string name="recent_files">最近</string>
+    <string name="recent_empty">还没有最近打开的图片。</string>
+    <string name="permission_lost">访问权限已失效，请重新选择文件。</string>
+    <string name="remove">移除</string>
+    <string name="clear">清空</string>
+    <string name="close">关闭</string>
+    <string name="image_info_name">文件名</string>
+    <string name="image_info_dimensions">尺寸</string>
+    <string name="image_info_format">格式</string>
+    <string name="image_info_size">大小</string>
+    <string name="image_info_frames">帧数</string>
+    <string name="unknown">未知</string>
+    <string name="no_share_app">没有可以接收这张图片的应用。</string>
+    <string name="save_done">图片已保存。</string>
+    <string name="save_failed">保存图片失败。</string>
     <string name="version_label">0.0.0.nightly</string>
 </resources>

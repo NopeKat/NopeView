@@ -25,7 +25,7 @@ A fast, lightweight, and extensible cross-platform image viewer.
 | Windows | Windows 10 | WinUI 3 (Windows App SDK) | Viewer MVP |
 | Mac | macOS 12 | SwiftUI | Not started |
 | Linux | kernel 4.x and later | GTK 4 | Not started |
-| Android | Android 8 | Jetpack Compose | Not started |
+| Android | Android 8 | Jetpack Compose | Viewer MVP |
 | Apple (iPhone / iPad) | iOS 16 | SwiftUI | Not started |
 | Harmony | Harmony 4 | ArkUI | Not started |
 

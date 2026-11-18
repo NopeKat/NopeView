@@ -1,15 +1,20 @@
 package app.android.nopeview.ui
 
 import android.app.ActivityManager
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Process
 import android.provider.OpenableColumns
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,12 +26,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -36,10 +43,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -54,6 +63,9 @@ import app.android.nopeview.CodecSession
 import app.android.nopeview.DecodedImage
 import app.android.nopeview.OpenRequest
 import app.android.nopeview.R
+import app.android.nopeview.RecentEntry
+import app.android.nopeview.RecentFiles
+import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -81,6 +93,8 @@ fun ViewerShell(incomingRequest: OpenRequest? = null) {
     val prefs = remember(context) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
+    val landscape = LocalConfiguration.current.orientation ==
+        Configuration.ORIENTATION_LANDSCAPE
     var selectedUri by remember { mutableStateOf<Uri?>(null) }
     var selectedName by remember { mutableStateOf<String?>(null) }
     var image by remember { mutableStateOf<DecodedImage?>(null) }
@@ -91,12 +105,20 @@ fun ViewerShell(incomingRequest: OpenRequest? = null) {
     var isPlaying by remember { mutableStateOf(true) }
     var startAtActual by remember { mutableStateOf(false) }
     var regionMode by remember { mutableStateOf(false) }
+    var activeUriString by rememberSaveable { mutableStateOf<String?>(null) }
+    var recentEntries by remember { mutableStateOf(RecentFiles.load(context)) }
+    var recentVisible by remember { mutableStateOf(false) }
+    var infoVisible by remember { mutableStateOf(false) }
+    var viewResetSignal by remember { mutableIntStateOf(0) }
+    var quarterTurns by remember { mutableIntStateOf(0) }
+    var saveSourceUri by remember { mutableStateOf<Uri?>(null) }
     var lifecycleStarted by remember {
         mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
     }
     val fullPixelLimit = remember(context) { fullPixelBudget(context) }
     val decodeFailed = stringResource(R.string.decode_failed)
     val fullTooLarge = stringResource(R.string.full_too_large)
+    val shareTitle = stringResource(R.string.share_image)
 
     val codec = remember(context) { CodecSession(context) }
     val decodeMutex = remember { Mutex() }
@@ -123,6 +145,12 @@ fun ViewerShell(incomingRequest: OpenRequest? = null) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    fun forgetSaved(uri: Uri) {
+        if (prefs.getString(KEY_LAST_URI, null) == uri.toString()) {
+            prefs.edit { remove(KEY_LAST_URI) }
+        }
+    }
+
     fun openImage(uri: Uri, restored: Boolean) {
         val previousImage = image
         image = null
@@ -136,6 +164,7 @@ fun ViewerShell(incomingRequest: OpenRequest? = null) {
         }
         selectedUri = uri
         selectedName = displayName(context, uri)
+        activeUriString = uri.toString()
         imageEpoch += 1
         val generation = imageEpoch
         loading = true
@@ -143,6 +172,7 @@ fun ViewerShell(incomingRequest: OpenRequest? = null) {
         regionMode = false
         startAtActual = false
         isPlaying = true
+        quarterTurns = 0
 
         if (!restored) {
             val persisted = runCatching {
@@ -164,8 +194,9 @@ fun ViewerShell(incomingRequest: OpenRequest? = null) {
             context.contentResolver.openFileDescriptor(uri, "r")
         }.getOrNull()
         if (descriptor == null) {
+            forgetSaved(uri)
+            activeUriString = null
             if (restored) {
-                prefs.edit { remove(KEY_LAST_URI) }
                 selectedUri = null
                 selectedName = null
             }
@@ -187,9 +218,8 @@ fun ViewerShell(incomingRequest: OpenRequest? = null) {
                     if (generation != imageEpoch) {
                         return@launch
                     }
-                    if (restored) {
-                        prefs.edit { remove(KEY_LAST_URI) }
-                    }
+                    forgetSaved(uri)
+                    activeUriString = null
                     loading = false
                     error = decodeFailed
                     return@launch
@@ -203,6 +233,15 @@ fun ViewerShell(incomingRequest: OpenRequest? = null) {
                 currentBuffer = 0
                 loading = false
                 image = first
+                recentEntries = RecentFiles.add(
+                    context,
+                    RecentEntry(
+                        uri = uri.toString(),
+                        name = selectedName ?: displayName(context, uri),
+                        mimeType = context.contentResolver.getType(uri),
+                        openedAt = System.currentTimeMillis(),
+                    ),
+                )
 
                 if (first.frameCount > 1 && first.bitmap.width > 0 && first.bitmap.height > 0) {
                     buffers[1] = runCatching {
@@ -375,23 +414,113 @@ fun ViewerShell(incomingRequest: OpenRequest? = null) {
         }
     }
 
+    val saveDocument = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("image/*"),
+    ) { destination: Uri? ->
+        val source = saveSourceUri
+        saveSourceUri = null
+        if (destination != null && source != null) {
+            scope.launch {
+                val success = withContext(Dispatchers.IO) {
+                    runCatching {
+                        val input = context.contentResolver.openInputStream(source)
+                            ?: error("source is not readable")
+                        input.use { inputStream ->
+                            val output = context.contentResolver.openOutputStream(destination)
+                                ?: error("destination is not writable")
+                            output.use { outputStream ->
+                                inputStream.copyTo(outputStream)
+                            }
+                        }
+                    }.isSuccess
+                }
+                Toast.makeText(
+                    context,
+                    if (success) R.string.save_done else R.string.save_failed,
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+        }
+    }
+
+    fun rotateView() {
+        quarterTurns = (quarterTurns + 1) % 4
+    }
+
+    fun resetView() {
+        quarterTurns = 0
+        viewResetSignal += 1
+    }
+
+    fun shareCurrentImage() {
+        val uri = selectedUri ?: return
+        val mimeType = context.contentResolver.getType(uri) ?: "image/*"
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = mimeType
+            putExtra(Intent.EXTRA_STREAM, uri)
+            clipData = ClipData.newRawUri(null, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        runCatching {
+            context.startActivity(
+                Intent.createChooser(send, shareTitle),
+            )
+        }.onFailure {
+            Toast.makeText(context, R.string.no_share_app, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun saveCurrentImage() {
+        val uri = selectedUri ?: return
+        saveSourceUri = uri
+        saveDocument.launch(selectedName ?: "image")
+    }
+
+    fun openRecent(entry: RecentEntry) {
+        val uri = runCatching { entry.uri.toUri() }.getOrNull() ?: return
+        recentVisible = false
+        if (!canRead(context, uri)) {
+            Toast.makeText(context, R.string.permission_lost, Toast.LENGTH_SHORT).show()
+            return
+        }
+        openImage(uri, restored = false)
+    }
+
+    fun removeRecent(entry: RecentEntry) {
+        recentEntries = RecentFiles.remove(context, entry.uri)
+    }
+
+    fun clearRecent() {
+        RecentFiles.clear(context)
+        recentEntries = emptyList()
+    }
+
     LaunchedEffect(incomingRequest?.id) {
         val request = incomingRequest ?: return@LaunchedEffect
         openImage(request.uri, restored = false)
     }
 
-    LaunchedEffect(incomingRequest?.id) {
+    LaunchedEffect(Unit) {
         if (incomingRequest != null) {
             return@LaunchedEffect
         }
-        val saved = prefs.getString(KEY_LAST_URI, null) ?: return@LaunchedEffect
-        val uri = runCatching { saved.toUri() }.getOrNull() ?: return@LaunchedEffect
-        val hasPermission = context.contentResolver.persistedUriPermissions.any {
-            it.uri == uri && it.isReadPermission
+
+        val active = activeUriString?.let { runCatching { it.toUri() }.getOrNull() }
+        if (active != null && canRead(context, active)) {
+            openImage(active, restored = true)
+            return@LaunchedEffect
         }
-        if (hasPermission) {
+
+        val saved = prefs.getString(KEY_LAST_URI, null)
+        if (saved == null) {
+            activeUriString = null
+            return@LaunchedEffect
+        }
+        val uri = runCatching { saved.toUri() }.getOrNull()
+        if (uri != null && canRead(context, uri)) {
             openImage(uri, restored = true)
         } else {
+            activeUriString = null
             prefs.edit { remove(KEY_LAST_URI) }
         }
     }
@@ -405,6 +534,15 @@ fun ViewerShell(incomingRequest: OpenRequest? = null) {
     val canViewRegion = image?.let {
         it.isPreview && it.frameCount == 1 && imagePixels > fullPixelLimit
     } == true
+    val infoFormat = remember(selectedName, selectedUri) {
+        formatLabel(
+            selectedName,
+            selectedUri?.let { context.contentResolver.getType(it) },
+        )
+    }
+    val infoSize = remember(selectedUri) {
+        selectedUri?.let { queryFileSize(context, it) }
+    }
 
     Box(
         modifier = Modifier
@@ -414,11 +552,24 @@ fun ViewerShell(incomingRequest: OpenRequest? = null) {
             .padding(horizontal = 24.dp, vertical = 16.dp),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Text(
-                text = stringResource(R.string.app_name),
-                style = MaterialTheme.typography.headlineMedium,
-                color = Color.White,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.app_name),
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = Color.White,
+                )
+                if (landscape) {
+                    Text(
+                        text = stringResource(R.string.version_label),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.4f),
+                    )
+                }
+            }
 
             Box(
                 modifier = Modifier
@@ -441,6 +592,8 @@ fun ViewerShell(incomingRequest: OpenRequest? = null) {
                         bitmap = image!!.bitmap,
                         isPreview = image!!.isPreview,
                         resetKey = imageEpoch,
+                        resetSignal = viewResetSignal,
+                        quarterTurns = quarterTurns,
                         startAtActual = startAtActual,
                         onRequestFull = if (canLoadFull) {
                             { requestFullImage() }
@@ -480,45 +633,114 @@ fun ViewerShell(incomingRequest: OpenRequest? = null) {
                         )
                     }
                 }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                FilledTonalButton(
-                    onClick = { openDocument.launch(arrayOf("image/*")) },
-                    enabled = !loading,
-                ) {
-                    Text(stringResource(R.string.open_image))
-                }
-                if ((image?.frameCount ?: 1) > 1) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    FilledTonalButton(
-                        onClick = { isPlaying = !isPlaying },
-                        enabled = !loading,
+                if (landscape && image != null && !regionMode) {
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .background(Color.Black.copy(alpha = 0.55f))
+                            .padding(8.dp),
                     ) {
-                        Text(
-                            stringResource(
-                                if (isPlaying) {
-                                    R.string.pause_animation
-                                } else {
-                                    R.string.resume_animation
-                                },
-                            ),
+                        ViewerControls(
+                            landscape = true,
+                            loading = loading,
+                            frameCount = image!!.frameCount,
+                            isPlaying = isPlaying,
+                            canShare = selectedUri != null,
+                            onRotate = { rotateView() },
+                            onReset = { resetView() },
+                            onInfo = { infoVisible = true },
+                            onShare = { shareCurrentImage() },
+                            onSave = { saveCurrentImage() },
+                            onTogglePlay = { isPlaying = !isPlaying },
+                            onOpen = { openDocument.launch(arrayOf("image/*")) },
+                            onRecent = { recentVisible = true },
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = stringResource(R.string.version_label),
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.White.copy(alpha = 0.4f),
+            if (!landscape && image != null && !regionMode) {
+                ViewerControls(
+                    landscape = false,
+                    loading = loading,
+                    frameCount = image!!.frameCount,
+                    isPlaying = isPlaying,
+                    canShare = selectedUri != null,
+                    onRotate = { rotateView() },
+                    onReset = { resetView() },
+                    onInfo = { infoVisible = true },
+                    onShare = { shareCurrentImage() },
+                    onSave = { saveCurrentImage() },
+                    onTogglePlay = { isPlaying = !isPlaying },
+                    onOpen = { openDocument.launch(arrayOf("image/*")) },
+                    onRecent = { recentVisible = true },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            if (!landscape) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = stringResource(R.string.version_label),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.4f),
+                )
+            }
+        }
+    }
+
+    if (infoVisible) {
+        image?.let { current ->
+            AlertDialog(
+                onDismissRequest = { infoVisible = false },
+                title = { Text(stringResource(R.string.image_info)) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            "${stringResource(R.string.image_info_name)}: " +
+                                (selectedName ?: stringResource(R.string.unknown)),
+                        )
+                        Text(
+                            "${stringResource(R.string.image_info_dimensions)}: " +
+                                "${current.sourceWidth} x ${current.sourceHeight}",
+                        )
+                        Text(
+                            "${stringResource(R.string.image_info_format)}: " +
+                                (infoFormat ?: stringResource(R.string.unknown)),
+                        )
+                        Text(
+                            "${stringResource(R.string.image_info_size)}: " +
+                                (infoSize?.let { formatBytes(it) }
+                                    ?: stringResource(R.string.unknown)),
+                        )
+                        if (current.frameCount > 1) {
+                            Text(
+                                "${stringResource(R.string.image_info_frames)}: " +
+                                    current.frameCount,
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { infoVisible = false }) {
+                        Text(stringResource(R.string.close))
+                    }
+                },
             )
         }
+    }
+
+    if (recentVisible) {
+        RecentDialog(
+            entries = recentEntries,
+            canRead = { uri -> canRead(context, uri) },
+            onOpen = { entry -> openRecent(entry) },
+            onRemove = { entry -> removeRecent(entry) },
+            onClear = { clearRecent() },
+            onDismiss = { recentVisible = false },
+        )
     }
 }
 
@@ -566,4 +788,164 @@ private fun displayName(context: Context, uri: Uri): String {
         }
     }
     return name ?: uri.lastPathSegment ?: uri.toString()
+}
+
+private fun canRead(context: Context, uri: Uri): Boolean {
+    return runCatching {
+        context.checkUriPermission(
+            uri,
+            Process.myPid(),
+            Process.myUid(),
+            Intent.FLAG_GRANT_READ_URI_PERMISSION,
+        ) == PackageManager.PERMISSION_GRANTED
+    }.getOrDefault(false)
+}
+
+private fun queryFileSize(context: Context, uri: Uri): Long? {
+    val cursor = context.contentResolver.query(
+        uri,
+        arrayOf(OpenableColumns.SIZE),
+        null,
+        null,
+        null,
+    ) ?: return null
+    return try {
+        if (cursor.moveToFirst()) {
+            val index = cursor.getColumnIndex(OpenableColumns.SIZE)
+            if (index >= 0 && !cursor.isNull(index)) {
+                cursor.getLong(index).takeIf { it > 0L }
+            } else {
+                null
+            }
+        } else {
+            null
+        }
+    } finally {
+        cursor.close()
+    }
+}
+
+private fun formatLabel(name: String?, mimeType: String?): String? {
+    val extension = name
+        ?.substringAfterLast('.', "")
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() && it.length <= 8 && it.all(Char::isLetterOrDigit) }
+    if (extension != null) {
+        return extension.uppercase(Locale.US)
+    }
+    val subtype = mimeType
+        ?.substringAfter('/', "")
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+    return subtype?.uppercase(Locale.US)
+}
+
+private fun formatBytes(bytes: Long): String {
+    if (bytes < 1024L) {
+        return "$bytes B"
+    }
+    val kilobytes = bytes / 1024.0
+    if (kilobytes < 1024.0) {
+        return String.format(Locale.US, "%.1f KB", kilobytes)
+    }
+    val megabytes = kilobytes / 1024.0
+    if (megabytes < 1024.0) {
+        return String.format(Locale.US, "%.1f MB", megabytes)
+    }
+    return String.format(Locale.US, "%.1f GB", megabytes / 1024.0)
+}
+
+@Composable
+private fun ViewerControls(
+    landscape: Boolean,
+    loading: Boolean,
+    frameCount: Int,
+    isPlaying: Boolean,
+    canShare: Boolean,
+    onRotate: () -> Unit,
+    onReset: () -> Unit,
+    onInfo: () -> Unit,
+    onShare: () -> Unit,
+    onSave: () -> Unit,
+    onTogglePlay: () -> Unit,
+    onOpen: () -> Unit,
+    onRecent: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val pauseLabel = stringResource(
+        if (isPlaying) R.string.pause_animation else R.string.resume_animation,
+    )
+    if (landscape) {
+        Row(
+            modifier = modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ControlButton(stringResource(R.string.rotate_image), !loading, onRotate)
+            ControlButton(stringResource(R.string.reset_view), !loading, onReset)
+            ControlButton(stringResource(R.string.image_info), !loading, onInfo)
+            ControlButton(
+                stringResource(R.string.share_image),
+                !loading && canShare,
+                onShare,
+            )
+            ControlButton(
+                stringResource(R.string.save_image),
+                !loading && canShare,
+                onSave,
+            )
+            if (frameCount > 1) {
+                ControlButton(pauseLabel, !loading, onTogglePlay)
+            }
+            ControlButton(stringResource(R.string.open_image), !loading, onOpen)
+            ControlButton(stringResource(R.string.recent_files), !loading, onRecent)
+        }
+        return
+    }
+
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ControlButton(stringResource(R.string.rotate_image), !loading, onRotate)
+            ControlButton(stringResource(R.string.reset_view), !loading, onReset)
+            ControlButton(stringResource(R.string.image_info), !loading, onInfo)
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ControlButton(
+                stringResource(R.string.share_image),
+                !loading && canShare,
+                onShare,
+            )
+            ControlButton(
+                stringResource(R.string.save_image),
+                !loading && canShare,
+                onSave,
+            )
+            if (frameCount > 1) {
+                ControlButton(pauseLabel, !loading, onTogglePlay)
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ControlButton(stringResource(R.string.open_image), !loading, onOpen)
+            ControlButton(stringResource(R.string.recent_files), !loading, onRecent)
+        }
+    }
+}
+
+@Composable
+private fun ControlButton(label: String, enabled: Boolean, onClick: () -> Unit) {
+    FilledTonalButton(onClick = onClick, enabled = enabled) {
+        Text(label)
+    }
 }

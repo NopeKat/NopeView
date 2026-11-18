@@ -24,7 +24,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
@@ -52,6 +51,8 @@ fun ZoomableImage(
     modifier: Modifier = Modifier,
     isPreview: Boolean = false,
     resetKey: Any? = null,
+    resetSignal: Int = 0,
+    quarterTurns: Int = 0,
     startAtActual: Boolean = false,
     onRequestFull: (() -> Unit)? = null,
     onRequestRegion: (() -> Unit)? = null,
@@ -68,7 +69,7 @@ fun ZoomableImage(
     var rotation by remember { mutableFloatStateOf(0f) }
     var initialActual by remember(resetKey) { mutableStateOf(startAtActual) }
 
-    LaunchedEffect(resetKey, viewport) {
+    LaunchedEffect(resetKey, resetSignal, viewport) {
         if (viewport.width > 0 && viewport.height > 0) {
             zoom = if (initialActual) {
                 initialActual = false
@@ -81,6 +82,19 @@ fun ZoomableImage(
         }
     }
 
+    LaunchedEffect(quarterTurns, viewport) {
+        if (viewport.width > 0 && viewport.height > 0) {
+            offset = clampOffset(
+                offset,
+                zoom,
+                rotation + quarterTurns * 90f,
+                viewport,
+                imageWidth,
+                imageHeight,
+            )
+        }
+    }
+
     Box(
         modifier = modifier
             .onSizeChanged { viewport = it },
@@ -89,7 +103,7 @@ fun ZoomableImage(
             modifier = Modifier
                 .fillMaxSize()
                 .clipToBounds()
-                .pointerInput(imageWidth, imageHeight, viewport) {
+                .pointerInput(imageWidth, imageHeight, viewport, quarterTurns) {
                     detectTransformGestures { centroid, pan, gestureZoom, gestureRotation ->
                         val oldZoom = zoom
                         val minimumZoom = minZoom(viewport, imageWidth, imageHeight)
@@ -104,11 +118,16 @@ fun ZoomableImage(
                         rotation = (rotation + gestureRotation) % 360f
                         zoom = newZoom
                         offset = clampOffset(
-                            offset, newZoom, rotation, size, imageWidth, imageHeight,
+                            offset,
+                            newZoom,
+                            rotation + quarterTurns * 90f,
+                            size,
+                            imageWidth,
+                            imageHeight,
                         )
                     }
                 }
-                .pointerInput(imageWidth, imageHeight, viewport) {
+                .pointerInput(imageWidth, imageHeight, viewport, quarterTurns) {
                     detectTapGestures(
                         onDoubleTap = { point ->
                             val goToActual = abs(zoom - 1f) >= 0.01f
@@ -132,7 +151,12 @@ fun ZoomableImage(
                             }
                             zoom = newZoom
                             offset = clampOffset(
-                                offset, newZoom, rotation, size, imageWidth, imageHeight,
+                                offset,
+                                newZoom,
+                                rotation + quarterTurns * 90f,
+                                size,
+                                imageWidth,
+                                imageHeight,
                             )
                         },
                     )
@@ -140,19 +164,19 @@ fun ZoomableImage(
         ) {
             val centerX = size.width / 2f + offset.x
             val centerY = size.height / 2f + offset.y
-            withTransform({
-                translate(centerX, centerY)
-                rotate(rotation)
-                scale(zoom, zoom, pivot = Offset.Zero)
-                translate(-imageWidth / 2f, -imageHeight / 2f)
-            }) {
-                drawImage(
-                    image = image,
-                    dstOffset = IntOffset.Zero,
-                    dstSize = IntSize(imageWidth, imageHeight),
-                    filterQuality = FilterQuality.Medium,
-                )
-            }
+            val canvas = drawContext.canvas
+            canvas.save()
+            canvas.translate(centerX, centerY)
+            canvas.rotate(rotation + quarterTurns * 90f)
+            canvas.scale(zoom, zoom)
+            canvas.translate(-imageWidth / 2f, -imageHeight / 2f)
+            drawImage(
+                image = image,
+                dstOffset = IntOffset.Zero,
+                dstSize = IntSize(imageWidth, imageHeight),
+                filterQuality = FilterQuality.Medium,
+            )
+            canvas.restore()
         }
 
         FilledTonalButton(

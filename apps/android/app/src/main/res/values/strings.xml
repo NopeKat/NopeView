@@ -18,5 +18,25 @@
     <string name="full_too_large">This image is too large for full size.</string>
     <string name="pause_animation">Pause</string>
     <string name="resume_animation">Play</string>
+    <string name="rotate_image">Rotate 90</string>
+    <string name="reset_view">Reset</string>
+    <string name="image_info">Image info</string>
+    <string name="share_image">Share</string>
+    <string name="save_image">Save as</string>
+    <string name="recent_files">Recent</string>
+    <string name="recent_empty">No recent images.</string>
+    <string name="permission_lost">Access expired; open it again.</string>
+    <string name="remove">Remove</string>
+    <string name="clear">Clear</string>
+    <string name="close">Close</string>
+    <string name="image_info_name">Name</string>
+    <string name="image_info_dimensions">Dimensions</string>
+    <string name="image_info_format">Format</string>
+    <string name="image_info_size">Size</string>
+    <string name="image_info_frames">Frames</string>
+    <string name="unknown">Unknown</string>
+    <string name="no_share_app">No app can receive this image.</string>
+    <string name="save_done">Image saved.</string>
+    <string name="save_failed">Could not save the image.</string>
     <string name="version_label">0.0.0.nightly</string>
 </resources>
