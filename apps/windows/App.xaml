@@ -6,6 +6,7 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
                 <ResourceDictionary Source="Styles/SettingsCardOverrides.xaml" />
                 <ResourceDictionary Source="Styles/ComboBoxOverrides.xaml" />
                 <ResourceDictionary Source="Styles/TabViewThemeResources.xaml" />
