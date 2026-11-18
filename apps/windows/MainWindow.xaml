@@ -193,8 +193,16 @@
 
         <!-- Custom-drawn title bar with its own caption buttons; the system
              title bar is collapsed so it draws no buttons or tooltips. The row
-             is registered as the drag region through SetTitleBar. -->
-        <Grid x:Name="AppTitleBar" Grid.Row="0" Height="32" Background="Transparent">
+             is registered as the drag region through SetTitleBar, and a
+             native message filter reports the non-client presses that start
+             the window move loop so the buttons' pressed visual state can be
+             driven manually. The 1px bottom divider
+             marks where the Mica strip ends and the opaque viewer surface
+             starts, so the material change reads as a deliberate edge
+             instead of an accidental seam. -->
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Height="32" Background="Transparent"
+              BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+              BorderThickness="0,0,0,1">
             <StackPanel Orientation="Horizontal"
                         VerticalAlignment="Center"
                         HorizontalAlignment="Left"
