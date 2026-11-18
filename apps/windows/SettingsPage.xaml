@@ -61,9 +61,7 @@
             </StackPanel>
         </Grid>
 
-        <Border Grid.Column="1"
-                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-                BorderThickness="1,0,0,0">
+        <Border Grid.Column="1">
             <ScrollViewer Padding="36,24,36,24"
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
