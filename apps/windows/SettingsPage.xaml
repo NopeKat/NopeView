@@ -25,6 +25,13 @@
             <Setter Property="CornerRadius" Value="4" />
             <Setter Property="FontSize" Value="14" />
         </Style>
+        <!-- The selected fill uses a theme resource so it resolves against the
+             theme pinned on this window, not the process-wide theme. -->
+        <Style x:Key="SettingsNavSelectedStyle" TargetType="local:SettingsNavItem"
+               BasedOn="{StaticResource SettingsNavButtonStyle}">
+            <Setter Property="Background"
+                    Value="{ThemeResource SubtleFillColorSecondaryBrush}" />
+        </Style>
         <x:Double x:Key="SettingsCardSpacing">4</x:Double>
     </Page.Resources>
 

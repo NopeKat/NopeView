@@ -47,7 +47,6 @@ internal static partial class RouterApi
 {
     private const string LibraryName = "router";
     private const int Ok = 0;
-    private const int ErrNotFound = -2;
     internal const int ErrUnsupportedFormat = -3;
     internal const int ErrDecodeFailed = -4;
     internal const int ErrOutOfMemory = -5;
@@ -168,10 +167,5 @@ internal static partial class RouterApi
         int quality = 0)
     {
         return EncodeFile(context, path, ref image, quality);
-    }
-
-    internal static bool IsNotFound(int status)
-    {
-        return status == ErrNotFound;
     }
 }

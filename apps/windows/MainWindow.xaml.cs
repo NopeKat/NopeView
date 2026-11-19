@@ -20,7 +20,6 @@ using Windows.Foundation;
 using Windows.Graphics.Imaging;
 using Windows.Storage;
 using Windows.Storage.Streams;
-using WinRT;
 using WinRT.Interop;
 
 namespace NopeView.App;
@@ -61,6 +60,7 @@ public sealed partial class MainWindow : Window
     private const int PreviewMaxEdge = 4096;
 
     private IntPtr _routerContext;
+    private IReadOnlyList<string>? _supportedExtensions;
     private ImageDirectory? _directory;
     private double _zoom = 1.0;
     private double _rotation;
@@ -129,7 +129,9 @@ public sealed partial class MainWindow : Window
         // Mica is the Fluent window backdrop. It only becomes visible while
         // the settings page is shown; the viewer keeps its own solid surface.
         SystemBackdrop = new MicaBackdrop();
-        _loadingAnimation = CreateLoadingAnimation();        // The thumb marks pointer events as handled while it drags, so the
+        _loadingAnimation = CreateLoadingAnimation();
+
+        // The thumb marks pointer events as handled while it drags, so the
         // pinch tracking below listens to handled events as well.
         PanThumb.AddHandler(
             UIElement.PointerPressedEvent,
@@ -522,6 +524,11 @@ public sealed partial class MainWindow : Window
 
     private async void OpenButton_Click(object sender, RoutedEventArgs e)
     {
+        await RunCommandAsync(OpenImageViaPickerAsync, "Could not open image");
+    }
+
+    private async Task OpenImageViaPickerAsync()
+    {
         var picker = new FileOpenPicker(AppWindow.Id)
         {
             SuggestedStartLocation = PickerLocationId.PicturesLibrary,
@@ -543,27 +550,36 @@ public sealed partial class MainWindow : Window
         await OpenImageAsync(result.Path);
     }
 
-    private IReadOnlyList<RouterFormatInfo> SupportedFormats()
+    /// <summary>
+    /// Extensions the router can decode. The router discovers its formats once
+    /// at startup, so the list is built on first use and reused afterwards.
+    /// </summary>
+    private IReadOnlyList<string> SupportedExtensions()
     {
-        return _routerContext == IntPtr.Zero
-            ? Array.Empty<RouterFormatInfo>()
-            : RouterApi.ListFormats(_routerContext);
-    }
-
-    private IEnumerable<string> SupportedExtensions()
-    {
-        foreach (var format in SupportedFormats())
+        if (_supportedExtensions is not null)
         {
-            if (!format.CanDecode)
+            return _supportedExtensions;
+        }
+
+        var extensions = new List<string>();
+        if (_routerContext != IntPtr.Zero)
+        {
+            foreach (var format in RouterApi.ListFormats(_routerContext))
             {
-                continue;
-            }
-            foreach (var extension in format.Extensions.Split(
-                         ',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                yield return extension;
+                if (!format.CanDecode)
+                {
+                    continue;
+                }
+                foreach (var extension in format.Extensions.Split(
+                             ',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                {
+                    extensions.Add(extension);
+                }
             }
         }
+
+        _supportedExtensions = extensions;
+        return extensions;
     }
 
     private void RootGrid_DragOver(object sender, DragEventArgs e)
@@ -574,6 +590,11 @@ public sealed partial class MainWindow : Window
     }
 
     private async void RootGrid_Drop(object sender, DragEventArgs e)
+    {
+        await RunCommandAsync(() => OpenDroppedFileAsync(e), "Could not open image");
+    }
+
+    private async Task OpenDroppedFileAsync(DragEventArgs e)
     {
         if (!e.DataView.Contains(StandardDataFormats.StorageItems))
         {
@@ -650,31 +671,13 @@ public sealed partial class MainWindow : Window
 
             if (frame.Error is not null)
             {
-                ShowError("Failed to open image: " + frame.Error);
-                if (fullResolution)
-                {
-                    // The preview bitmap is still on screen, so keep reporting
-                    // it as such instead of claiming a full decode.
-                    _previewActive = true;
-                }
-                if (!resetView)
-                {
-                    StopAnimation();
-                }
+                FailDecode("Failed to open image: " + frame.Error);
                 return;
             }
 
             if (frame.Bitmap is null)
             {
-                ShowError(DescribeStatus(frame.Status));
-                if (fullResolution)
-                {
-                    _previewActive = true;
-                }
-                if (!resetView)
-                {
-                    StopAnimation();
-                }
+                FailDecode(DescribeStatus(frame.Status));
                 return;
             }
 
@@ -743,6 +746,22 @@ public sealed partial class MainWindow : Window
                 SetLoading(false);
             }
         }
+
+        // Both failure paths share the same state repair: the preview bitmap is
+        // still on screen after a failed full decode, and animation stops when a
+        // frame fails instead of spinning on a broken source.
+        void FailDecode(string message)
+        {
+            ShowError(message);
+            if (fullResolution)
+            {
+                _previewActive = true;
+            }
+            if (!resetView)
+            {
+                StopAnimation();
+            }
+        }
     }
 
     /// <summary>
@@ -755,27 +774,21 @@ public sealed partial class MainWindow : Window
 
         try
         {
-            if (!RouterApi.TryDecodeFile(
-                    context, path, out var image, out var status,
-                    frameIndex, RouterApi.PixelFormatBgra8, maxDimension))
+            using var decoded = RouterImage.Decode(
+                context, path, frameIndex, RouterApi.PixelFormatBgra8, maxDimension, out var status);
+            if (decoded is null)
             {
                 frame.Status = status;
                 return frame;
             }
 
-            try
-            {
-                frame.Bitmap = ToSoftwareBitmap(ref image);
-                frame.BitmapWidth = image.Width;
-                frame.SourceWidth = image.SourceWidth > 0 ? image.SourceWidth : image.Width;
-                frame.SourceHeight = image.SourceHeight > 0 ? image.SourceHeight : image.Height;
-                frame.FrameCount = image.FrameCount;
-                frame.FrameDelayMs = image.FrameDelayMs;
-            }
-            finally
-            {
-                RouterApi.FreeImage(ref image);
-            }
+            var image = decoded.Value;
+            frame.Bitmap = PixelBuffer.ToSoftwareBitmap(image, BitmapAlphaMode.Premultiplied);
+            frame.BitmapWidth = image.Width;
+            frame.SourceWidth = image.SourceWidth > 0 ? image.SourceWidth : image.Width;
+            frame.SourceHeight = image.SourceHeight > 0 ? image.SourceHeight : image.Height;
+            frame.FrameCount = image.FrameCount;
+            frame.FrameDelayMs = image.FrameDelayMs;
         }
         catch (Exception ex)
         {
@@ -886,7 +899,12 @@ public sealed partial class MainWindow : Window
         AutomationProperties.SetName(ImageView, name);
     }
 
-    private async void AnimationTimer_Tick(object? sender, object e)
+    private void AnimationTimer_Tick(object? sender, object e)
+    {
+        _ = RunCommandAsync(AdvanceAnimationAsync, "Could not play animation");
+    }
+
+    private async Task AdvanceAnimationAsync()
     {
         _animationTimer.Stop();
         if (!_isAnimationPlaying || _animationBusy || _directory is null)
@@ -1019,12 +1037,12 @@ public sealed partial class MainWindow : Window
 
     private async void PreviousButton_Click(object sender, RoutedEventArgs e)
     {
-        await MovePreviousAsync();
+        await RunCommandAsync(MovePreviousAsync, "Could not open image");
     }
 
     private async void NextButton_Click(object sender, RoutedEventArgs e)
     {
-        await MoveNextAsync();
+        await RunCommandAsync(MoveNextAsync, "Could not open image");
     }
 
     private async void PreviousAccelerator_Invoked(
@@ -1032,7 +1050,7 @@ public sealed partial class MainWindow : Window
         KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
-        await MovePreviousAsync();
+        await RunCommandAsync(MovePreviousAsync, "Could not open image");
     }
 
     private async void NextAccelerator_Invoked(
@@ -1040,7 +1058,7 @@ public sealed partial class MainWindow : Window
         KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
-        await MoveNextAsync();
+        await RunCommandAsync(MoveNextAsync, "Could not open image");
     }
 
     private void ZoomInAccelerator_Invoked(
@@ -1140,7 +1158,7 @@ public sealed partial class MainWindow : Window
         KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
-        await CopyCurrentImageAsync();
+        await RunCommandAsync(CopyCurrentImageAsync, "Could not copy image");
     }
 
     private void CopyPathAccelerator_Invoked(
@@ -1156,7 +1174,7 @@ public sealed partial class MainWindow : Window
         KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
-        await SaveAsAsync();
+        await RunCommandAsync(SaveAsAsync, "Could not save image");
     }
 
     private async Task MovePreviousAsync()
@@ -1591,7 +1609,7 @@ public sealed partial class MainWindow : Window
 
     private async void CopyImageMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        await CopyCurrentImageAsync();
+        await RunCommandAsync(CopyCurrentImageAsync, "Could not copy image");
     }
 
     private async Task CopyCurrentImageAsync()
@@ -1644,65 +1662,20 @@ public sealed partial class MainWindow : Window
         var context = _routerContext;
         return await Task.Run(() =>
         {
-            if (!RouterApi.TryDecodeFile(
-                    context, path, out var image, out _, frameIndex,
-                    RouterApi.PixelFormatBgra8))
+            using var decoded = RouterImage.Decode(
+                context, path, frameIndex, RouterApi.PixelFormatBgra8, 0, out _);
+            if (decoded is null)
             {
                 return null;
             }
 
-            try
-            {
-                return CreateStraightBitmap(
-                    image.Pixels, image.Width, image.Height, image.Stride);
-            }
-            finally
-            {
-                RouterApi.FreeImage(ref image);
-            }
+            return PixelBuffer.ToSoftwareBitmap(decoded.Value, BitmapAlphaMode.Straight);
         });
-    }
-
-    /// <summary>
-    /// Copies straight-alpha BGRA pixels into a bitmap. Used by the clipboard,
-    /// which must not receive premultiplied colors.
-    /// </summary>
-    private static unsafe SoftwareBitmap CreateStraightBitmap(
-        IntPtr pixels,
-        int width,
-        int height,
-        int stride)
-    {
-        var rowBytes = width * 4;
-        var bitmap = new SoftwareBitmap(
-            BitmapPixelFormat.Bgra8,
-            width,
-            height,
-            BitmapAlphaMode.Straight);
-
-        using var buffer = bitmap.LockBuffer(BitmapBufferAccessMode.Write);
-        var description = buffer.GetPlaneDescription(0);
-        using var reference = buffer.CreateReference();
-        if (reference.As<IMemoryBufferByteAccess>().GetBuffer(out var destination, out _) < 0)
-        {
-            throw new InvalidOperationException("The image buffer could not be accessed.");
-        }
-
-        for (var y = 0; y < height; y++)
-        {
-            System.Buffer.MemoryCopy(
-                (byte*)pixels + (long)y * stride,
-                (byte*)destination + description.StartIndex + (long)y * description.Stride,
-                rowBytes,
-                rowBytes);
-        }
-
-        return bitmap;
     }
 
     private async void SaveAsMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        await SaveAsAsync();
+        await RunCommandAsync(SaveAsAsync, "Could not save image");
     }
 
     private async Task SaveAsAsync()
@@ -1751,24 +1724,18 @@ public sealed partial class MainWindow : Window
         uint frameIndex,
         string targetPath)
     {
-        if (!RouterApi.TryDecodeFile(
-                context, sourcePath, out var image, out var status, frameIndex,
-                RouterApi.PixelFormatRgba8))
+        using var decoded = RouterImage.Decode(
+            context, sourcePath, frameIndex, RouterApi.PixelFormatRgba8, 0, out var status);
+        if (decoded is null)
         {
             throw new InvalidOperationException(DescribeStatus(status));
         }
 
-        try
+        var image = decoded.Value;
+        var encodeStatus = RouterApi.EncodeToFile(context, targetPath, ref image);
+        if (encodeStatus != 0)
         {
-            var encodeStatus = RouterApi.EncodeToFile(context, targetPath, ref image);
-            if (encodeStatus != 0)
-            {
-                throw new InvalidOperationException(DescribeEncodeStatus(encodeStatus));
-            }
-        }
-        finally
-        {
-            RouterApi.FreeImage(ref image);
+            throw new InvalidOperationException(DescribeEncodeStatus(encodeStatus));
         }
     }
 
@@ -1816,103 +1783,20 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Copies a decoded frame into a SoftwareBitmap by writing the bitmap's
-    /// own memory. The earlier path went through a scratch array, DataWriter
-    /// and CreateCopyFromBuffer, which copied every pixel three times.
+    /// Runs a UI command and turns an unexpected exception into the inline
+    /// error panel. Every fire-and-forget command funnels through here so an
+    /// async void handler cannot take the process down.
     /// </summary>
-    private unsafe SoftwareBitmap ToSoftwareBitmap(ref NvRouterImage image)
+    private async Task RunCommandAsync(Func<Task> command, string title)
     {
-        var pixelCount = checked(image.Width * image.Height * 4);
-        var rowBytes = image.Width * 4;
-        var swap = image.PixelFormat != RouterApi.PixelFormatBgra8;
-        var opaque = IsOpaque((byte*)image.Pixels, pixelCount);
-
-        var bitmap = new SoftwareBitmap(
-            BitmapPixelFormat.Bgra8,
-            image.Width,
-            image.Height,
-            BitmapAlphaMode.Premultiplied);
-
-        using var buffer = bitmap.LockBuffer(BitmapBufferAccessMode.Write);
-        var description = buffer.GetPlaneDescription(0);
-        using var reference = buffer.CreateReference();
-        if (reference.As<IMemoryBufferByteAccess>().GetBuffer(out var destination, out _) < 0)
+        try
         {
-            throw new InvalidOperationException("The image buffer could not be accessed.");
+            await command();
         }
-
-        for (var y = 0; y < image.Height; y++)
+        catch (Exception ex)
         {
-            var source = (byte*)image.Pixels + (long)y * image.Stride;
-            var target = (byte*)destination
-                + description.StartIndex
-                + (long)y * description.Stride;
-
-            if (!swap && opaque)
-            {
-                // Already BGRA with no transparency: no per-pixel work needed.
-                System.Buffer.MemoryCopy(source, target, rowBytes, rowBytes);
-                continue;
-            }
-
-            for (var x = 0; x < rowBytes; x += 4)
-            {
-                var blue = source[x];
-                var green = source[x + 1];
-                var red = source[x + 2];
-                var alpha = source[x + 3];
-
-                if (swap)
-                {
-                    (red, blue) = (blue, red);
-                }
-
-                if (!opaque)
-                {
-                    // SoftwareBitmap requires premultiplied alpha.
-                    blue = (byte)(blue * alpha / 255);
-                    green = (byte)(green * alpha / 255);
-                    red = (byte)(red * alpha / 255);
-                }
-
-                target[x] = blue;
-                target[x + 1] = green;
-                target[x + 2] = red;
-                target[x + 3] = alpha;
-            }
+            ShowError(ex.Message, title);
         }
-
-        return bitmap;
-    }
-
-    /// <summary>
-    /// True when every pixel is fully opaque. Premultiplication is a no-op in
-    /// that case, which removes a multiply per channel from the common path.
-    /// </summary>
-    private static unsafe bool IsOpaque(byte* pixels, int byteCount)
-    {
-        for (var index = 3; index < byteCount; index += 4)
-        {
-            if (pixels[index] != 255)
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /// <summary>
-    /// Gives direct access to the bytes of an IMemoryBufferReference. WinRT
-    /// exposes the pointer through this non-WinRT interface, which lets pixels
-    /// be written into a bitmap without an intermediate buffer.
-    /// </summary>
-    [ComImport]
-    [Guid("5b0d3235-4dba-4d44-865e-8f1d0e4fd04d")]
-    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    private interface IMemoryBufferByteAccess
-    {
-        [PreserveSig]
-        int GetBuffer(out IntPtr buffer, out uint capacity);
     }
 
     private void ShowError(string message, string title = "Could not open image")

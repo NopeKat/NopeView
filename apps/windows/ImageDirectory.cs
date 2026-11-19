@@ -36,20 +36,17 @@ internal sealed class ImageDirectory
         }
 
         paths.Sort(StringComparer.OrdinalIgnoreCase);
-        var index = paths.FindIndex(
-            path => string.Equals(path, fullPath, StringComparison.OrdinalIgnoreCase));
+        var index = paths.BinarySearch(fullPath, StringComparer.OrdinalIgnoreCase);
         if (index < 0)
         {
-            paths.Add(fullPath);
-            paths.Sort(StringComparer.OrdinalIgnoreCase);
-            index = paths.FindIndex(
-                path => string.Equals(path, fullPath, StringComparison.OrdinalIgnoreCase));
+            // BinarySearch reports the insertion point as the complement of the
+            // index, so the file joins the list without sorting it again.
+            paths.Insert(~index, fullPath);
+            index = ~index;
         }
 
         return new ImageDirectory(paths, index);
     }
-
-    internal int Count => _paths.Count;
 
     internal int Position => _index + 1;
 

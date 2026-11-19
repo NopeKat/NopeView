@@ -2,7 +2,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using Windows.System;
 
@@ -75,10 +74,10 @@ public sealed partial class SettingsPage : Page
         AppearancePanel.Visibility = showAbout ? Visibility.Collapsed : Visibility.Visible;
         AboutPanel.Visibility = showAbout ? Visibility.Visible : Visibility.Collapsed;
 
-        var selected = (Brush)Application.Current.Resources["SubtleFillColorSecondaryBrush"];
-        var normal = (Brush)Application.Current.Resources["SubtleFillColorTransparentBrush"];
-        AppearanceNavButton.Background = showAbout ? normal : selected;
-        AboutNavButton.Background = showAbout ? selected : normal;
+        var normal = (Style)Resources["SettingsNavButtonStyle"];
+        var selected = (Style)Resources["SettingsNavSelectedStyle"];
+        AppearanceNavButton.Style = showAbout ? normal : selected;
+        AboutNavButton.Style = showAbout ? selected : normal;
         AppearanceNavIndicator.Visibility = showAbout ? Visibility.Collapsed : Visibility.Visible;
         AboutNavIndicator.Visibility = showAbout ? Visibility.Visible : Visibility.Collapsed;
 
