@@ -18,7 +18,7 @@
              buttons. The custom close button and empty drag strip are gone. -->
         <TitleBar x:Name="SettingsTitleBar"
                   Grid.Row="0"
-                  Title="Settings"
+                  Title=""
                   AutomationProperties.AutomationId="SettingsTitleBar">
             <TitleBar.IconSource>
                 <ImageIconSource ImageSource="ms-appx:///assets/nopeview-title.png" />

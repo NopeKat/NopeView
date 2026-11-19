@@ -527,8 +527,8 @@ public sealed partial class MainWindow : Window
         };
         AutomationProperties.SetName(PlayPauseButton, _isAnimationPlaying ? "Pause" : "Play");
         AutomationProperties.SetName(LoopButton, _animationLoop ? "Loop on" : "Loop off");
-        ToolTipService.SetToolTip(PlayPauseButton, _isAnimationPlaying ? "Pause" : "Play");
-        ToolTipService.SetToolTip(LoopButton, _animationLoop ? "Turn loop off" : "Turn loop on");
+        PlayPauseButton.Label = _isAnimationPlaying ? "Pause" : "Play";
+        LoopButton.Label = _animationLoop ? "Loop on" : "Loop off";
     }
 
     private void PlayPauseButton_Click(object sender, RoutedEventArgs e)

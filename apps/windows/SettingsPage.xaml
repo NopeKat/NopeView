@@ -12,6 +12,7 @@
          Frame, so each section is a normal Page. -->
     <NavigationView x:Name="SettingsNavigation"
                     PaneDisplayMode="Auto"
+                    IsTabStop="False"
                     IsSettingsVisible="False"
                     IsBackButtonVisible="Collapsed"
                     IsPaneToggleButtonVisible="True"
