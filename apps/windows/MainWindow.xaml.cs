@@ -343,8 +343,8 @@ public sealed partial class MainWindow : Window
 
     private void ShowError(string message, string title = Strings.OpenTitle)
     {
-        ErrorTitle.Text = title;
-        ErrorText.Text = message;
-        ErrorPanel.Visibility = Visibility.Visible;
+        ErrorPanel.Title = title;
+        ErrorPanel.Message = message;
+        ErrorPanel.IsOpen = true;
     }
 }

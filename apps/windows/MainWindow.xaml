@@ -428,47 +428,19 @@
                 </StackPanel>
             </Border>
 
-            <!-- Error surface follows the InfoBar Error severity: critical
-                 background, card stroke, 4 px control radius, 48 px minimum
-                 height, 16 px content padding, and a 14 px icon/text gutter. -->
-            <Border x:Name="ErrorPanel"
-                    Visibility="Collapsed"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Bottom"
-                    MaxWidth="640"
-                    MinHeight="48"
-                    Margin="24"
-                    Padding="16,12"
-                    CornerRadius="4"
-                    Background="{ThemeResource SystemFillColorCriticalBackgroundBrush}"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1">
-                <Grid ColumnSpacing="14">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <PathIcon Width="16"
-                              Height="16"
-                              VerticalAlignment="Top"
-                              Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                              Data="M8 2a6 6 0 110 12A6 6 0 018 2zm0 1a5 5 0 100 10A5 5 0 008 3zm0 7a.75.75 0 110 1.5.75.75 0 010-1.5zm0-5.5a.5.5 0 01.5.41V8.5a.5.5 0 01-1 .09V5c0-.28.22-.5.5-.5z" />
-                    <StackPanel Grid.Column="1" Spacing="2">
-                        <TextBlock x:Name="ErrorTitle"
-                                   AutomationProperties.AutomationId="ErrorTitle"
-                                   Text="Could not open image"
-                                   FontSize="14"
-                                   FontWeight="SemiBold"
-                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}" />
-                        <TextBlock x:Name="ErrorText"
-                                   AutomationProperties.AutomationId="ErrorText"
-                                   AutomationProperties.Name="Image error"
-                                   FontSize="14"
-                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"
-                                   TextWrapping="Wrap" />
-                    </StackPanel>
-                </Grid>
-            </Border>
+            <!-- The official InfoBar owns the error layout, severity colors,
+                 icon and text metrics instead of a hand-built card. -->
+            <InfoBar x:Name="ErrorPanel"
+                     Severity="Error"
+                     IsOpen="False"
+                     IsClosable="False"
+                     Title="Could not open image"
+                     HorizontalAlignment="Center"
+                     VerticalAlignment="Bottom"
+                     MaxWidth="640"
+                     Margin="24"
+                     AutomationProperties.AutomationId="ErrorInfoBar"
+                     AutomationProperties.Name="Image error" />
 
         </Grid>
 
