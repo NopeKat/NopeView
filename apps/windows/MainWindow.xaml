@@ -26,70 +26,6 @@
             <KeyboardAccelerator Key="S" Modifiers="Control" Invoked="SaveAsAccelerator_Invoked" />
         </Grid.KeyboardAccelerators>
 
-        <Grid.Resources>
-            <!-- Toolbar buttons follow the official AppBarButton colors from
-                 the WinUI 3 source (transparent at rest, subtle fill on hover
-                 and press) while keeping the default Button template. -->
-            <Style x:Key="ToolbarButtonStyle" TargetType="Button">
-                <Setter Property="UseSystemFocusVisuals" Value="True" />
-                <Setter Property="FocusVisualMargin" Value="-3" />
-                <Setter Property="Background" Value="{ThemeResource SubtleFillColorTransparentBrush}" />
-                <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
-                <Setter Property="BorderBrush" Value="{ThemeResource SubtleFillColorTransparentBrush}" />
-                <Setter Property="BorderThickness" Value="0" />
-                <Setter Property="CornerRadius" Value="4" />
-                <Setter Property="Padding" Value="8,5,8,6" />
-                <Setter Property="MinHeight" Value="32" />
-                <Setter Property="MinWidth" Value="32" />
-                <!-- The default button template fills disabled buttons with
-                     ButtonBackgroundDisabled, which reads as a gray chip on the
-                     floating toolbar. AppBarButton keeps the surface and only
-                     dims the icon, so the toolbar does the same. -->
-                <Setter Property="Template">
-                    <Setter.Value>
-                        <ControlTemplate TargetType="Button">
-                            <Grid x:Name="RootGrid"
-                                  Background="{TemplateBinding Background}"
-                                  CornerRadius="{TemplateBinding CornerRadius}">
-                                <ContentPresenter x:Name="ContentPresenter"
-                                                  Content="{TemplateBinding Content}"
-                                                  ContentTemplate="{TemplateBinding ContentTemplate}"
-                                                  Margin="{TemplateBinding Padding}"
-                                                  Foreground="{TemplateBinding Foreground}"
-                                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
-                            </Grid>
-                            <VisualStateManager.VisualStateGroups>
-                                <VisualStateGroup x:Name="CommonStates">
-                                    <VisualState x:Name="Normal" />
-                                    <VisualState x:Name="PointerOver">
-                                        <VisualState.Setters>
-                                            <Setter Target="RootGrid.Background"
-                                                    Value="{ThemeResource ButtonBackgroundPointerOver}" />
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                    <VisualState x:Name="Pressed">
-                                        <VisualState.Setters>
-                                            <Setter Target="RootGrid.Background"
-                                                    Value="{ThemeResource ButtonBackgroundPressed}" />
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                    <VisualState x:Name="Disabled">
-                                        <VisualState.Setters>
-                                            <Setter Target="RootGrid.Background"
-                                                    Value="{ThemeResource SubtleFillColorTransparentBrush}" />
-                                            <Setter Target="ContentPresenter.Foreground"
-                                                    Value="{ThemeResource TextFillColorDisabledBrush}" />
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                </VisualStateGroup>
-                            </VisualStateManager.VisualStateGroups>
-                        </ControlTemplate>
-                    </Setter.Value>
-                </Setter>
-            </Style>
-        </Grid.Resources>
-
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -255,10 +191,9 @@
                 </Border>
             </Grid>
 
-            <!-- Floating toolbar. The surface uses the Fluent "control on
-                 image" fill from the WinUI 3 source, with an overlay corner
-                 radius and a hairline stroke, so buttons stay legible over any
-                 image. -->
+            <!-- Floating toolbar. The official CommandBar supplies the button
+                 metrics, overflow behavior and keyboard handling; the border
+                 keeps the surface legible over any image. -->
             <Border HorizontalAlignment="Left"
                     VerticalAlignment="Top"
                     Margin="12"
@@ -267,167 +202,136 @@
                     Background="{ThemeResource ControlOnImageFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
                     BorderThickness="1">
-                <StackPanel Orientation="Horizontal">
-                    <Button x:Name="OpenButton"
-                            Style="{StaticResource ToolbarButtonStyle}"
-                            AutomationProperties.AutomationId="OpenButton"
-                            AutomationProperties.Name="Open image"
-                            Click="OpenButton_Click">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <PathIcon Width="16" Height="16"
-                                      Data="M2 4.5V9.10022L2.92389 7.5C3.45979 6.5718 4.45017 6 5.52196 6L11.9146 6C11.7087 5.4174 11.1531 5 10.5 5H7C6.86739 5 6.74021 4.94732 6.64645 4.85355L4.93934 3.14645C4.84557 3.05268 4.71839 3 4.58579 3H3.5C2.67157 3 2 3.67157 2 4.5ZM7.06895 13.9953C7.04641 13.9984 7.02339 14 7 14H3.5C2.11929 14 1 12.8807 1 11.5V4.5C1 3.11929 2.11929 2 3.5 2H4.58579C4.98361 2 5.36514 2.15804 5.64645 2.43934L7.20711 4H10.5C11.724 4 12.7426 4.87965 12.958 6.04127C14.605 6.34148 15.5443 8.22106 14.6616 9.75L13.0766 12.4953C12.5407 13.4235 11.5503 13.9953 10.4785 13.9953H7.06895ZM5.52196 7C4.80743 7 4.14718 7.3812 3.78991 8L2.20492 10.7453C1.62757 11.7453 2.34926 12.9953 3.50396 12.9953L10.4785 12.9953C11.193 12.9953 11.8533 12.6141 12.2105 11.9953L13.7955 9.25C14.3729 8.25 13.6512 7 12.4965 7L5.52196 7Z" />
-                            <TextBlock Text="Open" VerticalAlignment="Center" />
-                        </StackPanel>
-                        <Button.KeyboardAccelerators>
-                            <KeyboardAccelerator Key="O" Modifiers="Control" />
-                        </Button.KeyboardAccelerators>
-                    </Button>
+                <CommandBar x:Name="ViewerCommandBar"
+                            DefaultLabelPosition="Right"
+                            Background="Transparent"
+                            BorderThickness="0">
+                    <CommandBar.PrimaryCommands>
+                        <AppBarButton x:Name="OpenButton"
+                                      Label="Open"
+                                      AutomationProperties.AutomationId="OpenButton"
+                                      AutomationProperties.Name="Open image"
+                                      Click="OpenButton_Click">
+                            <AppBarButton.Icon>
+                                <PathIcon Width="16" Height="16"
+                                          Data="M2 4.5V9.10022L2.92389 7.5C3.45979 6.5718 4.45017 6 5.52196 6L11.9146 6C11.7087 5.4174 11.1531 5 10.5 5H7C6.86739 5 6.74021 4.94732 6.64645 4.85355L4.93934 3.14645C4.84557 3.05268 4.71839 3 4.58579 3H3.5C2.67157 3 2 3.67157 2 4.5ZM7.06895 13.9953C7.04641 13.9984 7.02339 14 7 14H3.5C2.11929 14 1 12.8807 1 11.5V4.5C1 3.11929 2.11929 2 3.5 2H4.58579C4.98361 2 5.36514 2.15804 5.64645 2.43934L7.20711 4H10.5C11.724 4 12.7426 4.87965 12.958 6.04127C14.605 6.34148 15.5443 8.22106 14.6616 9.75L13.0766 12.4953C12.5407 13.4235 11.5503 13.9953 10.4785 13.9953H7.06895ZM5.52196 7C4.80743 7 4.14718 7.3812 3.78991 8L2.20492 10.7453C1.62757 11.7453 2.34926 12.9953 3.50396 12.9953L10.4785 12.9953C11.193 12.9953 11.8533 12.6141 12.2105 11.9953L13.7955 9.25C14.3729 8.25 13.6512 7 12.4965 7L5.52196 7Z" />
+                            </AppBarButton.Icon>
+                            <AppBarButton.KeyboardAccelerators>
+                                <KeyboardAccelerator Key="O" Modifiers="Control" />
+                            </AppBarButton.KeyboardAccelerators>
+                        </AppBarButton>
 
-                    <!-- AppBarSeparator metrics: 1 px wide, 2,8 margins, a
-                         0.5 radius, and the divider stroke color. -->
-                    <Rectangle Width="1"
-                               Height="16"
-                               Margin="2,8,2,8"
-                               VerticalAlignment="Center"
-                               RadiusX="0.5"
-                               RadiusY="0.5"
-                               Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                        <AppBarSeparator />
 
-                    <Button x:Name="PreviousButton"
-                            Style="{StaticResource ToolbarButtonStyle}"
-                            AutomationProperties.AutomationId="PreviousButton"
-                            AutomationProperties.Name="Previous image"
-                            IsEnabled="False"
-                            Click="PreviousButton_Click">
-                        <PathIcon Width="16" Height="16"
-                                  Data="M10.3536 3.14645C10.5488 3.34171 10.5488 3.65829 10.3536 3.85355L6.20711 8L10.3536 12.1464C10.5488 12.3417 10.5488 12.6583 10.3536 12.8536C10.1583 13.0488 9.84171 13.0488 9.64645 12.8536L5.14645 8.35355C4.95118 8.15829 4.95118 7.84171 5.14645 7.64645L9.64645 3.14645C9.84171 2.95118 10.1583 2.95118 10.3536 3.14645Z" />
-                    </Button>
+                        <AppBarButton x:Name="PreviousButton"
+                                      AutomationProperties.AutomationId="PreviousButton"
+                                      AutomationProperties.Name="Previous image"
+                                      IsEnabled="False"
+                                      Click="PreviousButton_Click">
+                            <AppBarButton.Icon>
+                                <PathIcon Width="16" Height="16"
+                                          Data="M10.3536 3.14645C10.5488 3.34171 10.5488 3.65829 10.3536 3.85355L6.20711 8L10.3536 12.1464C10.5488 12.3417 10.5488 12.6583 10.3536 12.8536C10.1583 13.0488 9.84171 13.0488 9.64645 12.8536L5.14645 8.35355C4.95118 8.15829 4.95118 7.84171 5.14645 7.64645L9.64645 3.14645C9.84171 2.95118 10.1583 2.95118 10.3536 3.14645Z" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
 
-                    <Button x:Name="NextButton"
-                            Style="{StaticResource ToolbarButtonStyle}"
-                            AutomationProperties.AutomationId="NextButton"
-                            AutomationProperties.Name="Next image"
-                            IsEnabled="False"
-                            Click="NextButton_Click">
-                        <PathIcon Width="16" Height="16"
-                                  Data="M5.64645 3.14645C5.45118 3.34171 5.45118 3.65829 5.64645 3.85355L9.79289 8L5.64645 12.1464C5.45118 12.3417 5.45118 12.6583 5.64645 12.8536C5.84171 13.0488 6.15829 13.0488 6.35355 12.8536L10.8536 8.35355C11.0488 8.15829 11.0488 7.84171 10.8536 7.64645L6.35355 3.14645C6.15829 2.95118 5.84171 2.95118 5.64645 3.14645Z" />
-                    </Button>
+                        <AppBarButton x:Name="NextButton"
+                                      AutomationProperties.AutomationId="NextButton"
+                                      AutomationProperties.Name="Next image"
+                                      IsEnabled="False"
+                                      Click="NextButton_Click">
+                            <AppBarButton.Icon>
+                                <PathIcon Width="16" Height="16"
+                                          Data="M5.64645 3.14645C5.45118 3.34171 5.45118 3.65829 5.64645 3.85355L9.79289 8L5.64645 12.1464C5.45118 12.3417 5.45118 12.6583 5.64645 12.8536C5.84171 13.0488 6.15829 13.0488 6.35355 12.8536L10.8536 8.35355C11.0488 8.15829 11.0488 7.84171 10.8536 7.64645L6.35355 3.14645C6.15829 2.95118 5.84171 2.95118 5.64645 3.14645Z" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
 
-                    <StackPanel x:Name="AnimationControls"
-                                Orientation="Horizontal"
-                                Visibility="Collapsed">
-                        <Rectangle Width="1"
-                                   Height="16"
-                                   Margin="2,8,2,8"
-                                   VerticalAlignment="Center"
-                                   RadiusX="0.5"
-                                   RadiusY="0.5"
-                                   Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                        <AppBarSeparator x:Name="AnimationSeparator"
+                                         Visibility="Collapsed" />
 
-                        <Button x:Name="PlayPauseButton"
-                                Style="{StaticResource ToolbarButtonStyle}"
-                                AutomationProperties.AutomationId="PlayPauseButton"
-                                AutomationProperties.Name="Play or pause animation"
-                                Click="PlayPauseButton_Click">
-                            <TextBlock x:Name="PlayPauseLabel"
-                                       AutomationProperties.AutomationId="PlayPauseLabel"
-                                       Text="Pause"
-                                       VerticalAlignment="Center" />
-                        </Button>
+                        <AppBarButton x:Name="PlayPauseButton"
+                                      Label="Pause"
+                                      Visibility="Collapsed"
+                                      AutomationProperties.AutomationId="PlayPauseButton"
+                                      Click="PlayPauseButton_Click" />
 
-                        <Button x:Name="LoopButton"
-                                Style="{StaticResource ToolbarButtonStyle}"
-                                AutomationProperties.AutomationId="LoopButton"
-                                AutomationProperties.Name="Loop animation"
-                                Click="LoopButton_Click">
-                            <TextBlock x:Name="LoopLabel"
-                                       AutomationProperties.AutomationId="LoopLabel"
-                                       Text="Loop on"
-                                       VerticalAlignment="Center" />
-                        </Button>
-                    </StackPanel>
+                        <AppBarButton x:Name="LoopButton"
+                                      Label="Loop on"
+                                      Visibility="Collapsed"
+                                      AutomationProperties.AutomationId="LoopButton"
+                                      Click="LoopButton_Click" />
 
-                    <Rectangle Width="1"
-                               Height="16"
-                               Margin="2,8,2,8"
-                               VerticalAlignment="Center"
-                               RadiusX="0.5"
-                               RadiusY="0.5"
-                               Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                        <AppBarSeparator />
 
-                    <StackPanel x:Name="ViewControls"
-                                Orientation="Horizontal">
-                        <Button x:Name="ZoomOutButton"
-                                Style="{StaticResource ToolbarButtonStyle}"
-                                AutomationProperties.AutomationId="ZoomOutButton"
-                                AutomationProperties.Name="Zoom out"
-                                IsEnabled="False"
-                                Click="ZoomOutButton_Click">
-                            <PathIcon Width="16" Height="16"
-                                      Data="M8.5 6C8.77614 6 9 6.22386 9 6.5C9 6.77614 8.77614 7 8.5 7H4.5C4.22386 7 4 6.77614 4 6.5C4 6.22386 4.22386 6 4.5 6H8.5ZM6.5 1C9.53757 1 12 3.46243 12 6.5C12 7.83875 11.5216 9.06578 10.7266 10.0195L13.8535 13.1465C14.0488 13.3417 14.0488 13.6583 13.8535 13.8535C13.6583 14.0488 13.3417 14.0488 13.1465 13.8535L10.0195 10.7266C9.06578 11.5216 7.83875 12 6.5 12C3.46243 12 1 9.53757 1 6.5C1 3.46243 3.46243 1 6.5 1ZM6.5 2C4.01472 2 2 4.01472 2 6.5C2 8.98528 4.01472 11 6.5 11C8.98528 11 11 8.98528 11 6.5C11 4.01472 8.98528 2 6.5 2Z" />
-                        </Button>
+                        <AppBarButton x:Name="ZoomOutButton"
+                                      AutomationProperties.AutomationId="ZoomOutButton"
+                                      AutomationProperties.Name="Zoom out"
+                                      IsEnabled="False"
+                                      Click="ZoomOutButton_Click">
+                            <AppBarButton.Icon>
+                                <PathIcon Width="16" Height="16"
+                                          Data="M8.5 6C8.77614 6 9 6.22386 9 6.5C9 6.77614 8.77614 7 8.5 7H4.5C4.22386 7 4 6.77614 4 6.5C4 6.22386 4.22386 6 4.5 6H8.5ZM6.5 1C9.53757 1 12 3.46243 12 6.5C12 7.83875 11.5216 9.06578 10.7266 10.0195L13.8535 13.1465C14.0488 13.3417 14.0488 13.6583 13.8535 13.8535C13.6583 14.0488 13.3417 14.0488 13.1465 13.8535L10.0195 10.7266C9.06578 11.5216 7.83875 12 6.5 12C3.46243 12 1 9.53757 1 6.5C1 3.46243 3.46243 1 6.5 1ZM6.5 2C4.01472 2 2 4.01472 2 6.5C2 8.98528 4.01472 11 6.5 11C8.98528 11 11 8.98528 11 6.5C11 4.01472 8.98528 2 6.5 2Z" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
 
-                        <Button x:Name="ZoomInButton"
-                                Style="{StaticResource ToolbarButtonStyle}"
-                                AutomationProperties.AutomationId="ZoomInButton"
-                                AutomationProperties.Name="Zoom in"
-                                IsEnabled="False"
-                                Click="ZoomInButton_Click">
-                            <PathIcon Width="16" Height="16"
-                                      Data="M6.5 4C6.77614 4 7 4.22386 7 4.5V6H8.5C8.77614 6 9 6.22386 9 6.5C9 6.77614 8.77614 7 8.5 7H7V8.5C7 8.77614 6.77614 9 6.5 9C6.22386 9 6 8.77614 6 8.5V7H4.5C4.22386 7 4 6.77614 4 6.5C4 6.22386 4.22386 6 4.5 6H6V4.5C6 4.22386 6.22386 4 6.5 4ZM6.5 1C9.53757 1 12 3.46243 12 6.5C12 7.83875 11.5216 9.06578 10.7266 10.0195L13.8535 13.1465C14.0488 13.3417 14.0488 13.6583 13.8535 13.8535C13.6583 14.0488 13.3417 14.0488 13.1465 13.8535L10.0195 10.7266C9.06578 11.5216 7.83875 12 6.5 12C3.46243 12 1 9.53757 1 6.5C1 3.46243 3.46243 1 6.5 1ZM6.5 2C4.01472 2 2 4.01472 2 6.5C2 8.98528 4.01472 11 6.5 11C8.98528 11 11 8.98528 11 6.5C11 4.01472 8.98528 2 6.5 2Z" />
-                        </Button>
+                        <AppBarButton x:Name="ZoomInButton"
+                                      AutomationProperties.AutomationId="ZoomInButton"
+                                      AutomationProperties.Name="Zoom in"
+                                      IsEnabled="False"
+                                      Click="ZoomInButton_Click">
+                            <AppBarButton.Icon>
+                                <PathIcon Width="16" Height="16"
+                                          Data="M6.5 4C6.77614 4 7 4.22386 7 4.5V6H8.5C8.77614 6 9 6.22386 9 6.5C9 6.77614 8.77614 7 8.5 7H7V8.5C7 8.77614 6.77614 9 6.5 9C6.22386 9 6 8.77614 6 8.5V7H4.5C4.22386 7 4 6.77614 4 6.5C4 6.22386 4.22386 6 4.5 6H6V4.5C6 4.22386 6.22386 4 6.5 4ZM6.5 1C9.53757 1 12 3.46243 12 6.5C12 7.83875 11.5216 9.06578 10.7266 10.0195L13.8535 13.1465C14.0488 13.3417 14.0488 13.6583 13.8535 13.8535C13.6583 14.0488 13.3417 14.0488 13.1465 13.8535L10.0195 10.7266C9.06578 11.5216 7.83875 12 6.5 12C3.46243 12 1 9.53757 1 6.5C1 3.46243 3.46243 1 6.5 1ZM6.5 2C4.01472 2 2 4.01472 2 6.5C2 8.98528 4.01472 11 6.5 11C8.98528 11 11 8.98528 11 6.5C11 4.01472 8.98528 2 6.5 2Z" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
 
-                        <Button x:Name="RotateButton"
-                                Style="{StaticResource ToolbarButtonStyle}"
-                                AutomationProperties.AutomationId="RotateButton"
-                                AutomationProperties.Name="Rotate clockwise"
-                                IsEnabled="False"
-                                Click="RotateButton_Click">
-                            <PathIcon Width="16" Height="16"
-                                      Data="M8 3C5.23858 3 3 5.23858 3 8C3 8.27614 2.77614 8.5 2.5 8.5C2.22386 8.5 2 8.27614 2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8C14 9.79253 13.2139 11.4009 11.9686 12.5H13C13.2761 12.5 13.5 12.7239 13.5 13C13.5 13.2761 13.2761 13.5 13 13.5H10.5C10.2239 13.5 10 13.2761 10 13V12.911C9.99986 12.9041 9.99986 12.8973 10 12.8904V10.5C10 10.2239 10.2239 10 10.5 10C10.7761 10 11 10.2239 11 10.5V12.0005C12.215 11.0878 13 9.63527 13 8C13 5.23858 10.7614 3 8 3ZM6 8C6 6.89543 6.89543 6 8 6C9.10457 6 10 6.89543 10 8C10 9.10457 9.10457 10 8 10C6.89543 10 6 9.10457 6 8ZM8 7C7.44772 7 7 7.44772 7 8C7 8.55228 7.44772 9 8 9C8.55228 9 9 8.55228 9 8C9 7.44772 8.55228 7 8 7Z" />
-                        </Button>
+                        <AppBarButton x:Name="RotateButton"
+                                      AutomationProperties.AutomationId="RotateButton"
+                                      AutomationProperties.Name="Rotate clockwise"
+                                      IsEnabled="False"
+                                      Click="RotateButton_Click">
+                            <AppBarButton.Icon>
+                                <PathIcon Width="16" Height="16"
+                                          Data="M8 3C5.23858 3 3 5.23858 3 8C3 8.27614 2.77614 8.5 2.5 8.5C2.22386 8.5 2 8.27614 2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8C14 9.79253 13.2139 11.4009 11.9686 12.5H13C13.2761 12.5 13.5 12.7239 13.5 13C13.5 13.2761 13.2761 13.5 13 13.5H10.5C10.2239 13.5 10 13.2761 10 13V12.911C9.99986 12.9041 9.99986 12.8973 10 12.8904V10.5C10 10.2239 10.2239 10 10.5 10C10.7761 10 11 10.2239 11 10.5V12.0005C12.215 11.0878 13 9.63527 13 8C13 5.23858 10.7614 3 8 3ZM6 8C6 6.89543 6.89543 6 8 6C9.10457 6 10 6.89543 10 8C10 9.10457 9.10457 10 8 10C6.89543 10 6 9.10457 6 8ZM8 7C7.44772 7 7 7.44772 7 8C7 8.55228 7.44772 9 8 9C8.55228 9 9 8.55228 9 8C9 7.44772 8.55228 7 8 7Z" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
 
-                        <Button x:Name="FitButton"
-                                Style="{StaticResource ToolbarButtonStyle}"
-                                AutomationProperties.AutomationId="FitButton"
-                                AutomationProperties.Name="Fit image"
-                                IsEnabled="False"
-                                Click="FitButton_Click">
-                            <PathIcon Width="16" Height="16"
-                                      Data="M11 4C11 4.55228 11.4477 5 12 5H13.5C13.7761 5 14 5.22386 14 5.5C14 5.77614 13.7761 6 13.5 6H12C10.8954 6 10 5.10457 10 4V2.5C10 2.22386 10.2239 2 10.5 2C10.7761 2 11 2.22386 11 2.5V4ZM11 12C11 11.4477 11.4477 11 12 11H13.5C13.7761 11 14 10.7761 14 10.5C14 10.2239 13.7761 10 13.5 10H12C10.8954 10 10 10.8954 10 12V13.5C10 13.7761 10.2239 14 10.5 14C10.7761 14 11 13.7761 11 13.5V12ZM4 11C4.55228 11 5 11.4477 5 12V13.5C5 13.7761 5.22386 14 5.5 14C5.77614 14 6 13.7761 6 13.5V12C6 10.8954 5.10457 10 4 10H2.5C2.22386 10 2 10.2239 2 10.5C2 10.7761 2.22386 11 2.5 11H4ZM5 4C5 4.55228 4.55228 5 4 5H2.5C2.22386 5 2 5.22386 2 5.5C2 5.77614 2.22386 6 2.5 6H4C5.10457 6 6 5.10457 6 4V2.5C6 2.22386 5.77614 2 5.5 2C5.22386 2 5 2.22386 5 2.5V4Z" />
-                        </Button>
+                        <AppBarButton x:Name="FitButton"
+                                      AutomationProperties.AutomationId="FitButton"
+                                      AutomationProperties.Name="Fit image"
+                                      IsEnabled="False"
+                                      Click="FitButton_Click">
+                            <AppBarButton.Icon>
+                                <PathIcon Width="16" Height="16"
+                                          Data="M11 4C11 4.55228 11.4477 5 12 5H13.5C13.7761 5 14 5.22386 14 5.5C14 5.77614 13.7761 6 13.5 6H12C10.8954 6 10 5.10457 10 4V2.5C10 2.22386 10.2239 2 10.5 2C10.7761 2 11 2.22386 11 2.5V4ZM11 12C11 11.4477 11.4477 11 12 11H13.5C13.7761 11 14 10.7761 14 10.5C14 10.2239 13.7761 10 13.5 10H12C10.8954 10 10 10.8954 10 12V13.5C10 13.7761 10.2239 14 10.5 14C10.7761 14 11 13.7761 11 13.5V12ZM4 11C4.55228 11 5 11.4477 5 12V13.5C5 13.7761 5.22386 14 5.5 14C5.77614 14 6 13.7761 6 13.5V12C6 10.8954 5.10457 10 4 10H2.5C2.22386 10 2 10.2239 2 10.5C2 10.7761 2.22386 11 2.5 11H4ZM5 4C5 4.55228 4.55228 5 4 5H2.5C2.22386 5 2 5.22386 2 5.5C2 5.77614 2.22386 6 2.5 6H4C5.10457 6 6 5.10457 6 4V2.5C6 2.22386 5.77614 2 5.5 2C5.22386 2 5 2.22386 5 2.5V4Z" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
 
-                        <Button x:Name="ActualSizeButton"
-                                Style="{StaticResource ToolbarButtonStyle}"
-                                AutomationProperties.AutomationId="ActualSizeButton"
-                                AutomationProperties.Name="Actual size"
-                                IsEnabled="False"
-                                Click="ActualSizeButton_Click">
-                            <PathIcon Width="16" Height="16"
-                                      Data="M5.4103 5.65974C5.52822 5.73262 5.6 5.86137 5.6 6V10C5.6 10.22088 5.42091 10.4 5.2 10.4C4.97909 10.4 4.8 10.22088 4.8 10V6.64722L4.57889 6.75777C4.3813 6.85657 4.14102 6.77648 4.04223 6.57889C3.94343 6.3813 4.02352 6.14102 4.22111 6.04223L5.02111 5.64223C5.14511 5.58023 5.29237 5.58686 5.4103 5.65974ZM11.2 6C11.2 5.86137 11.12824 5.73262 11.01032 5.65974C10.8924 5.58686 10.74512 5.58023 10.62112 5.64223L9.82112 6.04223C9.62352 6.14102 9.54344 6.3813 9.64224 6.57889C9.74104 6.77648 9.98128 6.85657 10.17888 6.75777L10.4 6.64722V10C10.4 10.22088 10.57912 10.4 10.8 10.4C11.02088 10.4 11.2 10.22088 11.2 10V6ZM8 6.8C8 7.02091 7.82091 7.2 7.6 7.2C7.37909 7.2 7.2 7.02091 7.2 6.8C7.2 6.57909 7.37909 6.4 7.6 6.4C7.82091 6.4 8 6.57909 8 6.8ZM7.6 9.6C7.82091 9.6 8 9.42088 8 9.2C8 8.97912 7.82091 8.8 7.6 8.8C7.37909 8.8 7.2 8.97912 7.2 9.2C7.2 9.42088 7.37909 9.6 7.6 9.6ZM1.6 5.4C1.6 4.18498 2.58498 3.2 3.8 3.2H12.2C13.41504 3.2 14.4 4.18498 14.4 5.4V10.6C14.4 11.81504 13.41504 12.8 12.2 12.8H3.8C2.58498 12.8 1.6 11.81504 1.6 10.6V5.4ZM3.8 4C3.0268 4 2.4 4.6268 2.4 5.4V10.6C2.4 11.3732 3.0268 12 3.8 12H12.2C12.9732 12 13.6 11.3732 13.6 10.6V5.4C13.6 4.6268 12.9732 4 12.2 4H3.8Z" />
-                        </Button>
-                    </StackPanel>
+                        <AppBarButton x:Name="ActualSizeButton"
+                                      AutomationProperties.AutomationId="ActualSizeButton"
+                                      AutomationProperties.Name="Actual size"
+                                      IsEnabled="False"
+                                      Click="ActualSizeButton_Click">
+                            <AppBarButton.Icon>
+                                <PathIcon Width="16" Height="16"
+                                          Data="M5.4103 5.65974C5.52822 5.73262 5.6 5.86137 5.6 6V10C5.6 10.22088 5.42091 10.4 5.2 10.4C4.97909 10.4 4.8 10.22088 4.8 10V6.64722L4.57889 6.75777C4.3813 6.85657 4.14102 6.77648 4.04223 6.57889C3.94343 6.3813 4.02352 6.14102 4.22111 6.04223L5.02111 5.64223C5.14511 5.58023 5.29237 5.58686 5.4103 5.65974ZM11.2 6C11.2 5.86137 11.12824 5.73262 11.01032 5.65974C10.8924 5.58686 10.74512 5.58023 10.62112 5.64223L9.82112 6.04223C9.62352 6.14102 9.54344 6.3813 9.64224 6.57889C9.74104 6.77648 9.98128 6.85657 10.17888 6.75777L10.4 6.64722V10C10.4 10.22088 10.57912 10.4 10.8 10.4C11.02088 10.4 11.2 10.22088 11.2 10V6ZM8 6.8C8 7.02091 7.82091 7.2 7.6 7.2C7.37909 7.2 7.2 7.02091 7.2 6.8C7.2 6.57909 7.37909 6.4 7.6 6.4C7.82091 6.4 8 6.57909 8 6.8ZM7.6 9.6C7.82091 9.6 8 9.42088 8 9.2C8 8.97912 7.82091 8.8 7.6 8.8C7.37909 8.8 7.2 8.97912 7.2 9.2C7.2 9.42088 7.37909 9.6 7.6 9.6ZM1.6 5.4C1.6 4.18498 2.58498 3.2 3.8 3.2H12.2C13.41504 3.2 14.4 4.18498 14.4 5.4V10.6C14.4 11.81504 13.41504 12.8 12.2 12.8H3.8C2.58498 12.8 1.6 11.81504 1.6 10.6V5.4ZM3.8 4C3.0268 4 2.4 4.6268 2.4 5.4V10.6C2.4 11.3732 3.0268 12 3.8 12H12.2C12.9732 12 13.6 11.3732 13.6 10.6V5.4C13.6 4.6268 12.9732 4 12.2 4H3.8Z" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
 
-                    <Rectangle Width="1"
-                               Height="16"
-                               Margin="2,8,2,8"
-                               VerticalAlignment="Center"
-                               RadiusX="0.5"
-                               RadiusY="0.5"
-                               Fill="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                        <AppBarSeparator />
 
-                    <!-- Opens the same menu the image area shows on right-click. -->
-                    <Button x:Name="ActionsButton"
-                            Style="{StaticResource ToolbarButtonStyle}"
-                            AutomationProperties.AutomationId="ActionsButton"
-                            AutomationProperties.Name="More actions"
-                            Click="ActionsButton_Click">
-                        <PathIcon Width="16" Height="16"
-                                  Data="M2 8a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM6.5 8a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM11 8a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0z" />
-                    </Button>
-                </StackPanel>
+                        <!-- Opens the same menu the image area shows on right-click. -->
+                        <AppBarButton x:Name="ActionsButton"
+                                      AutomationProperties.AutomationId="ActionsButton"
+                                      AutomationProperties.Name="More actions"
+                                      Click="ActionsButton_Click">
+                            <AppBarButton.Icon>
+                                <PathIcon Width="16" Height="16"
+                                          Data="M2 8a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM6.5 8a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM11 8a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0z" />
+                            </AppBarButton.Icon>
+                        </AppBarButton>
+                    </CommandBar.PrimaryCommands>
+                </CommandBar>
             </Border>
-
             <!-- The official InfoBar owns the error layout, severity colors,
                  icon and text metrics instead of a hand-built card. -->
             <InfoBar x:Name="ErrorPanel"
@@ -448,8 +352,8 @@
              the right. It stays in the window grid so it is also visible when
              an error panel is shown. -->
         <Border x:Name="StatusBar" Grid.Row="2" Height="28"
-                Background="{ThemeResource FloatingPanelBrush}"
-                BorderBrush="{ThemeResource FloatingPanelStrokeBrush}"
+                Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
                 BorderThickness="0,1,0,0">
             <Grid Padding="12,0">
                 <Grid.ColumnDefinitions>
@@ -460,20 +364,20 @@
                 <TextBlock x:Name="FileStatusText"
                            AutomationProperties.AutomationId="FileStatus"
                            AutomationProperties.Name="Image status"
+                           Style="{StaticResource CaptionTextBlockStyle}"
                            Text="No image"
-                           FontSize="12"
                            VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis"
-                           Foreground="{ThemeResource FloatingPanelSecondaryTextBrush}" />
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
 
                 <TextBlock x:Name="ViewStatusText"
                            Grid.Column="1"
                            AutomationProperties.AutomationId="ViewStatus"
                            AutomationProperties.Name="View status"
-                           FontSize="12"
+                           Style="{StaticResource CaptionTextBlockStyle}"
                            VerticalAlignment="Center"
                            Margin="16,0,0,0"
-                           Foreground="{ThemeResource FloatingPanelSecondaryTextBrush}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                            Text="" />
             </Grid>
         </Border>

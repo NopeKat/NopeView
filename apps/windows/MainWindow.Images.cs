@@ -523,11 +523,14 @@ public sealed partial class MainWindow : Window
     private void UpdateAnimationControls()
     {
         var animated = _frameCount > 1;
-        AnimationControls.Visibility = animated ? Visibility.Visible : Visibility.Collapsed;
+        var visibility = animated ? Visibility.Visible : Visibility.Collapsed;
+        AnimationSeparator.Visibility = visibility;
+        PlayPauseButton.Visibility = visibility;
+        LoopButton.Visibility = visibility;
         PlayPauseButton.IsEnabled = animated;
         LoopButton.IsEnabled = animated;
-        PlayPauseLabel.Text = _isAnimationPlaying ? "Pause" : "Play";
-        LoopLabel.Text = _animationLoop ? "Loop on" : "Loop off";
+        PlayPauseButton.Label = _isAnimationPlaying ? "Pause" : "Play";
+        LoopButton.Label = _animationLoop ? "Loop on" : "Loop off";
     }
 
     private void PlayPauseButton_Click(object sender, RoutedEventArgs e)

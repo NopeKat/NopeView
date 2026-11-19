@@ -17,13 +17,6 @@
                  else comes from XamlControlsResources above. -->
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Dark">
-                    <!-- Close button danger colors. The native close button does
-                         not follow the accent color, so these stay fixed per
-                         theme instead of deriving from SystemAccentColor. -->
-                    <SolidColorBrush x:Key="FloatingPanelBrush" Color="#E62B2B2B" />
-                    <SolidColorBrush x:Key="FloatingPanelStrokeBrush" Color="#4DFFFFFF" />
-                    <SolidColorBrush x:Key="FloatingPanelPrimaryTextBrush" Color="#FFFFFF" />
-                    <SolidColorBrush x:Key="FloatingPanelSecondaryTextBrush" Color="#C5C5C5" />
                     <SolidColorBrush x:Key="ViewerBackgroundBrush" Color="#1A1A1A" />
 
                     <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="#FFFFFF" />
@@ -109,10 +102,6 @@
 
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Light">
-                    <SolidColorBrush x:Key="FloatingPanelBrush" Color="#F2FFFFFF" />
-                    <SolidColorBrush x:Key="FloatingPanelStrokeBrush" Color="#1A000000" />
-                    <SolidColorBrush x:Key="FloatingPanelPrimaryTextBrush" Color="#000000" />
-                    <SolidColorBrush x:Key="FloatingPanelSecondaryTextBrush" Color="#5D5D5D" />
                     <SolidColorBrush x:Key="ViewerBackgroundBrush" Color="#F5F5F5" />
 
                     <SolidColorBrush x:Key="TextFillColorPrimaryBrush" Color="#E4000000" />
