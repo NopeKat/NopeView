@@ -28,8 +28,8 @@ public sealed partial class SettingsWindow : Window
     {
         InitializeComponent();
 
-        // The window has no system caption; the content draws the only close
-        // button, so the page starts at the very top of the window.
+        // Content extends into the title bar so the official TitleBar control
+        // owns the caption and the system buttons.
         ExtendsContentIntoTitleBar = true;
 
         _windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
@@ -83,19 +83,9 @@ public sealed partial class SettingsWindow : Window
         }
         _titleBarInitialized = true;
 
-        // Collapse the system caption entirely; the XAML close button replaces
-        // it. Only the empty strip to its left is registered as the drag
-        // region, which keeps the button's clicks out of the window move loop.
-        if (AppWindowTitleBar.IsCustomizationSupported())
-        {
-            AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Collapsed;
-        }
-        SetTitleBar(TitleBarDragRegion);
-    }
-
-    private void SettingsCloseButton_Click(object sender, RoutedEventArgs e)
-    {
-        Close();
+        // Register the official TitleBar control as the drag region. It keeps
+        // the system caption buttons instead of a self-drawn close button.
+        SetTitleBar(SettingsTitleBar);
     }
 
     // Escape and Ctrl+, both close the window. Ctrl+, is declared as the raw

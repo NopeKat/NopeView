@@ -121,16 +121,7 @@
         </Grid>
 
         <Grid Grid.Column="1">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
-            </Grid.RowDefinitions>
-            <TextBlock Text="Settings"
-                       Style="{StaticResource TitleTextBlockStyle}"
-                       AutomationProperties.HeadingLevel="Level1"
-                       Margin="36,24,36,0" />
-            <ScrollViewer Grid.Row="1"
-                          Padding="36,0,36,0"
+            <ScrollViewer Padding="36,24,36,0"
                           VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
                 <Grid>

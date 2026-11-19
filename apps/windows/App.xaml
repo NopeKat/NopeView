@@ -11,24 +11,15 @@
             </ResourceDictionary.MergedDictionaries>
             <!-- Fluent color tokens pinned from the official WinUI theme
                  dictionaries (.refs, Common_themeresources_any.xaml). Only the
-                 keys the caption, viewer and settings surface read directly are
+                 keys the viewer and settings surface read directly are
                  restated here, so their values stay stable even when a system
                  theme update reorders the framework dictionaries. Everything
                  else comes from XamlControlsResources above. -->
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Dark">
-                    <SolidColorBrush x:Key="CaptionGlyphBrush" Color="#FFFFFF" />
-                    <SolidColorBrush x:Key="CaptionGlyphInactiveBrush" Color="#808080" />
-                    <SolidColorBrush x:Key="CaptionHoverBrush" Color="#3C3C3C" />
-                    <SolidColorBrush x:Key="CaptionPressedBrush" Color="#4D4D4D" />
                     <!-- Close button danger colors. The native close button does
                          not follow the accent color, so these stay fixed per
                          theme instead of deriving from SystemAccentColor. -->
-
-                    <SolidColorBrush x:Key="CaptionCloseHoverBrush" Color="#E81123" />
-                    <SolidColorBrush x:Key="CaptionCloseHoverGlyphBrush" Color="#FCE1E3" />
-                    <SolidColorBrush x:Key="CaptionClosePressedBrush" Color="#C42B1C" />
-                    <SolidColorBrush x:Key="CaptionClosePressedGlyphBrush" Color="#FFFFFF" />
                     <SolidColorBrush x:Key="FloatingPanelBrush" Color="#E62B2B2B" />
                     <SolidColorBrush x:Key="FloatingPanelStrokeBrush" Color="#4DFFFFFF" />
                     <SolidColorBrush x:Key="FloatingPanelPrimaryTextBrush" Color="#FFFFFF" />
@@ -118,15 +109,6 @@
 
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Light">
-                    <SolidColorBrush x:Key="CaptionGlyphBrush" Color="#000000" />
-                    <SolidColorBrush x:Key="CaptionGlyphInactiveBrush" Color="#999999" />
-                    <SolidColorBrush x:Key="CaptionHoverBrush" Color="#E5E5E5" />
-                    <SolidColorBrush x:Key="CaptionPressedBrush" Color="#CCCCCC" />
-
-                    <SolidColorBrush x:Key="CaptionCloseHoverBrush" Color="#E81123" />
-                    <SolidColorBrush x:Key="CaptionCloseHoverGlyphBrush" Color="#FCE1E3" />
-                    <SolidColorBrush x:Key="CaptionClosePressedBrush" Color="#C42B1C" />
-                    <SolidColorBrush x:Key="CaptionClosePressedGlyphBrush" Color="#FFFFFF" />
                     <SolidColorBrush x:Key="FloatingPanelBrush" Color="#F2FFFFFF" />
                     <SolidColorBrush x:Key="FloatingPanelStrokeBrush" Color="#1A000000" />
                     <SolidColorBrush x:Key="FloatingPanelPrimaryTextBrush" Color="#000000" />

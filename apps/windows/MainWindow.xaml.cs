@@ -30,19 +30,9 @@ public sealed partial class MainWindow : Window
     // where the preferred size would cover the whole screen.
     private const double RestoreAreaRatio = 0.9;
 
-    // Caption glyph colors live in App.xaml's theme dictionaries. The active
-    // color comes from each element's own theme default, and the inactive
-    // greys are looked up per element theme, so the title bar follows the app
-    // theme instead of the application-level (system) theme.
-
     private readonly DispatcherTimer _animationTimer = new();
 
-    private bool _titleBarInitialized;
-    private bool _windowActive = true;
     private nint _windowHandle;
-    // Pressed visual state of a caption button held down while the window
-    // move loop is active; reported by the native caption press filter.
-    private Button? _movePressedButton;
     private const double MinZoom = 0.1;
     private const double MaxZoom = 8.0;
     private const double ZoomStep = 1.2;
@@ -172,18 +162,13 @@ public sealed partial class MainWindow : Window
             AppWindow.SetIcon(iconPath);
         }
 
-        // Extend content into the title bar so the custom XAML row can own the
-        // drag region. The native strip is collapsed later in RootGrid_Loaded.
+        // Extend content into the title bar so the official TitleBar control
+        // occupies the caption area and keeps the system buttons.
         ExtendsContentIntoTitleBar = true;
 
         ConfigureStartupWindow();
 
-        // The caption glyphs turn grey when the window loses focus, exactly as
-        // the native title bar buttons do. Both activation and theme changes
-        // re-evaluate the glyph color.
-        Activated += MainWindow_Activated;
         Closed += MainWindow_Closed;
-        RootGrid.ActualThemeChanged += (_, _) => UpdateCaptionAppearance();
     }
 
     /// <summary>
@@ -213,12 +198,6 @@ public sealed partial class MainWindow : Window
         RootGrid.KeyboardAccelerators.Add(accelerator);
     }
 
-    private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
-    {
-        _windowActive = args.WindowActivationState != WindowActivationState.Deactivated;
-        UpdateCaptionAppearance();
-    }
-
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
         // The settings window is independent, so closing the viewer must also
@@ -228,8 +207,6 @@ public sealed partial class MainWindow : Window
 
         _animationTimer.Stop();
         _decodeCancellation?.Cancel();
-        Win32Window.UnsuppressSystemMenu(_windowHandle);
-        Win32Window.UninstallCaptionPressFilter(_windowHandle);
         RouterApi.Close(_routerContext);
         _routerContext = IntPtr.Zero;
     }
@@ -285,68 +262,11 @@ public sealed partial class MainWindow : Window
 
     private void RootGrid_Loaded(object sender, RoutedEventArgs e)
     {
-        if (_titleBarInitialized)
-        {
-            return;
-        }
-        _titleBarInitialized = true;
-
-        // Only the options that differ from the defaults are set here; the
-        // extended title bar itself was enabled in the constructor.
-        if (AppWindowTitleBar.IsCustomizationSupported())
-        {
-            // Collapse the system title bar entirely. This removes the native
-            // caption buttons and their tooltips; the XAML buttons below replace
-            // them and reproduce their geometry and colors.
-            AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Collapsed;
-        }
-
-        // Register the custom row as the drag region now that the system strip
-        // is gone. AppTitleBar owns the whole caption area.
+        // Register the official TitleBar control as the drag region. It keeps
+        // the system caption buttons and their active/inactive states.
         SetTitleBar(AppTitleBar);
-
-        // Presses on the caption buttons start the window move loop before
-        // the XAML buttons see the pointer, so their pressed visual state
-        // never engages on its own (hover and click still work). The native
-        // subclass below reports the non-client presses so the pressed state
-        // can be shown manually. The WinRT InputNonClientPointerSource is not
-        // usable for this on the current SDK: obtaining it switches the title
-        // bar input routing away from the SetTitleBar regions and stops the
-        // button clicks from working entirely.
-        if (!Win32Window.TryInstallCaptionPressFilter(
-                _windowHandle,
-                OnCaptionPressFeedback,
-                OnCaptionReleaseFeedback))
-        {
-            System.Diagnostics.Debug.WriteLine("Failed to install the caption press filter.");
-        }
-
-        // Keep the maximize/restore glyph in sync with the window state, both
-        // on button clicks and on state changes from elsewhere (double click,
-        // snap layouts, keyboard).
-        UpdateCaptionIcons();
-        AppWindow.Changed += AppWindow_Changed;
-
-        // The native system menu is unwanted on the custom title bar. Filter the
-        // messages that open it instead of clearing WS_SYSMENU, which would also
-        // shift the caption buttons off the visible right edge.
-        if (!Win32Window.TrySuppressSystemMenu(_windowHandle))
-        {
-            System.Diagnostics.Debug.WriteLine("Failed to install the system menu filter.");
-        }
-
-        UpdateCaptionAppearance();
         OpenImageFromCommandLine();
     }
-
-    private void AppWindow_Changed(AppWindow sender, AppWindowChangedEventArgs args)
-    {
-        // Presenter state (maximized/restored/minimized) changes are reported
-        // here, including ones not caused by our own caption buttons. The check
-        // is cheap, so refresh on every change rather than inspecting args.
-        UpdateCaptionIcons();
-    }
-
     private void EscapeAccelerator_Invoked(
         KeyboardAccelerator sender,
         KeyboardAcceleratorInvokedEventArgs args)
@@ -402,8 +322,6 @@ public sealed partial class MainWindow : Window
                 presenter.Maximize();
             }
         }
-
-        UpdateCaptionIcons();
     }
 
     /// <summary>
