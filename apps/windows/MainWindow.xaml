@@ -205,12 +205,12 @@
                     <ThemeShadow />
                 </Border.Shadow>
                 <CommandBar x:Name="ViewerCommandBar"
-                            DefaultLabelPosition="Right"
+                            DefaultLabelPosition="Collapsed"
                             Background="Transparent"
                             BorderThickness="0">
                     <CommandBar.PrimaryCommands>
                         <AppBarButton x:Name="OpenButton"
-                                      Label="Open"
+                                      ToolTipService.ToolTip="Open image"
                                       AutomationProperties.AutomationId="OpenButton"
                                       AutomationProperties.Name="Open image"
                                       Click="OpenButton_Click">
@@ -253,8 +253,8 @@
                                          Visibility="Collapsed" />
 
                         <AppBarToggleButton x:Name="PlayPauseButton"
-                                            Label="Play/Pause"
                                             Visibility="Collapsed"
+                                            ToolTipService.ToolTip="Play"
                                             AutomationProperties.AutomationId="PlayPauseButton"
                                             AutomationProperties.Name="Play"
                                             Click="PlayPauseButton_Click">
@@ -265,8 +265,8 @@
                         </AppBarToggleButton>
 
                         <AppBarToggleButton x:Name="LoopButton"
-                                            Label="Loop"
                                             Visibility="Collapsed"
+                                            ToolTipService.ToolTip="Turn loop off"
                                             AutomationProperties.AutomationId="LoopButton"
                                             AutomationProperties.Name="Loop off"
                                             Click="LoopButton_Click">

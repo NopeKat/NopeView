@@ -517,8 +517,6 @@ public sealed partial class MainWindow : Window
         LoopButton.Visibility = visibility;
         PlayPauseButton.IsEnabled = animated;
         LoopButton.IsEnabled = animated;
-        PlayPauseButton.Label = "Play/Pause";
-        LoopButton.Label = "Loop";
         PlayPauseButton.IsChecked = _isAnimationPlaying;
         LoopButton.IsChecked = _animationLoop;
         PlayPauseButton.Icon = new PathIcon
@@ -529,6 +527,8 @@ public sealed partial class MainWindow : Window
         };
         AutomationProperties.SetName(PlayPauseButton, _isAnimationPlaying ? "Pause" : "Play");
         AutomationProperties.SetName(LoopButton, _animationLoop ? "Loop on" : "Loop off");
+        ToolTipService.SetToolTip(PlayPauseButton, _isAnimationPlaying ? "Pause" : "Play");
+        ToolTipService.SetToolTip(LoopButton, _animationLoop ? "Turn loop off" : "Turn loop on");
     }
 
     private void PlayPauseButton_Click(object sender, RoutedEventArgs e)

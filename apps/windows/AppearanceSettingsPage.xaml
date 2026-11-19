@@ -8,9 +8,9 @@
     AutomationProperties.Name="Appearance settings"
     Background="Transparent">
 
-    <ScrollViewer Padding="{StaticResource SettingsContentPadding}"
-                  VerticalScrollBarVisibility="Auto"
-                  HorizontalScrollBarVisibility="Disabled">
+    <ScrollView Padding="{StaticResource SettingsContentPadding}"
+                VerticalScrollBarVisibility="Auto"
+                VerticalScrollMode="Auto">
         <StackPanel MaxWidth="{StaticResource SettingsContentMaxWidth}"
                     Spacing="{StaticResource SettingsCardSpacing}">
             <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
@@ -37,5 +37,5 @@
                 </ComboBox>
             </toolkit:SettingsCard>
         </StackPanel>
-    </ScrollViewer>
+    </ScrollView>
 </Page>

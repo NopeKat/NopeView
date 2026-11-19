@@ -8,9 +8,9 @@
     AutomationProperties.Name="About settings"
     Background="Transparent">
 
-    <ScrollViewer Padding="{StaticResource SettingsContentPadding}"
-                  VerticalScrollBarVisibility="Auto"
-                  HorizontalScrollBarVisibility="Disabled">
+    <ScrollView Padding="{StaticResource SettingsContentPadding}"
+                VerticalScrollBarVisibility="Auto"
+                VerticalScrollMode="Auto">
         <StackPanel MaxWidth="{StaticResource SettingsContentMaxWidth}"
                     Spacing="{StaticResource SettingsCardSpacing}">
             <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
@@ -34,5 +34,5 @@
                                  NavigateUri="https://github.com/NopeKat/NopeView" />
             </toolkit:SettingsCard>
         </StackPanel>
-    </ScrollViewer>
+    </ScrollView>
 </Page>

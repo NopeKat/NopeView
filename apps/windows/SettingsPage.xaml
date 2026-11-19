@@ -11,10 +11,10 @@
          keyboard navigation and item accessibility. Content is hosted by a
          Frame, so each section is a normal Page. -->
     <NavigationView x:Name="SettingsNavigation"
-                    PaneDisplayMode="Left"
+                    PaneDisplayMode="Auto"
                     IsSettingsVisible="False"
                     IsBackButtonVisible="Collapsed"
-                    IsPaneToggleButtonVisible="False"
+                    IsPaneToggleButtonVisible="True"
                     HorizontalContentAlignment="Stretch"
                     VerticalContentAlignment="Stretch"
                     SelectionChanged="SettingsNavigation_SelectionChanged"
