@@ -57,16 +57,6 @@ public sealed partial class SettingsWindow : Window
     internal void ApplyTheme(AppTheme theme)
     {
         ThemeApplication.Apply(RootGrid, theme);
-
-        // The caption is drawn by the system, not by the page, so pin it to the
-        // same theme or a light caption sits above dark content.
-        var dark = theme switch
-        {
-            AppTheme.Light => false,
-            AppTheme.Dark => true,
-            _ => Application.Current.RequestedTheme == ApplicationTheme.Dark
-        };
-        Win32Window.ApplyImmersiveDarkCaption(_windowHandle, dark);
     }
 
     private void OnThemeChosen(AppTheme theme)

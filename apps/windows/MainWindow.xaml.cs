@@ -6,7 +6,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Media.Imaging;
 using NopeView.App.Native;
 using Windows.ApplicationModel.DataTransfer;
@@ -95,8 +94,6 @@ public sealed partial class MainWindow : Window
     // allocates a new native image object for each animation step.
     private readonly SoftwareBitmapSource _frameSource = new();
 
-    private readonly Storyboard _loadingAnimation;
-
     // User preferences are loaded at startup and saved as soon as a choice is
     // made on the settings page. Theme is applied to the root grid so the local
     // ThemeDictionaries in App.xaml switch without touching system brushes.
@@ -115,7 +112,6 @@ public sealed partial class MainWindow : Window
         // Mica is the Fluent window backdrop. It only becomes visible while
         // the settings page is shown; the viewer keeps its own solid surface.
         SystemBackdrop = new MicaBackdrop();
-        _loadingAnimation = CreateLoadingAnimation();
 
         // The thumb marks pointer events as handled while it drags, so the
         // pinch tracking below listens to handled events as well.

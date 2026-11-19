@@ -46,7 +46,7 @@
         <Grid x:Name="ContentRoot" Grid.Row="1"
               Background="{ThemeResource ViewerBackgroundBrush}">
             <Grid x:Name="Viewport"
-                  Background="#01000000"
+                  Background="Transparent"
                   SizeChanged="Viewport_SizeChanged">
                 <Grid.ContextFlyout>
                     <!-- The same menu is shown from the toolbar's actions
@@ -154,41 +154,35 @@
                        HorizontalAlignment="Stretch"
                        VerticalAlignment="Stretch"
                        IsTabStop="False"
+                       Background="Transparent"
+                       BorderThickness="0"
                        DragDelta="PanThumb_DragDelta"
                        PointerWheelChanged="PanThumb_PointerWheelChanged">
-                    <Thumb.Template>
-                        <ControlTemplate TargetType="Thumb">
-                            <Rectangle Fill="Transparent" />
-                        </ControlTemplate>
-                    </Thumb.Template>
+                    <!-- The default Thumb template paints its whole surface on
+                         hover and press. Keeping the official template but
+                         resolving its state brushes to transparent leaves the
+                         thumb hit-testable with no visible fill. -->
+                    <Thumb.Resources>
+                        <SolidColorBrush x:Key="ThumbBackground" Color="Transparent" />
+                        <SolidColorBrush x:Key="ThumbBackgroundPointerOver" Color="Transparent" />
+                        <SolidColorBrush x:Key="ThumbBackgroundPressed" Color="Transparent" />
+                        <SolidColorBrush x:Key="ThumbBorderBrush" Color="Transparent" />
+                    </Thumb.Resources>
                 </Thumb>
 
-                <!-- Shown while a file is being decoded. Decoding happens on a
-                     worker thread, so this keeps animating while the UI stays
-                     responsive. A ProgressRing was not usable: its Lottie
-                     visual crashes the current WinUI build, so the spinner
-                     redraws the same look with the ProgressRing metrics: 32 px
-                     box, 4 px accent arc, round caps. -->
-                <Border x:Name="LoadingRing"
-                        AutomationProperties.AutomationId="LoadingRing"
-                        AutomationProperties.Name="Loading image"
-                        Width="32"
-                        Height="32"
-                        Visibility="Collapsed"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center">
-                    <!-- 270 degree arc, clockwise from the top. -->
-                    <Path Stroke="{ThemeResource AccentFillColorDefaultBrush}"
-                          StrokeThickness="4"
-                          StrokeStartLineCap="Round"
-                          StrokeEndLineCap="Round"
-                          Data="M16,2.5 A13.5,13.5 0 1 1 2.5,16"
-                          RenderTransformOrigin="0.5,0.5">
-                        <Path.RenderTransform>
-                            <RotateTransform x:Name="LoadingSpinnerRotation" />
-                        </Path.RenderTransform>
-                    </Path>
-                </Border>
+                <!-- Shown while a file is being decoded. The official
+                     ProgressRing was not usable: its Lottie visual crashes
+                     this WinUI build when a second image starts decoding, so
+                     the indeterminate ProgressBar reports the same busy state
+                     without a Lottie animation. -->
+                <ProgressBar x:Name="LoadingRing"
+                             AutomationProperties.AutomationId="LoadingRing"
+                             AutomationProperties.Name="Loading image"
+                             Width="160"
+                             IsIndeterminate="False"
+                             Visibility="Collapsed"
+                             HorizontalAlignment="Center"
+                             VerticalAlignment="Center" />
             </Grid>
 
             <!-- Floating toolbar. The official CommandBar supplies the button
@@ -197,8 +191,7 @@
             <Border HorizontalAlignment="Left"
                     VerticalAlignment="Top"
                     Margin="12"
-                    Padding="4"
-                    CornerRadius="8"
+                    CornerRadius="{ThemeResource OverlayCornerRadius}"
                     Background="{ThemeResource ControlOnImageFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
                     BorderThickness="1">
@@ -341,7 +334,6 @@
                      Title="Could not open image"
                      HorizontalAlignment="Center"
                      VerticalAlignment="Bottom"
-                     MaxWidth="640"
                      Margin="24"
                      AutomationProperties.AutomationId="ErrorInfoBar"
                      AutomationProperties.Name="Image error" />
@@ -351,11 +343,11 @@
         <!-- Bottom status bar: the current file on the left, view state on
              the right. It stays in the window grid so it is also visible when
              an error panel is shown. -->
-        <Border x:Name="StatusBar" Grid.Row="2" Height="28"
+        <Border x:Name="StatusBar" Grid.Row="2"
                 Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
                 BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
                 BorderThickness="0,1,0,0">
-            <Grid Padding="12,0">
+            <Grid Padding="12,6">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />

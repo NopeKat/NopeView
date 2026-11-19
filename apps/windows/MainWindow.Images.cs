@@ -3,7 +3,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.Windows.Storage.Pickers;
 using NopeView.App.Native;
 using Windows.ApplicationModel.DataTransfer;
@@ -383,39 +382,7 @@ public sealed partial class MainWindow : Window
         }
 
         LoadingRing.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
-
-        // The rotation is a dependent animation, so it only needs to run while
-        // the indicator is on screen.
-        if (loading)
-        {
-            _loadingAnimation.Begin();
-        }
-        else
-        {
-            _loadingAnimation.Stop();
-        }
-    }
-
-    /// <summary>
-    /// Spins the dashed loading ring. A classic storyboard is used because a
-    /// ProgressRing's Lottie visual crashes the current WinUI build.
-    /// </summary>
-    private Storyboard CreateLoadingAnimation()
-    {
-        var spin = new DoubleAnimation
-        {
-            From = 0,
-            To = 360,
-            Duration = new Duration(TimeSpan.FromSeconds(1.2)),
-            RepeatBehavior = RepeatBehavior.Forever,
-            EnableDependentAnimation = true,
-        };
-        Storyboard.SetTarget(spin, LoadingSpinnerRotation);
-        Storyboard.SetTargetProperty(spin, "Angle");
-
-        var storyboard = new Storyboard();
-        storyboard.Children.Add(spin);
-        return storyboard;
+        LoadingRing.IsIndeterminate = loading;
     }
 
     private void UpdateImageAutomationName(string path)
