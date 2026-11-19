@@ -1,7 +1,6 @@
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.Foundation;
@@ -19,14 +18,14 @@ public sealed partial class MainWindow : Window
         };
     }
 
-    private void PanThumb_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
+    private void Viewport_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
     {
         if (_imagePixelWidth == 0)
         {
             return;
         }
 
-        var point = e.GetCurrentPoint(PanThumb);
+        var point = e.GetCurrentPoint(Viewport);
         var delta = point.Properties.MouseWheelDelta;
         if (delta == 0)
         {
@@ -39,52 +38,94 @@ public sealed partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void PanThumb_TouchPressed(object sender, PointerRoutedEventArgs e)
+    private void Viewport_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        if (e.Pointer.PointerDeviceType != PointerDeviceType.Touch)
+        var point = e.GetCurrentPoint(Viewport);
+        if (point.Properties.IsLeftButtonPressed ||
+            e.Pointer.PointerDeviceType == PointerDeviceType.Touch)
         {
-            return;
+            _isPanning = true;
+            _panPointerId = e.Pointer.PointerId;
+            _lastPanPoint = point.Position;
+            Viewport.CapturePointer(e.Pointer);
         }
 
-        _touchPoints[e.Pointer.PointerId] = e.GetCurrentPoint(PanThumb).Position;
-        UpdatePinchState();
+        if (e.Pointer.PointerDeviceType == PointerDeviceType.Touch)
+        {
+            _touchPoints[e.Pointer.PointerId] = point.Position;
+            UpdatePinchState();
+        }
     }
 
-    private void PanThumb_TouchMoved(object sender, PointerRoutedEventArgs e)
+    private void Viewport_PointerMoved(object sender, PointerRoutedEventArgs e)
     {
-        if (e.Pointer.PointerDeviceType != PointerDeviceType.Touch ||
-            !_touchPoints.ContainsKey(e.Pointer.PointerId))
+        var point = e.GetCurrentPoint(Viewport);
+        if (e.Pointer.PointerDeviceType == PointerDeviceType.Touch &&
+            _touchPoints.ContainsKey(e.Pointer.PointerId))
+        {
+            _touchPoints[e.Pointer.PointerId] = point.Position;
+        }
+
+        if (_isPinching)
+        {
+            // The focal point follows the fingers, so pan with it and scale
+            // around it; pointer panning is suppressed while pinching.
+            _lastPanPoint = point.Position;
+            if (_imagePixelWidth == 0)
+            {
+                return;
+            }
+
+            if (!TryGetPinchGeometry(out var center, out var distance) ||
+                distance < 1 || _pinchDistance < 1)
+            {
+                return;
+            }
+
+            _view.PanX += center.X - _pinchCenter.X;
+            _view.PanY += center.Y - _pinchCenter.Y;
+            _view.ApplyTo(ImageTransform);
+            ZoomAtPoint(_view.Zoom * (distance / _pinchDistance), center);
+            _pinchCenter = center;
+            _pinchDistance = distance;
+            return;
+        }
+
+        if (!_isPanning || e.Pointer.PointerId != _panPointerId ||
+            _imagePixelWidth == 0)
         {
             return;
         }
 
-        _touchPoints[e.Pointer.PointerId] = e.GetCurrentPoint(PanThumb).Position;
-        if (!_isPinching || _imagePixelWidth == 0)
+        var deltaX = point.Position.X - _lastPanPoint.X;
+        var deltaY = point.Position.Y - _lastPanPoint.Y;
+        if (deltaX == 0 && deltaY == 0)
         {
             return;
         }
 
-        if (!TryGetPinchGeometry(out var center, out var distance) ||
-            distance < 1 || _pinchDistance < 1)
-        {
-            return;
-        }
-
-        // The focal point follows the fingers, so pan with it and scale
-        // around it; the thumb drag is suppressed while pinching.
-        _view.PanX += center.X - _pinchCenter.X;
-        _view.PanY += center.Y - _pinchCenter.Y;
+        _view.PanX += deltaX;
+        _view.PanY += deltaY;
         _view.ApplyTo(ImageTransform);
-        ZoomAtPoint(_view.Zoom * (distance / _pinchDistance), center);
-        _pinchCenter = center;
-        _pinchDistance = distance;
+        UpdateViewStatus();
+        _lastPanPoint = point.Position;
+        e.Handled = true;
     }
 
-    private void PanThumb_TouchReleased(object sender, PointerRoutedEventArgs e)
+    private void Viewport_PointerReleased(object sender, PointerRoutedEventArgs e)
     {
+        if (_isPanning && e.Pointer.PointerId == _panPointerId)
+        {
+            _isPanning = false;
+        }
+
         if (_touchPoints.Remove(e.Pointer.PointerId))
         {
             UpdatePinchState();
+            if (_isPanning)
+            {
+                _lastPanPoint = e.GetCurrentPoint(Viewport).Position;
+            }
         }
     }
 
@@ -156,25 +197,12 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        var deltaX = anchor.X - PanThumb.ActualWidth / 2 - _view.PanX;
-        var deltaY = anchor.Y - PanThumb.ActualHeight / 2 - _view.PanY;
+        var deltaX = anchor.X - Viewport.ActualWidth / 2 - _view.PanX;
+        var deltaY = anchor.Y - Viewport.ActualHeight / 2 - _view.PanY;
         var factor = 1 - newZoom / _view.Zoom;
         _view.PanX += factor * deltaX;
         _view.PanY += factor * deltaY;
         SetZoom(newZoom);
-    }
-
-    private void PanThumb_DragDelta(object sender, DragDeltaEventArgs e)
-    {
-        if (_imagePixelWidth == 0 || _isPinching)
-        {
-            return;
-        }
-
-        _view.PanX += e.HorizontalChange;
-        _view.PanY += e.VerticalChange;
-        _view.ApplyTo(ImageTransform);
-        UpdateViewStatus();
     }
 
     private void ZoomOutButton_Click(object sender, RoutedEventArgs e)

@@ -384,7 +384,7 @@ public sealed partial class MainWindow : Window
         }
 
         LoadingRing.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
-        LoadingRing.IsIndeterminate = loading;
+        LoadingRing.IsActive = loading;
     }
 
     private void UpdateImageAutomationName(string path)

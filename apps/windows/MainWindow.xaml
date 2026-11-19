@@ -51,7 +51,8 @@
             </Grid.RowDefinitions>
             <Grid x:Name="Viewport"
                   Background="Transparent"
-                  SizeChanged="Viewport_SizeChanged">
+                  SizeChanged="Viewport_SizeChanged"
+                  PointerWheelChanged="Viewport_PointerWheelChanged">
                 <Grid.ContextFlyout>
                     <!-- The same menu is shown from the toolbar's actions
                          button, so every command stays reachable without a
@@ -148,45 +149,19 @@
                     </Image.RenderTransform>
                 </Image>
 
-                <!-- Thumb handles drag input reliably inside the WinUI host.
-                     The default Thumb template paints ThumbBackgroundPointerOver
-                     and ThumbBackgroundPressed across its whole surface, which
-                     turned the entire viewport dark on hover. A transparent
-                     rectangle keeps the thumb hit-testable with no visuals. -->
-                <Thumb x:Name="PanThumb"
-                       AutomationProperties.AccessibilityView="Raw"
-                       HorizontalAlignment="Stretch"
-                       VerticalAlignment="Stretch"
-                       IsTabStop="False"
-                       Background="Transparent"
-                       BorderThickness="0"
-                       DragDelta="PanThumb_DragDelta"
-                       PointerWheelChanged="PanThumb_PointerWheelChanged">
-                    <!-- The default Thumb template paints its whole surface on
-                         hover and press. Keeping the official template but
-                         resolving its state brushes to transparent leaves the
-                         thumb hit-testable with no visible fill. -->
-                    <Thumb.Resources>
-                        <SolidColorBrush x:Key="ThumbBackground" Color="Transparent" />
-                        <SolidColorBrush x:Key="ThumbBackgroundPointerOver" Color="Transparent" />
-                        <SolidColorBrush x:Key="ThumbBackgroundPressed" Color="Transparent" />
-                        <SolidColorBrush x:Key="ThumbBorderBrush" Color="Transparent" />
-                    </Thumb.Resources>
-                </Thumb>
-
-                <!-- Shown while a file is being decoded. The official
-                     ProgressRing was not usable: its Lottie visual crashes
-                     this WinUI build when a second image starts decoding, so
-                     the indeterminate ProgressBar reports the same busy state
-                     without a Lottie animation. -->
-                <ProgressBar x:Name="LoadingRing"
-                             AutomationProperties.AutomationId="LoadingRing"
-                             AutomationProperties.Name="Loading image"
-                             Width="160"
-                             IsIndeterminate="False"
-                             Visibility="Collapsed"
-                             HorizontalAlignment="Center"
-                             VerticalAlignment="Center" />
+                <!-- The viewport itself receives pointer input. No extra
+                     transparent Thumb or control-template override is needed
+                     for panning. -->
+                <ProgressRing x:Name="LoadingRing"
+                              AutomationProperties.AutomationId="LoadingRing"
+                              AutomationProperties.Name="Loading image"
+                              Width="32"
+                              Height="32"
+                              IsActive="False"
+                              IsHitTestVisible="False"
+                              Visibility="Collapsed"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center" />
             </Grid>
 
             <!-- Floating toolbar. The official CommandBar supplies the button
@@ -198,7 +173,7 @@
                     Margin="12"
                     CornerRadius="{ThemeResource OverlayCornerRadius}"
                     Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
-                    BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                    BorderBrush="{ThemeResource SurfaceStrokeColorFlyoutBrush}"
                     BorderThickness="1"
                     Translation="0,0,16">
                 <Border.Shadow>

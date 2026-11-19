@@ -51,11 +51,17 @@ public sealed partial class MainWindow : Window
 
     // Touch contacts currently on the viewport. Two or more turn the gesture
     // into a pinch, which scales and pans around the contact midpoint while
-    // the thumb drag is ignored.
+    // pointer panning is suppressed.
     private readonly Dictionary<uint, Point> _touchPoints = new();
     private Point _pinchCenter;
     private double _pinchDistance;
     private bool _isPinching;
+
+    // The pointer currently dragging the image. Pointer capture keeps the
+    // drag alive after the cursor leaves the viewport.
+    private bool _isPanning;
+    private uint _panPointerId;
+    private Point _lastPanPoint;
 
     // True while the displayed bitmap is a downscaled preview. The status bar
     // still reports the source dimensions, and zooming past the preview scale
@@ -113,27 +119,27 @@ public sealed partial class MainWindow : Window
         // the settings page is shown; the viewer keeps its own solid surface.
         SystemBackdrop = new MicaBackdrop();
 
-        // The thumb marks pointer events as handled while it drags, so the
-        // pinch tracking below listens to handled events as well.
-        PanThumb.AddHandler(
+        // The viewport receives pointer events for panning and touch pinch
+        // tracking, including events already handled by child elements.
+        Viewport.AddHandler(
             UIElement.PointerPressedEvent,
-            new PointerEventHandler(PanThumb_TouchPressed),
+            new PointerEventHandler(Viewport_PointerPressed),
             true);
-        PanThumb.AddHandler(
+        Viewport.AddHandler(
             UIElement.PointerMovedEvent,
-            new PointerEventHandler(PanThumb_TouchMoved),
+            new PointerEventHandler(Viewport_PointerMoved),
             true);
-        PanThumb.AddHandler(
+        Viewport.AddHandler(
             UIElement.PointerReleasedEvent,
-            new PointerEventHandler(PanThumb_TouchReleased),
+            new PointerEventHandler(Viewport_PointerReleased),
             true);
-        PanThumb.AddHandler(
+        Viewport.AddHandler(
             UIElement.PointerCanceledEvent,
-            new PointerEventHandler(PanThumb_TouchReleased),
+            new PointerEventHandler(Viewport_PointerReleased),
             true);
-        PanThumb.AddHandler(
+        Viewport.AddHandler(
             UIElement.PointerCaptureLostEvent,
-            new PointerEventHandler(PanThumb_TouchReleased),
+            new PointerEventHandler(Viewport_PointerReleased),
             true);
         _windowHandle = Handle;
         _animationTimer.Tick += AnimationTimer_Tick;

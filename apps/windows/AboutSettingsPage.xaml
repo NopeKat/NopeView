@@ -13,6 +13,9 @@
                 VerticalScrollMode="Auto">
         <StackPanel MaxWidth="{StaticResource SettingsContentMaxWidth}"
                     Spacing="{StaticResource SettingsCardSpacing}">
+            <StackPanel.ChildrenTransitions>
+                <RepositionThemeTransition />
+            </StackPanel.ChildrenTransitions>
             <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
                        Text="About" />
             <toolkit:SettingsCard Header="NopeView"
