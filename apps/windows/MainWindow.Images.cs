@@ -31,7 +31,7 @@ public sealed partial class MainWindow : Window
 
     private async void OpenButton_Click(object sender, RoutedEventArgs e)
     {
-        await RunCommandAsync(OpenImageViaPickerAsync, "Could not open image");
+        await RunCommandAsync(OpenImageViaPickerAsync, Strings.OpenTitle);
     }
 
     private async Task OpenImageViaPickerAsync()
@@ -98,7 +98,7 @@ public sealed partial class MainWindow : Window
 
     private async void RootGrid_Drop(object sender, DragEventArgs e)
     {
-        await RunCommandAsync(() => OpenDroppedFileAsync(e), "Could not open image");
+        await RunCommandAsync(() => OpenDroppedFileAsync(e), Strings.OpenTitle);
     }
 
     private async Task OpenDroppedFileAsync(DragEventArgs e)
@@ -147,11 +147,16 @@ public sealed partial class MainWindow : Window
     {
         if (_routerContext == IntPtr.Zero)
         {
-            ShowError("Codec router is unavailable.");
+            ShowError(Strings.RouterUnavailable);
             return;
         }
 
         var generation = ++_decodeGeneration;
+        _decodeCancellation?.Cancel();
+        var cancellation = new CancellationTokenSource();
+        _decodeCancellation = cancellation;
+        var token = cancellation.Token;
+
         if (resetView)
         {
             // Only a full open shows the indicator. Animation frames are short
@@ -160,14 +165,20 @@ public sealed partial class MainWindow : Window
             SetLoading(true);
         }
 
+        var gateHeld = false;
         try
         {
+            await _decodeGate.WaitAsync(token);
+            gateHeld = true;
+            token.ThrowIfCancellationRequested();
+
             // Decoding, the pixel copy, and the premultiply step all run on a
             // worker thread. Leaving them on the UI thread froze the window for
             // the whole decode and prevented a loading state from rendering.
             var context = _routerContext;
             var maxDimension = fullResolution ? 0 : PreviewEdge();
-            var frame = await Task.Run(() => DecodeFrame(context, path, frameIndex, maxDimension));
+            var frame = await Task.Run(
+                () => DecodeFrame(context, path, frameIndex, maxDimension), token);
 
             if (generation != _decodeGeneration)
             {
@@ -178,13 +189,13 @@ public sealed partial class MainWindow : Window
 
             if (frame.Error is not null)
             {
-                FailDecode("Failed to open image: " + frame.Error);
+                FailDecode(Strings.OpenFailed(frame.Error));
                 return;
             }
 
             if (frame.Bitmap is null)
             {
-                FailDecode(DescribeStatus(frame.Status));
+                FailDecode(Strings.DescribeDecodeStatus(frame.Status));
                 return;
             }
 
@@ -236,9 +247,14 @@ public sealed partial class MainWindow : Window
                 }
             }
         }
+        catch (OperationCanceledException)
+        {
+            // A newer request replaced this decode before it started. The
+            // finally block still clears the loading state when it is current.
+        }
         catch (Exception ex)
         {
-            ShowError("Failed to open image: " + ex.Message);
+            ShowError(Strings.OpenFailed(ex.Message));
             if (!resetView)
             {
                 StopAnimation();
@@ -246,12 +262,23 @@ public sealed partial class MainWindow : Window
         }
         finally
         {
+            if (gateHeld)
+            {
+                _decodeGate.Release();
+            }
+
             // A superseded open must not hide the indicator, because the newer
             // request is still decoding behind it.
             if (resetView && generation == _decodeGeneration)
             {
                 SetLoading(false);
             }
+
+            if (ReferenceEquals(_decodeCancellation, cancellation))
+            {
+                _decodeCancellation = null;
+            }
+            cancellation.Dispose();
         }
 
         // Both failure paths share the same state repair: the preview bitmap is
@@ -408,7 +435,7 @@ public sealed partial class MainWindow : Window
 
     private void AnimationTimer_Tick(object? sender, object e)
     {
-        _ = RunCommandAsync(AdvanceAnimationAsync, "Could not play animation");
+        _ = RunCommandAsync(AdvanceAnimationAsync, Strings.AnimationTitle);
     }
 
     private async Task AdvanceAnimationAsync()
@@ -544,12 +571,12 @@ public sealed partial class MainWindow : Window
 
     private async void PreviousButton_Click(object sender, RoutedEventArgs e)
     {
-        await RunCommandAsync(MovePreviousAsync, "Could not open image");
+        await RunCommandAsync(MovePreviousAsync, Strings.OpenTitle);
     }
 
     private async void NextButton_Click(object sender, RoutedEventArgs e)
     {
-        await RunCommandAsync(MoveNextAsync, "Could not open image");
+        await RunCommandAsync(MoveNextAsync, Strings.OpenTitle);
     }
 
     private async void PreviousAccelerator_Invoked(
@@ -557,7 +584,7 @@ public sealed partial class MainWindow : Window
         KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
-        await RunCommandAsync(MovePreviousAsync, "Could not open image");
+        await RunCommandAsync(MovePreviousAsync, Strings.OpenTitle);
     }
 
     private async void NextAccelerator_Invoked(
@@ -565,7 +592,7 @@ public sealed partial class MainWindow : Window
         KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
-        await RunCommandAsync(MoveNextAsync, "Could not open image");
+        await RunCommandAsync(MoveNextAsync, Strings.OpenTitle);
     }
 
     private void PlayPauseAccelerator_Invoked(

@@ -46,7 +46,7 @@ public sealed partial class MainWindow : Window
 
     private async void CopyImageMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        await RunCommandAsync(CopyCurrentImageAsync, "Could not copy image");
+        await RunCommandAsync(CopyCurrentImageAsync, Strings.CopyTitle);
     }
 
     private async Task CopyCurrentImageAsync()
@@ -62,9 +62,7 @@ public sealed partial class MainWindow : Window
             using var bitmap = await DecodeStraightBitmapAsync(path, _frameIndex);
             if (bitmap is null)
             {
-                ShowError(
-                    "The current image could not be decoded for copying.",
-                    "Could not copy image");
+                ShowError(Strings.CopyDecodeFailed, Strings.CopyTitle);
                 return;
             }
 
@@ -86,7 +84,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            ShowError("Failed to copy image: " + ex.Message, "Could not copy image");
+            ShowError(Strings.CopyFailed(ex.Message), Strings.CopyTitle);
         }
     }
 
@@ -97,22 +95,30 @@ public sealed partial class MainWindow : Window
     private async Task<SoftwareBitmap?> DecodeStraightBitmapAsync(string path, uint frameIndex)
     {
         var context = _routerContext;
-        return await Task.Run(() =>
+        await _decodeGate.WaitAsync();
+        try
         {
-            using var decoded = RouterImage.Decode(
-                context, path, frameIndex, RouterApi.PixelFormatBgra8, 0, out _);
-            if (decoded is null)
+            return await Task.Run(() =>
             {
-                return null;
-            }
+                using var decoded = RouterImage.Decode(
+                    context, path, frameIndex, RouterApi.PixelFormatBgra8, 0, out _);
+                if (decoded is null)
+                {
+                    return null;
+                }
 
-            return PixelBuffer.ToSoftwareBitmap(decoded.Value, BitmapAlphaMode.Straight);
-        });
+                return PixelBuffer.ToSoftwareBitmap(decoded.Value, BitmapAlphaMode.Straight);
+            });
+        }
+        finally
+        {
+            _decodeGate.Release();
+        }
     }
 
     private async void SaveAsMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        await RunCommandAsync(SaveAsAsync, "Could not save image");
+        await RunCommandAsync(SaveAsAsync, Strings.SaveTitle);
     }
 
     private async Task SaveAsAsync()
@@ -147,11 +153,19 @@ public sealed partial class MainWindow : Window
 
             // The frame is decoded again in its original colors. Reusing the
             // displayed bitmap would save premultiplied pixels.
-            await Task.Run(() => SaveFrame(context, path, frameIndex, target));
+            await _decodeGate.WaitAsync();
+            try
+            {
+                await Task.Run(() => SaveFrame(context, path, frameIndex, target));
+            }
+            finally
+            {
+                _decodeGate.Release();
+            }
         }
         catch (Exception ex)
         {
-            ShowError("Failed to save image: " + ex.Message, "Could not save image");
+            ShowError(Strings.SaveFailed(ex.Message), Strings.SaveTitle);
         }
     }
 
@@ -165,14 +179,14 @@ public sealed partial class MainWindow : Window
             context, sourcePath, frameIndex, RouterApi.PixelFormatRgba8, 0, out var status);
         if (decoded is null)
         {
-            throw new InvalidOperationException(DescribeStatus(status));
+            throw new InvalidOperationException(Strings.DescribeDecodeStatus(status));
         }
 
         var image = decoded.Value;
         var encodeStatus = RouterApi.EncodeToFile(context, targetPath, ref image);
         if (encodeStatus != 0)
         {
-            throw new InvalidOperationException(DescribeEncodeStatus(encodeStatus));
+            throw new InvalidOperationException(Strings.DescribeEncodeStatus(encodeStatus));
         }
     }
 
@@ -195,7 +209,7 @@ public sealed partial class MainWindow : Window
         KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
-        await RunCommandAsync(CopyCurrentImageAsync, "Could not copy image");
+        await RunCommandAsync(CopyCurrentImageAsync, Strings.CopyTitle);
     }
 
     private void CopyPathAccelerator_Invoked(
@@ -211,31 +225,6 @@ public sealed partial class MainWindow : Window
         KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
-        await RunCommandAsync(SaveAsAsync, "Could not save image");
-    }
-
-    private static string DescribeEncodeStatus(int status)
-    {
-        return status switch
-        {
-            RouterApi.ErrUnsupportedFormat => "The target format cannot be encoded.",
-            RouterApi.ErrEncodeFailed => "The image could not be encoded.",
-            RouterApi.ErrOutOfMemory => "Not enough memory to encode this image.",
-            RouterApi.ErrIo => "The file could not be written.",
-            _ => $"The image could not be saved (status {status})."
-        };
-    }
-
-    private static string DescribeStatus(int status)
-    {
-        return status switch
-        {
-            RouterApi.ErrUnsupportedFormat => "Unsupported image format.",
-            RouterApi.ErrDecodeFailed => "The image is damaged or cannot be decoded.",
-            RouterApi.ErrOutOfMemory => "Not enough memory to decode this image.",
-            RouterApi.ErrIo => "The file could not be read.",
-            RouterApi.ErrAbiMismatch => "Codec ABI mismatch.",
-            _ => $"Failed to open image (status {status})."
-        };
+        await RunCommandAsync(SaveAsAsync, Strings.SaveTitle);
     }
 }

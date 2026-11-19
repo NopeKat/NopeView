@@ -35,7 +35,7 @@ public sealed partial class MainWindow : Window
 
         // Precision touchpad pinch arrives as Ctrl+wheel, so anchoring the
         // wheel zoom at the pointer makes pinch feel centered on the fingers.
-        ZoomAtPoint(delta > 0 ? _zoom * 1.1 : _zoom / 1.1, point.Position);
+        ZoomAtPoint(delta > 0 ? _view.Zoom * 1.1 : _view.Zoom / 1.1, point.Position);
         e.Handled = true;
     }
 
@@ -72,9 +72,10 @@ public sealed partial class MainWindow : Window
 
         // The focal point follows the fingers, so pan with it and scale
         // around it; the thumb drag is suppressed while pinching.
-        ImageTransform.TranslateX += center.X - _pinchCenter.X;
-        ImageTransform.TranslateY += center.Y - _pinchCenter.Y;
-        ZoomAtPoint(_zoom * (distance / _pinchDistance), center);
+        _view.PanX += center.X - _pinchCenter.X;
+        _view.PanY += center.Y - _pinchCenter.Y;
+        _view.ApplyTo(ImageTransform);
+        ZoomAtPoint(_view.Zoom * (distance / _pinchDistance), center);
         _pinchCenter = center;
         _pinchDistance = distance;
     }
@@ -150,16 +151,16 @@ public sealed partial class MainWindow : Window
     private void ZoomAtPoint(double zoom, Point anchor)
     {
         var newZoom = Math.Clamp(zoom, MinZoom, MaxZoom);
-        if (Math.Abs(newZoom - _zoom) < 0.0001)
+        if (Math.Abs(newZoom - _view.Zoom) < 0.0001)
         {
             return;
         }
 
-        var deltaX = anchor.X - PanThumb.ActualWidth / 2 - ImageTransform.TranslateX;
-        var deltaY = anchor.Y - PanThumb.ActualHeight / 2 - ImageTransform.TranslateY;
-        var factor = 1 - newZoom / _zoom;
-        ImageTransform.TranslateX += factor * deltaX;
-        ImageTransform.TranslateY += factor * deltaY;
+        var deltaX = anchor.X - PanThumb.ActualWidth / 2 - _view.PanX;
+        var deltaY = anchor.Y - PanThumb.ActualHeight / 2 - _view.PanY;
+        var factor = 1 - newZoom / _view.Zoom;
+        _view.PanX += factor * deltaX;
+        _view.PanY += factor * deltaY;
         SetZoom(newZoom);
     }
 
@@ -170,19 +171,20 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        ImageTransform.TranslateX += e.HorizontalChange;
-        ImageTransform.TranslateY += e.VerticalChange;
+        _view.PanX += e.HorizontalChange;
+        _view.PanY += e.VerticalChange;
+        _view.ApplyTo(ImageTransform);
         UpdateViewStatus();
     }
 
     private void ZoomOutButton_Click(object sender, RoutedEventArgs e)
     {
-        SetZoom(_zoom / ZoomStep);
+        SetZoom(_view.Zoom / ZoomStep);
     }
 
     private void ZoomInButton_Click(object sender, RoutedEventArgs e)
     {
-        SetZoom(_zoom * ZoomStep);
+        SetZoom(_view.Zoom * ZoomStep);
     }
 
     private void RotateButton_Click(object sender, RoutedEventArgs e)
@@ -192,8 +194,8 @@ public sealed partial class MainWindow : Window
 
     private void RotateClockwise()
     {
-        _rotation = (_rotation + 90) % 360;
-        ImageTransform.Rotation = _rotation;
+        _view.Rotation = (_view.Rotation + 90) % 360;
+        _view.ApplyTo(ImageTransform);
         UpdateViewStatus();
     }
 
@@ -217,11 +219,10 @@ public sealed partial class MainWindow : Window
 
         // 1:1 must be exact even when the needed scale falls outside the
         // interactive wheel limits; those limits only bound wheel zooming.
-        _zoom = 1.0 / ratio;
-        ImageTransform.ScaleX = _zoom;
-        ImageTransform.ScaleY = _zoom;
-        ImageTransform.TranslateX = 0;
-        ImageTransform.TranslateY = 0;
+        _view.Zoom = 1.0 / ratio;
+        _view.PanX = 0;
+        _view.PanY = 0;
+        _view.ApplyTo(ImageTransform);
         UpdateViewStatus();
         _ = UpgradeToFullResolutionAsync();
     }
@@ -249,12 +250,11 @@ public sealed partial class MainWindow : Window
 
     private void SetZoom(double zoom)
     {
-        _zoom = Math.Clamp(zoom, MinZoom, MaxZoom);
-        ImageTransform.ScaleX = _zoom;
-        ImageTransform.ScaleY = _zoom;
+        _view.Zoom = Math.Clamp(zoom, MinZoom, MaxZoom);
+        _view.ApplyTo(ImageTransform);
         UpdateViewStatus();
 
-        if (_zoom > 1.001)
+        if (_view.Zoom > 1.001)
         {
             // Zooming past fit magnifies a preview bitmap, so upgrade to the
             // real pixels once. The call is a no-op for full-resolution images.
@@ -264,21 +264,16 @@ public sealed partial class MainWindow : Window
 
     private void ResetView()
     {
-        _zoom = 1.0;
-        _rotation = 0;
-        ImageTransform.ScaleX = 1.0;
-        ImageTransform.ScaleY = 1.0;
-        ImageTransform.Rotation = 0;
-        ImageTransform.TranslateX = 0;
-        ImageTransform.TranslateY = 0;
+        _view.Reset();
+        _view.ApplyTo(ImageTransform);
         UpdateViewStatus();
     }
 
     private void UpdateViewStatus()
     {
-        var rotation = Math.Round(_rotation);
-        var panX = Math.Round(ImageTransform.TranslateX);
-        var panY = Math.Round(ImageTransform.TranslateY);
+        var rotation = Math.Round(_view.Rotation);
+        var panX = Math.Round(_view.PanX);
+        var panY = Math.Round(_view.PanY);
         var pan = Math.Abs(panX) >= 1 || Math.Abs(panY) >= 1
             ? $" | pan {panX:0},{panY:0}"
             : "";
@@ -286,13 +281,13 @@ public sealed partial class MainWindow : Window
             ? $" | {_frameIndex + 1}/{_frameCount}"
             : "";
 
-        if (Math.Abs(_zoom - 1.0) < 0.001)
+        if (Math.Abs(_view.Zoom - 1.0) < 0.001)
         {
             ViewStatusText.Text = $"Fit | {rotation:0} deg{frame}{pan}";
             return;
         }
 
-        var percent = _zoom * FitToPixelRatio * 100.0;
+        var percent = _view.Zoom * FitToPixelRatio * 100.0;
         ViewStatusText.Text = $"{Math.Round(percent):0}% | {rotation:0} deg{frame}{pan}";
     }
 
@@ -320,7 +315,7 @@ public sealed partial class MainWindow : Window
             return;
         }
         args.Handled = true;
-        SetZoom(_zoom * ZoomStep);
+        SetZoom(_view.Zoom * ZoomStep);
     }
 
     private void ZoomOutAccelerator_Invoked(
@@ -332,7 +327,7 @@ public sealed partial class MainWindow : Window
             return;
         }
         args.Handled = true;
-        SetZoom(_zoom / ZoomStep);
+        SetZoom(_view.Zoom / ZoomStep);
     }
 
     private void ActualSizeAccelerator_Invoked(
@@ -369,5 +364,35 @@ public sealed partial class MainWindow : Window
         }
         args.Handled = true;
         RotateClockwise();
+    }
+
+    /// <summary>
+    /// Zoom, rotation and pan of the displayed image. Every gesture writes
+    /// here and one ApplyTo call pushes the values into the render transform,
+    /// so the numbers and the transform cannot drift apart.
+    /// </summary>
+    private sealed class ViewState
+    {
+        internal double Zoom = 1.0;
+        internal double Rotation;
+        internal double PanX;
+        internal double PanY;
+
+        internal void Reset()
+        {
+            Zoom = 1.0;
+            Rotation = 0;
+            PanX = 0;
+            PanY = 0;
+        }
+
+        internal void ApplyTo(CompositeTransform transform)
+        {
+            transform.ScaleX = Zoom;
+            transform.ScaleY = Zoom;
+            transform.Rotation = Rotation;
+            transform.TranslateX = PanX;
+            transform.TranslateY = PanY;
+        }
     }
 }

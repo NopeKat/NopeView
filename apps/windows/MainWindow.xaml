@@ -32,6 +32,11 @@
                  Minimize and Restore use theme hover/pressed backgrounds;
                  Close keeps the native danger colors on hover and press. -->
             <Style x:Key="CaptionButtonStyle" TargetType="Button">
+                <!-- Same focus settings as the official button style, so
+                     keyboard focus draws the framework ring instead of
+                     nothing. -->
+                <Setter Property="UseSystemFocusVisuals" Value="True" />
+                <Setter Property="FocusVisualMargin" Value="-2" />
                 <Setter Property="Width" Value="46" />
                 <Setter Property="Height" Value="32" />
                 <Setter Property="Padding" Value="0" />
@@ -120,6 +125,8 @@
                  the WinUI 3 source (transparent at rest, subtle fill on hover
                  and press) while keeping the default Button template. -->
             <Style x:Key="ToolbarButtonStyle" TargetType="Button">
+                <Setter Property="UseSystemFocusVisuals" Value="True" />
+                <Setter Property="FocusVisualMargin" Value="-3" />
                 <Setter Property="Background" Value="{ThemeResource SubtleFillColorTransparentBrush}" />
                 <Setter Property="Foreground" Value="{ThemeResource TextFillColorPrimaryBrush}" />
                 <Setter Property="BorderBrush" Value="{ThemeResource SubtleFillColorTransparentBrush}" />

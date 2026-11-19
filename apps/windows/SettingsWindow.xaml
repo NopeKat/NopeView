@@ -13,6 +13,8 @@
             <!-- A standard Fluent icon button: 32 x 32 with 4 px corners,
                  transparent at rest and a subtle fill on hover and press. -->
             <Style x:Key="SettingsCloseButtonStyle" TargetType="Button">
+                <Setter Property="UseSystemFocusVisuals" Value="True" />
+                <Setter Property="FocusVisualMargin" Value="-2" />
                 <Setter Property="Width" Value="32" />
                 <Setter Property="Height" Value="32" />
                 <Setter Property="Padding" Value="0" />

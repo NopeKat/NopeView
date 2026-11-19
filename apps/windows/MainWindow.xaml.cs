@@ -56,8 +56,7 @@ public sealed partial class MainWindow : Window
     private IntPtr _routerContext;
     private IReadOnlyList<string>? _supportedExtensions;
     private ImageDirectory? _directory;
-    private double _zoom = 1.0;
-    private double _rotation;
+    private readonly ViewState _view = new();
     private int _imagePixelWidth;
     private int _imagePixelHeight;
 
@@ -96,8 +95,11 @@ public sealed partial class MainWindow : Window
 
     // Frames are decoded on a worker thread. A newer request makes an older
     // one stale, so the generation counter discards the superseded result
-    // instead of letting it overwrite the newer image.
+    // instead of letting it overwrite the newer image. The gate keeps only one
+    // native decode in flight; the token cancels requests still waiting for it.
     private int _decodeGeneration;
+    private readonly SemaphoreSlim _decodeGate = new(1, 1);
+    private CancellationTokenSource? _decodeCancellation;
 
     // A single source is reused for every frame. Creating a source per frame
     // allocates a new native image object for each animation step.
@@ -225,6 +227,7 @@ public sealed partial class MainWindow : Window
         _settingsWindow = null;
 
         _animationTimer.Stop();
+        _decodeCancellation?.Cancel();
         Win32Window.UnsuppressSystemMenu(_windowHandle);
         Win32Window.UninstallCaptionPressFilter(_windowHandle);
         RouterApi.Close(_routerContext);
@@ -420,7 +423,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void ShowError(string message, string title = "Could not open image")
+    private void ShowError(string message, string title = Strings.OpenTitle)
     {
         ErrorTitle.Text = title;
         ErrorText.Text = message;
