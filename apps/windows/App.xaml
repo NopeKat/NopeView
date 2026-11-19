@@ -7,7 +7,6 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
-                <ResourceDictionary Source="Styles/SettingsCardOverrides.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <!-- The viewer paints its own canvas behind the image, so this is
