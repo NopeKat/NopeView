@@ -28,9 +28,9 @@
         <x:Double x:Key="SettingsCardSpacing">4</x:Double>
     </Page.Resources>
 
-    <!-- A two-pane settings shell: the real NavigationView control needs
-         framework style keys this runtime cannot resolve, so the same Fluent
-         hierarchy is built from nav items and panels. -->
+    <!-- A two-pane settings shell that mirrors the NavigationView hierarchy
+         while keeping the pane background, item metrics and selection
+         indicator under our control. -->
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="320" />
