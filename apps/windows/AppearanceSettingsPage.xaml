@@ -8,16 +8,6 @@
     AutomationProperties.Name="Appearance settings"
     Background="Transparent">
 
-    <Page.Resources>
-        <Style x:Key="SettingsSectionHeaderStyle" TargetType="TextBlock"
-               BasedOn="{StaticResource BodyStrongTextBlockStyle}">
-            <Setter Property="Margin" Value="0,24,0,8" />
-        </Style>
-        <x:Double x:Key="SettingsCardSpacing">4</x:Double>
-        <x:Double x:Key="SettingsContentMaxWidth">1064</x:Double>
-        <Thickness x:Key="SettingsContentPadding">36,24,36,0</Thickness>
-    </Page.Resources>
-
     <ScrollViewer Padding="{StaticResource SettingsContentPadding}"
                   VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled">
@@ -33,7 +23,6 @@
                 </toolkit:SettingsCard.HeaderIcon>
                 <ComboBox x:Name="ThemeComboBox"
                           HorizontalAlignment="Right"
-                          MinWidth="200"
                           AutomationProperties.AutomationId="ThemeComboBox"
                           SelectionChanged="ThemeComboBox_SelectionChanged">
                     <ComboBoxItem Content="Light"

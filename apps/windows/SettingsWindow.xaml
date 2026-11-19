@@ -25,6 +25,10 @@
             </TitleBar.IconSource>
         </TitleBar>
 
-        <Frame x:Name="SettingsFrame" Grid.Row="1" Background="Transparent" />
+        <ContentControl x:Name="SettingsHost"
+                        Grid.Row="1"
+                        HorizontalContentAlignment="Stretch"
+                        VerticalContentAlignment="Stretch"
+                        Background="Transparent" />
     </Grid>
 </Window>

@@ -496,8 +496,14 @@ public sealed partial class MainWindow : Window
         LoopButton.Visibility = visibility;
         PlayPauseButton.IsEnabled = animated;
         LoopButton.IsEnabled = animated;
-        PlayPauseButton.Label = _isAnimationPlaying ? "Pause" : "Play";
-        LoopButton.Label = _animationLoop ? "Loop on" : "Loop off";
+        PlayPauseButton.Label = "Play/Pause";
+        LoopButton.Label = "Loop";
+        PlayPauseButton.IsChecked = _isAnimationPlaying;
+        LoopButton.IsChecked = _animationLoop;
+        PlayPauseButton.Icon = (IconElement)RootGrid.Resources[
+            _isAnimationPlaying ? "PlayPausePauseIcon" : "PlayPausePlayIcon"];
+        AutomationProperties.SetName(PlayPauseButton, _isAnimationPlaying ? "Pause" : "Play");
+        AutomationProperties.SetName(LoopButton, _animationLoop ? "Loop on" : "Loop off");
     }
 
     private void PlayPauseButton_Click(object sender, RoutedEventArgs e)

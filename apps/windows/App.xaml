@@ -9,17 +9,16 @@
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- The viewer paints its own canvas behind the image, so this is
-                 the only surface token the app owns. Everything else resolves
-                 from the official WinUI theme dictionaries. -->
-            <ResourceDictionary.ThemeDictionaries>
-                <ResourceDictionary x:Key="Dark">
-                    <SolidColorBrush x:Key="ViewerBackgroundBrush" Color="#1A1A1A" />
-                </ResourceDictionary>
-                <ResourceDictionary x:Key="Light">
-                    <SolidColorBrush x:Key="ViewerBackgroundBrush" Color="#F5F5F5" />
-                </ResourceDictionary>
-            </ResourceDictionary.ThemeDictionaries>
+            <!-- Shared settings layout. Values follow the Windows settings
+                 page: 24 px page inset, a 1000 px content column and 4 px
+                 between cards. -->
+            <Style x:Key="SettingsSectionHeaderStyle" TargetType="TextBlock"
+                   BasedOn="{StaticResource BodyStrongTextBlockStyle}">
+                <Setter Property="Margin" Value="0,24,0,8" />
+            </Style>
+            <x:Double x:Key="SettingsCardSpacing">4</x:Double>
+            <x:Double x:Key="SettingsContentMaxWidth">1000</x:Double>
+            <Thickness x:Key="SettingsContentPadding">24,24,24,0</Thickness>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

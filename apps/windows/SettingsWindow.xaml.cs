@@ -44,9 +44,12 @@ public sealed partial class SettingsWindow : Window
         }
 
         ApplyTheme(theme);
-        SettingsFrame.Navigate(
-            typeof(SettingsPage),
-            new SettingsPageParameter(settings, OnThemeChosen));
+
+        // The window hosts the page directly; the page owns the only content
+        // Frame used for switching between settings sections.
+        var page = new SettingsPage();
+        page.Initialize(new SettingsPageParameter(settings, OnThemeChosen));
+        SettingsHost.Content = page;
         AddCloseAccelerators();
     }
 

@@ -1,5 +1,4 @@
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Navigation;
 using System;
 
 namespace NopeView.App;
@@ -22,10 +21,9 @@ public sealed partial class SettingsPage : Page
         InitializeComponent();
     }
 
-    protected override void OnNavigatedTo(NavigationEventArgs e)
+    internal void Initialize(SettingsPageParameter parameter)
     {
-        base.OnNavigatedTo(e);
-        _parameter = e.Parameter as SettingsPageParameter;
+        _parameter = parameter;
 
         // The first item is selected in XAML, so selection changed may fire
         // before the parameter arrives. Navigate once the parameter is known.
