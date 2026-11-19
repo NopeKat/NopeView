@@ -28,7 +28,8 @@
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </toolkit:SettingsCard>
             <toolkit:SettingsCard Header="Repository"
-                                  Description="Source code on GitHub">
+                                  Description="Source code on GitHub"
+                                  Margin="0,0,0,36">
                 <toolkit:SettingsCard.HeaderIcon>
                     <PathIcon Width="20" Height="20"
                               Data="M 12.64,1.02 A 0.5,0.5,0,0,1,12.98,1.64 L 7.98,18.64 A 0.5,0.5,0,0,1,7.02,18.36 L 12.02,1.36 A 0.5,0.5,0,0,1,12.64,1.02 M 5.127,5.169 A 0.5,0.5,0,0,1,5.875,5.833 L 2.169,10 L 5.874,14.168 A 0.5,0.5,0,0,1,5.126,14.832 L 1.126,10.332 A 0.5,0.5,0,0,1,1.126,9.668 Z M 14.169,5.127 A 0.5,0.5,0,0,1,14.875,5.169 L 18.875,9.669 A 0.5,0.5,0,0,1,18.875,10.333 L 14.875,14.833 A 0.5,0.5,0,0,1,14.127,14.169 L 17.831,10 L 14.126,5.832 A 0.5,0.5,0,0,1,14.168,5.126" />

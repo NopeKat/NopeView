@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media.Animation;
 using System;
 
 namespace NopeView.App;
@@ -27,7 +28,10 @@ public sealed partial class SettingsPage : Page
 
         // The first item is selected in XAML, so selection changed may fire
         // before the parameter arrives. Navigate once the parameter is known.
-        SettingsContentFrame.Navigate(typeof(AppearanceSettingsPage), _parameter);
+        SettingsContentFrame.Navigate(
+            typeof(AppearanceSettingsPage),
+            _parameter,
+            new EntranceNavigationTransitionInfo());
     }
 
     private void SettingsNavigation_SelectionChanged(
@@ -46,7 +50,10 @@ public sealed partial class SettingsPage : Page
 
         if (SettingsContentFrame.CurrentSourcePageType != pageType)
         {
-            SettingsContentFrame.Navigate(pageType, _parameter);
+            SettingsContentFrame.Navigate(
+                pageType,
+                _parameter,
+                args.RecommendedNavigationTransitionInfo);
         }
     }
 }

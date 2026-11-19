@@ -3,6 +3,7 @@ using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Windowing;
 using System.Diagnostics;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
@@ -145,6 +146,7 @@ public sealed partial class MainWindow : Window
         _animationTimer.Tick += AnimationTimer_Tick;
         _animationTimer.Interval = TimeSpan.FromMilliseconds(100);
         AddOemKeyAccelerators();
+        AddCommandAccelerators();
 
         if (!RouterApi.TryCreate(null, out _routerContext))
         {
@@ -180,24 +182,104 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private void AddOemKeyAccelerators()
     {
-        AddAccelerator(0xBB, Windows.System.VirtualKeyModifiers.None, ZoomInAccelerator_Invoked);
-        AddAccelerator(0xBB, Windows.System.VirtualKeyModifiers.Shift, ZoomInAccelerator_Invoked);
-        AddAccelerator(0xBD, Windows.System.VirtualKeyModifiers.None, ZoomOutAccelerator_Invoked);
-        AddAccelerator(0xBC, Windows.System.VirtualKeyModifiers.Control, SettingsAccelerator_Invoked);
+        AddAccelerator(
+            ZoomInButton,
+            0xBB,
+            Windows.System.VirtualKeyModifiers.None,
+            ZoomInAccelerator_Invoked);
+        AddAccelerator(
+            ZoomInButton,
+            0xBB,
+            Windows.System.VirtualKeyModifiers.Shift,
+            ZoomInAccelerator_Invoked);
+        AddAccelerator(
+            ZoomOutButton,
+            0xBD,
+            Windows.System.VirtualKeyModifiers.None,
+            ZoomOutAccelerator_Invoked);
+        AddAccelerator(
+            RootGrid,
+            0xBC,
+            Windows.System.VirtualKeyModifiers.Control,
+            SettingsAccelerator_Invoked,
+            enableHint: false);
+    }
+
+    /// <summary>
+    /// Commands own their shortcuts. This keeps the shortcut text in the
+    /// button tooltip, the way the official Fluent command surfaces do, while
+    /// the root only keeps keys that have no visible command.
+    /// </summary>
+    private void AddCommandAccelerators()
+    {
+        EnableAcceleratorHints(OpenButton);
+        AddAccelerator(
+            PreviousButton,
+            (int)Windows.System.VirtualKey.Left,
+            Windows.System.VirtualKeyModifiers.None,
+            PreviousAccelerator_Invoked);
+        AddAccelerator(
+            NextButton,
+            (int)Windows.System.VirtualKey.Right,
+            Windows.System.VirtualKeyModifiers.None,
+            NextAccelerator_Invoked);
+        AddAccelerator(
+            PlayPauseButton,
+            (int)Windows.System.VirtualKey.Space,
+            Windows.System.VirtualKeyModifiers.None,
+            PlayPauseAccelerator_Invoked);
+        AddAccelerator(
+            ZoomInButton,
+            (int)Windows.System.VirtualKey.Add,
+            Windows.System.VirtualKeyModifiers.None,
+            ZoomInAccelerator_Invoked);
+        AddAccelerator(
+            ZoomOutButton,
+            (int)Windows.System.VirtualKey.Subtract,
+            Windows.System.VirtualKeyModifiers.None,
+            ZoomOutAccelerator_Invoked);
+        AddAccelerator(
+            RotateButton,
+            (int)Windows.System.VirtualKey.R,
+            Windows.System.VirtualKeyModifiers.None,
+            RotateAccelerator_Invoked);
+        AddAccelerator(
+            FitButton,
+            (int)Windows.System.VirtualKey.F,
+            Windows.System.VirtualKeyModifiers.None,
+            FitAccelerator_Invoked);
+        AddAccelerator(
+            ActualSizeButton,
+            (int)Windows.System.VirtualKey.Number0,
+            Windows.System.VirtualKeyModifiers.None,
+            ActualSizeAccelerator_Invoked);
+    }
+
+    private static void EnableAcceleratorHints(FrameworkElement target)
+    {
+        target.KeyboardAcceleratorPlacementMode =
+            KeyboardAcceleratorPlacementMode.Auto;
     }
 
     private void AddAccelerator(
+        FrameworkElement target,
         int key,
         Windows.System.VirtualKeyModifiers modifiers,
-        TypedEventHandler<KeyboardAccelerator, KeyboardAcceleratorInvokedEventArgs> handler)
+        TypedEventHandler<KeyboardAccelerator, KeyboardAcceleratorInvokedEventArgs> handler,
+        bool enableHint = true)
     {
+        if (enableHint)
+        {
+            EnableAcceleratorHints(target);
+        }
+
         var accelerator = new KeyboardAccelerator
         {
             Key = (Windows.System.VirtualKey)key,
             Modifiers = modifiers
         };
         accelerator.Invoked += handler;
-        RootGrid.KeyboardAccelerators.Add(accelerator);
+        target.KeyboardAccelerators.Add(accelerator);
     }
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
@@ -267,7 +349,46 @@ public sealed partial class MainWindow : Window
         // Register the official TitleBar control as the drag region. It keeps
         // the system caption buttons and their active/inactive states.
         SetTitleBar(AppTitleBar);
+        ConfigureOverflowButton();
         OpenImageFromCommandLine();
+    }
+
+    private void ConfigureOverflowButton()
+    {
+        // CommandBar owns the overflow button but does not expose it as a
+        // named part. Keep the established automation contract by decorating
+        // the official button instead of drawing a second one.
+        ViewerCommandBar.ApplyTemplate();
+        ViewerCommandBar.UpdateLayout();
+        Button? moreButton = FindDescendant<Button>(ViewerCommandBar, "MoreButton");
+        if (moreButton is not null)
+        {
+            AutomationProperties.SetAutomationId(moreButton, "ActionsButton");
+            AutomationProperties.SetName(moreButton, "More actions");
+            ToolTipService.SetToolTip(moreButton, "More actions");
+        }
+    }
+
+    private static T? FindDescendant<T>(DependencyObject root, string name)
+        where T : FrameworkElement
+    {
+        int count = VisualTreeHelper.GetChildrenCount(root);
+        for (int index = 0; index < count; index++)
+        {
+            DependencyObject child = VisualTreeHelper.GetChild(root, index);
+            if (child is T element && element.Name == name)
+            {
+                return element;
+            }
+
+            T? match = FindDescendant<T>(child, name);
+            if (match is not null)
+            {
+                return match;
+            }
+        }
+
+        return null;
     }
     private void EscapeAccelerator_Invoked(
         KeyboardAccelerator sender,
@@ -290,14 +411,6 @@ public sealed partial class MainWindow : Window
     }
 
     private string? CurrentPath => _directory?.CurrentPath;
-
-    private void ActionsButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (Viewport.ContextFlyout is MenuFlyout menu)
-        {
-            menu.ShowAt(ActionsButton);
-        }
-    }
 
     private void SetFullScreen(bool fullScreen)
     {
