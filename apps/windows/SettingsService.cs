@@ -15,12 +15,23 @@ internal enum AppTheme
 }
 
 /// <summary>
+/// How the image edge is separated from the viewer background.
+/// </summary>
+internal enum ImageFrameStyle
+{
+    None,
+    Stroke,
+    Shadow
+}
+
+/// <summary>
 /// The on-disk shape of the settings file. Keeping it a plain record makes
 /// the source-generated serializer able to write it without reflection.
 /// </summary>
 internal sealed record SettingsDocument(
     [property: JsonPropertyName("theme")] string Theme,
-    [property: JsonPropertyName("language")] string? Language);
+    [property: JsonPropertyName("language")] string? Language,
+    [property: JsonPropertyName("imageFrame")] string? ImageFrame);
 
 [JsonSourceGenerationOptions(
     WriteIndented = true,
@@ -52,6 +63,12 @@ internal sealed class SettingsService
     internal AppTheme Theme { get; private set; } = AppTheme.System;
 
     /// <summary>
+    /// Stored image edge treatment. None keeps the image flush with the canvas,
+    /// which is the neutral default.
+    /// </summary>
+    internal ImageFrameStyle ImageFrame { get; private set; } = ImageFrameStyle.None;
+
+    /// <summary>
     /// Stored language preference, or an empty string to follow Windows.
     /// </summary>
     internal string Language { get; private set; } = Localization.SystemPreference;
@@ -81,6 +98,13 @@ internal sealed class SettingsService
                 Localization.FallbackLanguage => Localization.FallbackLanguage,
                 _ => Localization.SystemPreference
             };
+
+            if (document?.ImageFrame is { } frameName &&
+                Enum.TryParse(frameName, ignoreCase: true, out ImageFrameStyle frame) &&
+                Enum.IsDefined(frame))
+            {
+                ImageFrame = frame;
+            }
         }
         catch (Exception ex)
         {
@@ -102,6 +126,12 @@ internal sealed class SettingsService
         Save();
     }
 
+    internal void SetImageFrame(ImageFrameStyle frame)
+    {
+        ImageFrame = frame;
+        Save();
+    }
+
     private void Save()
     {
         var temporary = _path + ".tmp";
@@ -114,7 +144,7 @@ internal sealed class SettingsService
             }
 
             var json = JsonSerializer.Serialize(
-                new SettingsDocument(Theme.ToString(), Language),
+                new SettingsDocument(Theme.ToString(), Language, ImageFrame.ToString()),
                 SettingsJsonContext.Default.SettingsDocument);
 
             // Write beside the target and replace in one step. Readers either

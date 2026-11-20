@@ -334,4 +334,34 @@
     <value>主题：{0}</value>
     <comment>{0} is the current theme value.</comment>
   </data>
+
+  <!-- Image frame values read back through automation. -->
+  <data name="ImageFrameCard.Header" xml:space="preserve">
+    <value>图像边缘</value>
+  </data>
+  <data name="ImageFrameCard.Description" xml:space="preserve">
+    <value>选择图像与背景的区分方式</value>
+  </data>
+  <data name="ImageFrameNone.Content" xml:space="preserve">
+    <value>无</value>
+  </data>
+  <data name="ImageFrameStroke.Content" xml:space="preserve">
+    <value>描边</value>
+  </data>
+  <data name="ImageFrameShadow.Content" xml:space="preserve">
+    <value>阴影</value>
+  </data>
+  <data name="ImageFrame.ValueNone" xml:space="preserve">
+    <value>无</value>
+  </data>
+  <data name="ImageFrame.ValueStroke" xml:space="preserve">
+    <value>描边</value>
+  </data>
+  <data name="ImageFrame.ValueShadow" xml:space="preserve">
+    <value>阴影</value>
+  </data>
+  <data name="ImageFrame.Automation" xml:space="preserve">
+    <value>图像边缘：{0}</value>
+    <comment>{0} is the current edge treatment.</comment>
+  </data>
 </root>

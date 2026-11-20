@@ -13,13 +13,15 @@ namespace NopeView.App;
 internal sealed record SettingsPageParameter(
     SettingsService Settings,
     Action<AppTheme> ApplyTheme,
-    Action<string> ApplyLanguage);
+    Action<string> ApplyLanguage,
+    Action<ImageFrameStyle> ApplyImageFrame);
 
 public sealed partial class SettingsPage : Page
 {
     private SettingsPageParameter? _parameter;
     private bool _syncingTheme;
     private bool _syncingLanguage;
+    private bool _syncingImageFrame;
 
     // Focus is requested before the page has been measured, so the request is
     // held until Loaded; a control that is not in the tree cannot take focus.
@@ -44,6 +46,7 @@ public sealed partial class SettingsPage : Page
         ApplyLocalization();
         RefreshTheme();
         RefreshLanguage();
+        RefreshImageFrame();
     }
 
     /// <summary>
@@ -62,6 +65,12 @@ public sealed partial class SettingsPage : Page
         ThemeDarkOption.Content = Localization.Get("ThemeDark.Content");
         ThemeSystemOption.Content = Localization.Get("ThemeSystem.Content");
         ColorSettingsLink.Content = Localization.Get("ColorSettingsLink.Content");
+
+        ImageFrameCard.Header = Localization.Get("ImageFrameCard.Header");
+        ImageFrameCard.Description = Localization.Get("ImageFrameCard.Description");
+        ImageFrameNoneOption.Content = Localization.Get("ImageFrameNone.Content");
+        ImageFrameStrokeOption.Content = Localization.Get("ImageFrameStroke.Content");
+        ImageFrameShadowOption.Content = Localization.Get("ImageFrameShadow.Content");
 
         LanguageSectionHeader.Text = Localization.Get("LanguageSection.Text");
         LanguageCard.Header = Localization.Get("LanguageCard.Header");
@@ -177,6 +186,7 @@ public sealed partial class SettingsPage : Page
         ApplyLocalization();
         RefreshTheme();
         RefreshLanguage();
+        RefreshImageFrame();
     }
 
     private void RefreshLanguage()
@@ -192,6 +202,48 @@ public sealed partial class SettingsPage : Page
             _ => 0,
         };
         _syncingLanguage = false;
+    }
+
+    private void ImageFrameComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var parameter = _parameter;
+        if (_syncingImageFrame ||
+            parameter is null ||
+            ImageFrameComboBox.SelectedItem is not ComboBoxItem { Tag: string tag } ||
+            !Enum.TryParse(tag, out ImageFrameStyle frame))
+        {
+            return;
+        }
+
+        parameter.Settings.SetImageFrame(frame);
+        parameter.ApplyImageFrame(frame);
+        RefreshImageFrame();
+    }
+
+    private void RefreshImageFrame()
+    {
+        var frame = _parameter?.Settings.ImageFrame ?? ImageFrameStyle.None;
+
+        _syncingImageFrame = true;
+        // As with the theme combo, clearing first rebuilds the collapsed text
+        // after a language change instead of reusing the cached string.
+        ImageFrameComboBox.SelectedIndex = -1;
+        ImageFrameComboBox.SelectedIndex = frame switch
+        {
+            ImageFrameStyle.Stroke => 1,
+            ImageFrameStyle.Shadow => 2,
+            _ => 0,
+        };
+        _syncingImageFrame = false;
+
+        var value = frame switch
+        {
+            ImageFrameStyle.Stroke => Localization.Get("ImageFrame.ValueStroke"),
+            ImageFrameStyle.Shadow => Localization.Get("ImageFrame.ValueShadow"),
+            _ => Localization.Get("ImageFrame.ValueNone"),
+        };
+        AutomationProperties.SetName(
+            ImageFrameComboBox, Localization.Format("ImageFrame.Automation", value));
     }
 
     private async void ColorSettingsLink_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)

@@ -223,6 +223,7 @@ public sealed partial class MainWindow : Window
 
             _imagePixelWidth = frame.SourceWidth;
             _imagePixelHeight = frame.SourceHeight;
+            UpdateImageFrameSize();
             _previewActive = frame.SourceWidth > frame.BitmapWidth;
             _frameIndex = frameIndex;
             _frameCount = Math.Max(1u, frame.FrameCount);

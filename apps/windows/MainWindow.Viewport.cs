@@ -17,8 +17,9 @@ public sealed partial class MainWindow : Window
             Rect = new Rect(0, 0, e.NewSize.Width, e.NewSize.Height)
         };
 
-        // The zoom percentage is relative to the fit scale, which follows the
-        // viewport, so the status line is rebuilt once the new layout lands.
+        // The frame follows the fitted bitmap, so both its size and the zoom
+        // percentage need to be rebuilt once the new layout lands.
+        UpdateImageFrameSize();
         DispatcherQueue.TryEnqueue(UpdateViewStatus);
     }
 
@@ -88,7 +89,7 @@ public sealed partial class MainWindow : Window
 
             _view.PanX += center.X - _pinchCenter.X;
             _view.PanY += center.Y - _pinchCenter.Y;
-            _view.ApplyTo(ImageTransform);
+            ApplyViewTransform();
             ZoomAtPoint(_view.Zoom * (distance / _pinchDistance), center);
             _pinchCenter = center;
             _pinchDistance = distance;
@@ -110,7 +111,7 @@ public sealed partial class MainWindow : Window
 
         _view.PanX += deltaX;
         _view.PanY += deltaY;
-        _view.ApplyTo(ImageTransform);
+        ApplyViewTransform();
         UpdateViewStatus();
         _lastPanPoint = point.Position;
         e.Handled = true;
@@ -227,7 +228,7 @@ public sealed partial class MainWindow : Window
     private void RotateClockwise()
     {
         _view.Rotation = (_view.Rotation + 90) % 360;
-        _view.ApplyTo(ImageTransform);
+        ApplyViewTransform();
         UpdateViewStatus();
     }
 
@@ -254,7 +255,7 @@ public sealed partial class MainWindow : Window
         _view.Zoom = 1.0 / ratio;
         _view.PanX = 0;
         _view.PanY = 0;
-        _view.ApplyTo(ImageTransform);
+        ApplyViewTransform();
         UpdateViewStatus();
         _ = UpgradeToFullResolutionAsync();
     }
@@ -264,17 +265,20 @@ public sealed partial class MainWindow : Window
         get
         {
             if (_imagePixelWidth <= 0 || _imagePixelHeight <= 0 ||
-                ImageView.ActualWidth <= 0 || ImageView.ActualHeight <= 0)
+                Viewport.ActualWidth <= 0 || Viewport.ActualHeight <= 0)
             {
                 return 1.0;
             }
 
-            // Stretch=Uniform fits the bitmap on its limiting axis. Using the
-            // control width alone overestimates the fit scale for tall images,
-            // which made 1:1 and the zoom percentage wrong.
-            var fitScale = Math.Min(
-                ImageView.ActualWidth / _imagePixelWidth,
-                ImageView.ActualHeight / _imagePixelHeight);
+            // The frame uses the same available box as the fit calculation,
+            // including the inset that reserves room for a shadow. Deriving it
+            // from the viewport keeps this exact while layout is still pending.
+            var fitScale = GetFitScale(_imageFrameStyle);
+            if (fitScale <= 0)
+            {
+                return 1.0;
+            }
+
             var rasterizationScale = Viewport.XamlRoot?.RasterizationScale ?? 1.0;
             return fitScale * rasterizationScale;
         }
@@ -283,7 +287,7 @@ public sealed partial class MainWindow : Window
     private void SetZoom(double zoom)
     {
         _view.Zoom = Math.Clamp(zoom, MinZoom, MaxZoom);
-        _view.ApplyTo(ImageTransform);
+        ApplyViewTransform();
         UpdateViewStatus();
 
         if (_view.Zoom > 1.001)
@@ -297,7 +301,7 @@ public sealed partial class MainWindow : Window
     private void ResetView()
     {
         _view.Reset();
-        _view.ApplyTo(ImageTransform);
+        ApplyViewTransform();
         UpdateViewStatus();
     }
 

@@ -53,8 +53,7 @@
 
                 <TextBlock x:Name="AppearanceSectionHeader"
                            Style="{StaticResource SettingsSectionHeaderStyle}" />
-                <toolkit:SettingsCard x:Name="ThemeCard"
-                                      Margin="0,0,0,36">
+                <toolkit:SettingsCard x:Name="ThemeCard">
                     <toolkit:SettingsCard.HeaderIcon>
                         <PathIcon Width="20" Height="20"
                                   Data="M 10,2 A 8,8,0,0,1,13.388,17.249 A 3.77,3.77,0,0,1,10.097,17.19 C 9.123,16.687,8.401,15.723,8.449,14.459 C 8.466,14.014,8.531,13.592,8.592,13.216 C 8.655,12.829,8.71,12.504,8.728,12.201 C 8.746,11.904,8.724,11.668,8.65,11.469 C 8.58,11.278,8.45,11.088,8.2,10.9 C 7.887,10.665,7.62,10.625,7.355,10.663 C 7.055,10.706,6.741,10.851,6.341,11.05 C 5.606,11.415,4.565,11.992,3.367,11.382 C 2.265,10.82,1.943,9.514,2.147,8.465 A 8,8,0,0,1,10,2 M 10,3 A 7,7,0,0,0,3.129,8.655 C 2.976,9.443,3.255,10.202,3.82,10.49 C 4.504,10.838,5.071,10.564,5.896,10.154 C 6.276,9.966,6.73,9.742,7.214,9.673 C 7.734,9.598,8.268,9.701,8.8,10.1 C 9.19,10.392,9.445,10.734,9.588,11.121 C 9.728,11.5,9.75,11.889,9.728,12.261 C 9.706,12.627,9.638,13.014,9.579,13.377 A 9,9,0,0,0,9.449,14.497 C 9.417,15.309,9.867,15.945,10.557,16.302 A 2.77,2.77,0,0,0,12.964,16.344 A 7.002,7.002,0,0,0,10,3 M 12.5,13 A 1,1,0,1,1,12.5,15 A 1,1,0,0,1,12.5,13 M 14.5,10.5 A 1,1,0,1,1,14.5,12.5 A 1,1,0,0,1,14.5,10.5 M 14.5,7.5 A 1,1,0,1,1,14.5,9.5 A 1,1,0,0,1,14.5,7.5 M 12.5,5 A 1,1,0,1,1,12.5,7 A 1,1,0,0,1,12.5,5 M 9.5,4.5 A 1,1,0,1,1,9.5,6.5 A 1,1,0,0,1,9.5,4.5" />
@@ -81,6 +80,28 @@
                                          AutomationProperties.AutomationId="ColorSettingsLink"
                                          Click="ColorSettingsLink_Click" />
                     </StackPanel>
+                </toolkit:SettingsCard>
+
+                <toolkit:SettingsCard x:Name="ImageFrameCard"
+                                      Margin="0,0,0,36">
+                    <toolkit:SettingsCard.HeaderIcon>
+                        <PathIcon Width="20" Height="20"
+                                  Data="M 14,7.5 A 1.5,1.5,0,1,1,11,7.5 A 1.5,1.5,0,0,1,14,7.5 M 13,7.5 A 0.5,0.5,0,1,0,12,7.5 A 0.5,0.5,0,0,0,13,7.5 M 3,6 A 3,3,0,0,1,6,3 L 14,3 A 3,3,0,0,1,17,6 L 17,14 A 3,3,0,0,1,14,17 L 6,17 A 3,3,0,0,1,3,14 Z M 6,4 A 2,2,0,0,0,4,6 L 4,14 C 4,14.373,4.102,14.722,4.28,15.02 L 8.949,10.432 A 1.5,1.5,0,0,1,11.051,10.432 L 15.721,15.02 A 2,2,0,0,0,16,14 L 16,6 A 2,2,0,0,0,14,4 Z M 6,16 L 14,16 C 14.37,16,14.715,15.9,15.012,15.726 L 10.35,11.146 A 0.5,0.5,0,0,0,9.65,11.146 L 4.988,15.726 A 2,2,0,0,0,6,16" />
+                    </toolkit:SettingsCard.HeaderIcon>
+                    <ComboBox x:Name="ImageFrameComboBox"
+                              HorizontalAlignment="Right"
+                              AutomationProperties.AutomationId="ImageFrameComboBox"
+                              SelectionChanged="ImageFrameComboBox_SelectionChanged">
+                        <ComboBoxItem x:Name="ImageFrameNoneOption"
+                                      Tag="None"
+                                      AutomationProperties.AutomationId="ImageFrameNone" />
+                        <ComboBoxItem x:Name="ImageFrameStrokeOption"
+                                      Tag="Stroke"
+                                      AutomationProperties.AutomationId="ImageFrameStroke" />
+                        <ComboBoxItem x:Name="ImageFrameShadowOption"
+                                      Tag="Shadow"
+                                      AutomationProperties.AutomationId="ImageFrameShadow" />
+                    </ComboBox>
                 </toolkit:SettingsCard>
 
                 <TextBlock x:Name="LanguageSectionHeader"

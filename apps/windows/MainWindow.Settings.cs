@@ -45,7 +45,7 @@ public sealed partial class MainWindow : Window
         {
             var page = new SettingsPage();
             page.Initialize(new SettingsPageParameter(
-                _settings, ApplyTheme, ApplyLanguage));
+                _settings, ApplyTheme, ApplyLanguage, ApplyImageFrame));
             page.BackRequested += (_, _) => CloseSettings();
             _settingsPage = page;
             SettingsHost.Content = page;
@@ -111,5 +111,27 @@ public sealed partial class MainWindow : Window
         // dictionaries in App.xaml take effect. The settings page lives under
         // the same root, so it follows without a second theme application.
         ThemeApplication.Apply(RootGrid, theme);
+    }
+
+    private void ApplyImageFrame(ImageFrameStyle frame)
+    {
+        var oldFit = GetFitScale(_imageFrameStyle);
+        var newFit = GetFitScale(frame);
+        var wasFit = Math.Abs(_view.Zoom - 1.0) < 0.001;
+
+        _imageFrameStyle = frame;
+        ApplyImageDecoration();
+        UpdateImageFrameSize();
+
+        // A shadow inset changes the fitted box. Keep the bitmap at the same
+        // on-screen scale when the user was zoomed in; at fit the image simply
+        // refits to the new box.
+        if (!wasFit && oldFit > 0 && newFit > 0)
+        {
+            _view.Zoom = Math.Clamp(_view.Zoom * oldFit / newFit, MinZoom, MaxZoom);
+        }
+
+        ApplyViewTransform();
+        UpdateViewStatus();
     }
 }

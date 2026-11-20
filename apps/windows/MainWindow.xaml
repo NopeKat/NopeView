@@ -137,17 +137,29 @@
                     </MenuFlyout>
                 </Grid.ContextFlyout>
 
-                <Image x:Name="ImageView"
-                       AutomationProperties.AutomationId="ImageView"
-                       IsHitTestVisible="False"
-                       Stretch="Uniform"
-                       HorizontalAlignment="Stretch"
-                       VerticalAlignment="Stretch"
-                       RenderTransformOrigin="0.5,0.5">
-                    <Image.RenderTransform>
+                <!-- The frame is sized to the fitted bitmap, not the viewport,
+                     so an optional edge treatment can follow the image bounds
+                     through zoom, pan and rotation. The image itself fills the
+                     frame; the viewport stays the gesture and clipping surface. -->
+                <Grid x:Name="ImageFrame"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Center"
+                      IsHitTestVisible="False"
+                      Visibility="Collapsed"
+                      RenderTransformOrigin="0.5,0.5">
+                    <Grid.RenderTransform>
                         <CompositeTransform x:Name="ImageTransform" />
-                    </Image.RenderTransform>
-                </Image>
+                    </Grid.RenderTransform>
+                    <Image x:Name="ImageView"
+                           AutomationProperties.AutomationId="ImageView"
+                           IsHitTestVisible="False"
+                           Stretch="Uniform" />
+                    <Rectangle x:Name="ImageFrameStroke"
+                               IsHitTestVisible="False"
+                               Visibility="Collapsed"
+                               Stroke="{ThemeResource ControlStrokeColorSecondaryBrush}"
+                               StrokeThickness="1" />
+                </Grid>
 
                 <!-- The viewport itself receives pointer input. No extra
                      transparent Thumb or control-template override is needed

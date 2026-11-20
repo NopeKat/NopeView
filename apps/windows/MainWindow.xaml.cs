@@ -161,6 +161,7 @@ public sealed partial class MainWindow : Window
         _settings.Load();
         Localization.Apply(_settings.Language);
         ApplyTheme(_settings.Theme);
+        ApplyImageFrame(_settings.ImageFrame);
         ApplyLocalization();
 
         // Set the window icon explicitly. For an unpackaged WinUI 3 app the
