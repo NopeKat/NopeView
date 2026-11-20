@@ -29,15 +29,8 @@ public sealed partial class SettingsPage : Page
     public SettingsPage()
     {
         InitializeComponent();
-        VersionText.Text = typeof(App).Assembly.GetName().Version?.ToString() ?? "0.0.0.0";
         Loaded += SettingsPage_Loaded;
     }
-
-    /// <summary>
-    /// Raised when the user asks to leave the settings page and return to the
-    /// viewer. The host window owns the switch.
-    /// </summary>
-    public event EventHandler? BackRequested;
 
     internal void Initialize(SettingsPageParameter parameter)
     {
@@ -80,28 +73,17 @@ public sealed partial class SettingsPage : Page
         // name it was built with, so it is set again on every switch.
         AutomationProperties.SetName(
             LanguageComboBox, LanguageCard.Header?.ToString() ?? string.Empty);
-
-        AboutSectionHeader.Text = Localization.Get("AboutSection.Text");
-        AboutExpander.Header = Localization.Get("AboutExpander.Header");
-        AboutExpander.Description = Localization.Get("AboutExpander.Description");
-        RepositoryCard.Header = Localization.Get("RepositoryCard.Header");
-        RepositoryCard.Description = Localization.Get("RepositoryCard.Description");
-
-        var back = Localization.Get("Action.Back");
-        AutomationProperties.SetName(BackButton, back);
-        ToolTipService.SetToolTip(BackButton, back);
     }
 
     /// <summary>
-    /// Moves keyboard focus into the page when it takes over the window. The
-    /// back command is first in tab order, so focus there matches what a
-    /// keyboard user reaches first.
+    /// Moves keyboard focus into the page when it is selected. The theme
+    /// selector is the first setting and matches the first Tab stop.
     /// </summary>
     internal void FocusDefault()
     {
         if (IsLoaded)
         {
-            BackButton.Focus(FocusState.Programmatic);
+            ThemeComboBox.Focus(FocusState.Programmatic);
             return;
         }
 
@@ -116,12 +98,7 @@ public sealed partial class SettingsPage : Page
         }
 
         _focusOnLoad = false;
-        BackButton.Focus(FocusState.Programmatic);
-    }
-
-    private void BackButton_Click(object sender, RoutedEventArgs e)
-    {
-        BackRequested?.Invoke(this, EventArgs.Empty);
+        ThemeComboBox.Focus(FocusState.Programmatic);
     }
 
     private void ThemeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)

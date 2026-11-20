@@ -11,10 +11,10 @@
 
             <!-- Shared settings layout. Values follow the WinUI Gallery
                  settings sample: 36 px page inset, a 1064 px content column,
-                 30/6 header spacing and 4 px between cards. -->
+                 24/8 section spacing and 4 px between cards. -->
             <Style x:Key="SettingsSectionHeaderStyle" TargetType="TextBlock"
                    BasedOn="{StaticResource BodyStrongTextBlockStyle}">
-                <Setter Property="Margin" Value="1,30,0,6" />
+                <Setter Property="Margin" Value="1,24,0,8" />
             </Style>
             <x:Double x:Key="SettingsCardSpacing">4</x:Double>
             <x:Double x:Key="SettingsContentMaxWidth">1064</x:Double>

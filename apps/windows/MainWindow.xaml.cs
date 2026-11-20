@@ -163,6 +163,7 @@ public sealed partial class MainWindow : Window
         ApplyTheme(_settings.Theme);
         ApplyImageFrame(_settings.ImageFrame);
         ApplyLocalization();
+        TopLevelNav.SelectedItem = ViewerNavItem;
 
         // Set the window icon explicitly. For an unpackaged WinUI 3 app the
         // executable's ApplicationIcon alone does not reach Explorer, so the
@@ -358,8 +359,8 @@ public sealed partial class MainWindow : Window
 
     private void RootGrid_Loaded(object sender, RoutedEventArgs e)
     {
-        // Register the official TitleBar control as the drag region. It keeps
-        // the system caption buttons and their active/inactive states.
+        // The official TitleBar control owns the drag region, pane toggle and
+        // system caption buttons, so it is registered as the title bar directly.
         SetTitleBar(AppTitleBar);
         ConfigureOverflowButton();
         ConfigureErrorBar();
@@ -446,12 +447,16 @@ public sealed partial class MainWindow : Window
         FitMenuItem.Text = Localization.Get("ContextFit.Text");
         ActualSizeMenuItem.Text = Localization.Get("ContextActualSize.Text");
         SettingsMenuItem.Text = Localization.Get("ContextSettings.Text");
+        ViewerNavItem.Content = Localization.Get("Navigation.Viewer.Content");
+        SettingsNavItem.Content = Localization.Get("Navigation.Settings.Content");
+        AboutNavItem.Content = Localization.Get("Navigation.About.Content");
+        AutomationProperties.SetName(
+            TopLevelNav, Localization.Get("Navigation.Name"));
 
         CopyImageCommand.Label = Localization.Get("CopyImageCommand.Label");
         CopyPathCommand.Label = Localization.Get("CopyPathCommand.Label");
         SaveAsCommand.Label = Localization.Get("SaveAsCommand.Label");
         ShowInExplorerCommand.Label = Localization.Get("ShowInExplorerCommand.Label");
-        SettingsCommand.Label = Localization.Get("SettingsCommand.Label");
 
         AutomationProperties.SetName(
             LoadingRing, Localization.Get("Loading.Name"));
@@ -460,6 +465,7 @@ public sealed partial class MainWindow : Window
         ConfigureOverflowButton();
         UpdateAnimationControls();
         UpdateViewStatus();
+        _aboutPage?.ApplyLocalization();
 
         var path = CurrentPath;
         if (path is not null)
@@ -496,8 +502,8 @@ public sealed partial class MainWindow : Window
         KeyboardAccelerator sender,
         KeyboardAcceleratorInvokedEventArgs args)
     {
-        // Escape backs out of the settings page first, then leaves full screen.
-        if (IsSettingsOpen)
+        // Escape backs out of a top-level page first, then leaves full screen.
+        if (IsSettingsOpen || IsAboutOpen)
         {
             args.Handled = true;
             CloseSettings();
@@ -561,6 +567,13 @@ public sealed partial class MainWindow : Window
         var visibility = visible ? Visibility.Visible : Visibility.Collapsed;
         AppTitleBar.Visibility = visibility;
         ViewerCommandBar.Visibility = visibility;
+
+        // Full screen is for the image only. The minimal pane would otherwise
+        // stay on top of the picture if it was open when F11 was pressed.
+        if (!visible)
+        {
+            TopLevelNav.IsPaneOpen = false;
+        }
     }
 
     /// <summary>

@@ -3,14 +3,15 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media.Animation;
 using System;
 using System.Runtime.InteropServices;
 using Windows.UI;
 
 namespace NopeView.App;
 
-// Settings plumbing: the page replaces the viewer inside the same window, the
-// way the Windows design guidance and the WinUI Gallery present settings.
+// Top-level navigation and settings plumbing. The viewer, settings and about
+// surfaces are peers in one NavigationView instead of a page with a back stack.
 public sealed partial class MainWindow : Window
 {
     private const uint SpiGetHighContrast = 0x0042;
@@ -42,17 +43,28 @@ public sealed partial class MainWindow : Window
             && (info.Flags & HcfHighContrastOn) != 0;
     }
 
-    private SettingsPage? _settingsPage;
+    private enum AppSection
+    {
+        Viewer,
+        Settings,
+        About,
+    }
 
-    private bool IsSettingsOpen => SettingsHost.Visibility == Visibility.Visible;
+    private SettingsPage? _settingsPage;
+    private AboutPage? _aboutPage;
+    private AppSection _section = AppSection.Viewer;
+
+    private bool IsSettingsOpen => _section == AppSection.Settings;
+
+    private bool IsAboutOpen => _section == AppSection.About;
 
     private void SettingsMenuItem_Click(object sender, RoutedEventArgs e)
     {
         OpenSettings();
     }
 
-    // Ctrl+, opens the settings page, or returns to the viewer when the page
-    // is already open.
+    // Ctrl+, opens settings, or returns to the viewer when settings is already
+    // open. The same key works while a top-level page has focus.
     private void SettingsAccelerator_Invoked(
         KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
@@ -67,53 +79,176 @@ public sealed partial class MainWindow : Window
         args.Handled = true;
     }
 
-    private void OpenSettings()
+    private void ViewerSectionAccelerator_Invoked(
+        KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
-        if (IsSettingsOpen)
+        ActivateSection(AppSection.Viewer);
+        args.Handled = true;
+    }
+
+    private void SettingsSectionAccelerator_Invoked(
+        KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        ActivateSection(AppSection.Settings);
+        args.Handled = true;
+    }
+
+    private void AboutSectionAccelerator_Invoked(
+        KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        ActivateSection(AppSection.About);
+        args.Handled = true;
+    }
+
+    // The official TitleBar forwards its pane button to the NavigationView.
+    private void TitleBar_PaneToggleRequested(TitleBar sender, object args)
+    {
+        TopLevelNav.IsPaneOpen = !TopLevelNav.IsPaneOpen;
+    }
+
+    private void TopLevelNav_SelectionChanged(
+        NavigationView sender, NavigationViewSelectionChangedEventArgs args)
+    {
+        if (args.SelectedItem is not NavigationViewItem { Tag: string tag })
         {
             return;
         }
 
-        if (_settingsPage is null)
+        var section = tag switch
         {
-            var page = new SettingsPage();
-            page.Initialize(new SettingsPageParameter(
-                _settings, ApplyTheme, ApplyLanguage, ApplyImageFrame));
-            page.BackRequested += (_, _) => CloseSettings();
-            _settingsPage = page;
-            SettingsHost.Content = page;
-        }
+            "settings" => AppSection.Settings,
+            "about" => AppSection.About,
+            _ => AppSection.Viewer,
+        };
 
-        ContentRoot.Visibility = Visibility.Collapsed;
-        SettingsHost.Visibility = Visibility.Visible;
+        ShowSection(section);
+    }
 
-        // The page owns the window while it is open, so the viewer behind it
-        // must not accept a dropped image.
-        RootGrid.AllowDrop = false;
-        RefreshWindowTitle();
-
-        // Keyboard focus starts on the page, not on the caption, so the first
-        // Tab lands in the settings content and the back command is reachable.
-        _settingsPage?.FocusDefault();
+    private void OpenSettings()
+    {
+        ActivateSection(AppSection.Settings);
     }
 
     private void CloseSettings()
     {
-        if (!IsSettingsOpen)
+        ActivateSection(AppSection.Viewer);
+    }
+
+    private void ActivateSection(AppSection section)
+    {
+        var item = section switch
+        {
+            AppSection.Settings => SettingsNavItem,
+            AppSection.About => AboutNavItem,
+            _ => ViewerNavItem,
+        };
+
+        if (ReferenceEquals(TopLevelNav.SelectedItem, item))
+        {
+            ShowSection(section);
+            return;
+        }
+
+        // SelectionChanged updates the surface, so the switch happens in one
+        // place whether the user clicks the pane or a command selects it.
+        TopLevelNav.SelectedItem = item;
+    }
+
+    private void ShowSection(AppSection section)
+    {
+        var changed = _section != section;
+        _section = section;
+        EnsurePage(section);
+
+        ContentRoot.Visibility = section == AppSection.Viewer
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        SettingsHost.Visibility = section == AppSection.Settings
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        AboutHost.Visibility = section == AppSection.About
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+        // The viewer is the only surface that accepts a dropped image.
+        RootGrid.AllowDrop = section == AppSection.Viewer;
+
+        if (changed)
+        {
+            var surface = section switch
+            {
+                AppSection.Settings => (FrameworkElement)SettingsHost,
+                AppSection.About => AboutHost,
+                _ => ContentRoot,
+            };
+            AnimateSurface(surface);
+        }
+
+        if (section == AppSection.Settings)
+        {
+            _settingsPage?.FocusDefault();
+        }
+        else if (section == AppSection.About)
+        {
+            _aboutPage?.FocusDefault();
+        }
+        else
+        {
+            ViewerCommandBar.Focus(FocusState.Programmatic);
+        }
+
+        RefreshWindowTitle();
+    }
+
+    /// <summary>
+    /// A short fade marks the top-level page change without delaying it. The
+    /// animation is skipped before the first layout pass, where XamlRoot is not
+    /// available yet.
+    /// </summary>
+    private static void AnimateSurface(FrameworkElement surface)
+    {
+        surface.Opacity = 1;
+        if (surface.XamlRoot is null)
         {
             return;
         }
 
-        SettingsHost.Visibility = Visibility.Collapsed;
-        ContentRoot.Visibility = Visibility.Visible;
-        RootGrid.AllowDrop = true;
-        RefreshWindowTitle();
-        ViewerCommandBar.Focus(FocusState.Programmatic);
+        var animation = new DoubleAnimation
+        {
+            From = 0,
+            To = 1,
+            Duration = TimeSpan.FromMilliseconds(160),
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+        };
+        Storyboard.SetTarget(animation, surface);
+        Storyboard.SetTargetProperty(animation, "Opacity");
+        var storyboard = new Storyboard();
+        storyboard.Children.Add(animation);
+        storyboard.Begin();
+    }
+
+    private void EnsurePage(AppSection section)
+    {
+        if (section == AppSection.Settings && _settingsPage is null)
+        {
+            var page = new SettingsPage();
+            page.Initialize(new SettingsPageParameter(
+                _settings, ApplyTheme, ApplyLanguage, ApplyImageFrame));
+            _settingsPage = page;
+            SettingsHost.Content = page;
+        }
+        else if (section == AppSection.About && _aboutPage is null)
+        {
+            var page = new AboutPage();
+            page.ApplyLocalization();
+            _aboutPage = page;
+            AboutHost.Content = page;
+        }
     }
 
     /// <summary>
     /// The caption names the open document, and switches to the page name while
-    /// the settings page owns the window. Both surfaces share one title bar.
+    /// a top-level page owns the window. All surfaces share one title bar.
     /// </summary>
     private void RefreshWindowTitle()
     {
@@ -121,13 +256,18 @@ public sealed partial class MainWindow : Window
         {
             AppTitleBar.Title = Localization.Get("SettingsHeader.Text");
         }
+        else if (IsAboutOpen)
+        {
+            AppTitleBar.Title = Localization.Get("AboutSection.Text");
+        }
         else if (string.IsNullOrEmpty(_documentName))
         {
             AppTitleBar.Title = "NopeView";
         }
         else
         {
-            AppTitleBar.Title = Localization.Format("Window.DocumentTitle", _documentName);
+            AppTitleBar.Title = Localization.Format(
+                "Window.DocumentTitle", _documentName);
         }
     }
 

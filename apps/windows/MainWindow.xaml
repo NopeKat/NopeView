@@ -18,6 +18,9 @@
             <KeyboardAccelerator Key="C" Modifiers="Control" Invoked="CopyImageAccelerator_Invoked" />
             <KeyboardAccelerator Key="C" Modifiers="Control,Shift" Invoked="CopyPathAccelerator_Invoked" />
             <KeyboardAccelerator Key="S" Modifiers="Control" Invoked="SaveAsAccelerator_Invoked" />
+            <KeyboardAccelerator Key="Number1" Modifiers="Control" Invoked="ViewerSectionAccelerator_Invoked" />
+            <KeyboardAccelerator Key="Number2" Modifiers="Control" Invoked="SettingsSectionAccelerator_Invoked" />
+            <KeyboardAccelerator Key="Number3" Modifiers="Control" Invoked="AboutSectionAccelerator_Invoked" />
         </Grid.KeyboardAccelerators>
 
         <Grid.RowDefinitions>
@@ -25,19 +28,64 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- The official title bar control owns the caption, drag region and
-             system buttons. The window extends its content into the title bar
-             so this row sits where the native strip would be. -->
+        <!-- The official TitleBar owns the caption, drag region, back slot and
+             pane toggle button. The pane button is forwarded to NavigationView
+             through PaneToggleRequested, matching the WinUI guidance. -->
         <TitleBar x:Name="AppTitleBar"
                   Grid.Row="0"
                   Title="NopeView"
+                  Background="{ThemeResource LayerFillColorDefaultBrush}"
+                  IsPaneToggleButtonVisible="True"
+                  PaneToggleRequested="TitleBar_PaneToggleRequested"
+                  IsBackButtonVisible="False"
                   AutomationProperties.AutomationId="AppTitleBar">
             <TitleBar.IconSource>
                 <ImageIconSource ImageSource="ms-appx:///assets/nopeview-title.png" />
             </TitleBar.IconSource>
         </TitleBar>
-        <Grid x:Name="ContentRoot" Grid.Row="1"
-              Background="{ThemeResource LayerFillColorDefaultBrush}">
+
+        <!-- Top-level destinations share one navigation pane. Compact mode
+             keeps the three entry points visible as icons while the image
+             still gets most of the width. -->
+        <NavigationView x:Name="TopLevelNav"
+                        Grid.Row="1"
+                        PaneDisplayMode="LeftMinimal"
+                        OpenPaneLength="320"
+                        IsPaneToggleButtonVisible="False"
+                        IsSettingsVisible="False"
+                        IsBackButtonVisible="Collapsed"
+                        AlwaysShowHeader="False"
+                        IsPaneOpen="False"
+                        Padding="0"
+                        Background="{ThemeResource LayerFillColorDefaultBrush}"
+                        AutomationProperties.AutomationId="TopLevelNav"
+                        SelectionChanged="TopLevelNav_SelectionChanged">
+            <NavigationView.MenuItems>
+                <NavigationViewItem x:Name="ViewerNavItem"
+                                    Tag="viewer"
+                                    AutomationProperties.AutomationId="ViewerNavItem">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE8B9;" FontSize="16" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem x:Name="SettingsNavItem"
+                                    Tag="settings"
+                                    AutomationProperties.AutomationId="SettingsNavItem">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE713;" FontSize="16" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem x:Name="AboutNavItem"
+                                    Tag="about"
+                                    AutomationProperties.AutomationId="AboutNavItem">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE946;" FontSize="16" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.MenuItems>
+            <Grid x:Name="PageHost">
+                <Grid x:Name="ContentRoot"
+                      Background="{ThemeResource LayerFillColorDefaultBrush}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -115,7 +163,7 @@
                                         Click="ActualSizeMenuItem_Click"
                                         KeyboardAcceleratorTextOverride="0">
                             <MenuFlyoutItem.Icon>
-                                <FontIcon Glyph="&#xE799;" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                <FontIcon Glyph="1:1" FontFamily="Segoe UI" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </MenuFlyoutItem.Icon>
                         </MenuFlyoutItem>
                         <MenuFlyoutSeparator />
@@ -351,7 +399,7 @@
                                       IsEnabled="False"
                                       Click="ActualSizeButton_Click">
                             <AppBarButton.Icon>
-                                <FontIcon Glyph="&#xE799;" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                <FontIcon Glyph="1:1" FontFamily="Segoe UI" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </AppBarButton.Icon>
                         </AppBarButton>
 
@@ -399,30 +447,23 @@
                                 <FontIcon Glyph="&#xE8DA;" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </AppBarButton.Icon>
                         </AppBarButton>
-
-                        <AppBarSeparator />
-
-                        <AppBarButton x:Name="SettingsCommand"
-                                      AutomationProperties.AutomationId="SettingsMenuItem"
-                                      KeyboardAcceleratorTextOverride="Ctrl+,"
-                                      KeyboardAcceleratorPlacementMode="Auto"
-                                      Click="SettingsMenuItem_Click">
-                            <AppBarButton.Icon>
-                                <FontIcon Glyph="&#xE713;" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                            </AppBarButton.Icon>
-                        </AppBarButton>
                     </CommandBar.SecondaryCommands>
             </CommandBar>
-        </Grid>
+                </Grid>
 
-        <!-- Settings is a full-window page in this window, the way the design
-             guidance and the WinUI Gallery place it. It replaces the viewer
-             while it is open; the back command returns to the image. -->
-        <ContentControl x:Name="SettingsHost"
-                        Grid.Row="1"
-                        Visibility="Collapsed"
-                        IsTabStop="False"
-                        HorizontalContentAlignment="Stretch"
-                        VerticalContentAlignment="Stretch" />
+                <!-- Settings and About are peers of the viewer, so each gets
+                     its own full-window host instead of a nested back stack. -->
+                <ContentControl x:Name="SettingsHost"
+                                Visibility="Collapsed"
+                                IsTabStop="False"
+                                HorizontalContentAlignment="Stretch"
+                                VerticalContentAlignment="Stretch" />
+                <ContentControl x:Name="AboutHost"
+                                Visibility="Collapsed"
+                                IsTabStop="False"
+                                HorizontalContentAlignment="Stretch"
+                                VerticalContentAlignment="Stretch" />
+            </Grid>
+        </NavigationView>
     </Grid>
 </Window>
