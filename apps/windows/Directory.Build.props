@@ -2,12 +2,12 @@
   <!--
     Scoped to the Windows app only, so other .NET modules keep their own
     artifact folders. Produces:
-      apps/windows/artifacts/bin/<ProjectName>/<Configuration>_<RuntimeIdentifier>/
+      build/windows/dotnet/bin/<ProjectName>/<Configuration>_<RuntimeIdentifier>/
   -->
   <PropertyGroup>
-    <ArtifactsPath>$(MSBuildThisFileDirectory)artifacts</ArtifactsPath>
-    <!-- Generated sources live in artifacts; keep the default source glob from
-         picking them up on the next evaluation. -->
-    <DefaultItemExcludes>$(DefaultItemExcludes);artifacts/**</DefaultItemExcludes>
+    <ArtifactsPath>$(MSBuildThisFileDirectory)..\..\build\windows\dotnet</ArtifactsPath>
+    <!-- Generated sources live in the artifacts tree; keep the default source
+         glob from picking them up on the next evaluation. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildThisFileDirectory)..\..\build\windows\dotnet\**</DefaultItemExcludes>
   </PropertyGroup>
 </Project>
