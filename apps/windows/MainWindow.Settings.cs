@@ -1,24 +1,29 @@
-using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
-using Windows.Graphics;
-using Windows.Foundation;
+using System;
 
 namespace NopeView.App;
 
-// Settings window plumbing: open, close, and theme forwarding.
+// Settings plumbing: the page replaces the viewer inside the same window, the
+// way the Windows design guidance and the WinUI Gallery present settings.
 public sealed partial class MainWindow : Window
 {
+    private SettingsPage? _settingsPage;
+
+    private bool IsSettingsOpen => SettingsHost.Visibility == Visibility.Visible;
+
     private void SettingsMenuItem_Click(object sender, RoutedEventArgs e)
     {
         OpenSettings();
     }
 
-    // Ctrl+, opens the settings window, or closes it when it is already open.
+    // Ctrl+, opens the settings page, or returns to the viewer when the page
+    // is already open.
     private void SettingsAccelerator_Invoked(
         KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
-        if (_settingsWindow is not null)
+        if (IsSettingsOpen)
         {
             CloseSettings();
         }
@@ -31,46 +36,64 @@ public sealed partial class MainWindow : Window
 
     private void OpenSettings()
     {
-        if (_settingsWindow is not null)
+        if (IsSettingsOpen)
         {
-            _settingsWindow.Activate();
             return;
         }
 
-        var window = new SettingsWindow(_settings, ApplyTheme, _settings.Theme, Handle);
-        window.Closed += (_, _) => _settingsWindow = null;
-        _settingsWindow = window;
-
-        // The window opens at 80% of the viewer's current size and is centered
-        // over it, so both windows land on the same monitor and read as one
-        // task instead of a stray dialog on another screen.
-        var mainPosition = AppWindow.Position;
-        var mainSize = AppWindow.Size;
-        if (mainSize.Width > 0 && mainSize.Height > 0)
+        if (_settingsPage is null)
         {
-            var settingsWidth = (int)Math.Round(mainSize.Width * SettingsSizeRatio);
-            var settingsHeight = (int)Math.Round(mainSize.Height * SettingsSizeRatio);
-            window.AppWindow.Resize(new SizeInt32(settingsWidth, settingsHeight));
-            window.AppWindow.Move(new PointInt32(
-                mainPosition.X + (mainSize.Width - settingsWidth) / 2,
-                mainPosition.Y + (mainSize.Height - settingsHeight) / 2));
+            var page = new SettingsPage();
+            page.Initialize(new SettingsPageParameter(_settings, ApplyTheme));
+            page.BackRequested += (_, _) => CloseSettings();
+            _settingsPage = page;
+            SettingsHost.Content = page;
         }
 
-        window.Activate();
+        ContentRoot.Visibility = Visibility.Collapsed;
+        SettingsHost.Visibility = Visibility.Visible;
+        RefreshWindowTitle();
     }
 
     private void CloseSettings()
     {
-        _settingsWindow?.Close();
+        if (!IsSettingsOpen)
+        {
+            return;
+        }
+
+        SettingsHost.Visibility = Visibility.Collapsed;
+        ContentRoot.Visibility = Visibility.Visible;
+        RefreshWindowTitle();
+        ViewerCommandBar.Focus(FocusState.Programmatic);
+    }
+
+    /// <summary>
+    /// The caption names the open document, and switches to the page name while
+    /// the settings page owns the window. Both surfaces share one title bar.
+    /// </summary>
+    private void RefreshWindowTitle()
+    {
+        if (IsSettingsOpen)
+        {
+            AppTitleBar.Title = "Settings";
+        }
+        else if (string.IsNullOrEmpty(_documentName))
+        {
+            AppTitleBar.Title = "NopeView";
+        }
+        else
+        {
+            AppTitleBar.Title = $"{_documentName} - NopeView";
+        }
     }
 
     private void ApplyTheme(AppTheme theme)
     {
         // System means "no override", so the OS theme flows through. Explicit
         // choices pin the root element, which makes the local Dark/Light
-        // dictionaries in App.xaml take effect. The settings window pins its
-        // own root so both windows follow the same choice.
+        // dictionaries in App.xaml take effect. The settings page lives under
+        // the same root, so it follows without a second theme application.
         ThemeApplication.Apply(RootGrid, theme);
-        _settingsWindow?.ApplyTheme(theme);
     }
 }

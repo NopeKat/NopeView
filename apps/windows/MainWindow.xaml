@@ -23,7 +23,6 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- The official title bar control owns the caption, drag region and
@@ -38,25 +37,26 @@
             </TitleBar.IconSource>
         </TitleBar>
         <Grid x:Name="ContentRoot" Grid.Row="1"
-              Background="{ThemeResource SolidBackgroundFillColorBaseBrush}">
+              Background="{ThemeResource LayerFillColorDefaultBrush}">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
             <!-- The official InfoBar owns the error layout, severity colors,
-                 icon and text metrics. It sits at the top of the content flow
-                 and pushes the viewer down instead of covering the image. -->
+                 icon and text metrics. It sits below the command layer and
+                 pushes the viewer down instead of covering the image. -->
             <InfoBar x:Name="ErrorPanel"
-                     Grid.Row="0"
+                     Grid.Row="1"
                      Severity="Error"
                      IsOpen="False"
                      IsClosable="True"
                      Title="Could not open image"
-                     Margin="24,16,24,0"
+                     Margin="24,8,24,0"
                      AutomationProperties.AutomationId="ErrorInfoBar"
                      AutomationProperties.Name="Image error" />
             <Grid x:Name="Viewport"
-                  Grid.Row="1"
+                  Grid.Row="2"
                   Background="Transparent"
                   SizeChanged="Viewport_SizeChanged"
                   PointerWheelChanged="Viewport_PointerWheelChanged">
@@ -67,12 +67,10 @@
                     <MenuFlyout>
                         <MenuFlyoutItem x:Name="CopyImageMenuItem"
                                         Text="Copy image"
-                                        AutomationProperties.AutomationId="CopyImageMenuItem"
+                                        AutomationProperties.AutomationId="ContextCopyImage"
                                         IsEnabled="False"
+                                        KeyboardAcceleratorTextOverride="Ctrl+C"
                                         Click="CopyImageMenuItem_Click">
-                            <MenuFlyoutItem.KeyboardAccelerators>
-                                <KeyboardAccelerator Key="C" Modifiers="Control" />
-                            </MenuFlyoutItem.KeyboardAccelerators>
                             <MenuFlyoutItem.Icon>
                                 <PathIcon Width="16" Height="16"
                                           Data="M5 6H3.5C2.67157 6 2 6.67157 2 7.5V12.5C2 13.3284 2.67157 14 3.5 14H7.5C8.32843 14 9 13.3284 9 12.5V12H10V12.5C10 13.8807 8.88071 15 7.5 15H3.5C2.11929 15 1 13.8807 1 12.5V7.5C1 6.11929 2.11929 5 3.5 5H5V6ZM12.5 1C13.8807 1 15 2.11929 15 3.5V8.5C15 9.88071 13.8807 11 12.5 11H8.5C7.11929 11 6 9.88071 6 8.5V3.5C6 2.11929 7.11929 1 8.5 1H12.5ZM8.5 2C7.67157 2 7 2.67157 7 3.5V8.5C7 9.32843 7.67157 10 8.5 10H12.5C13.3284 10 14 9.32843 14 8.5V3.5C14 2.67157 13.3284 2 12.5 2H8.5Z" />
@@ -80,12 +78,10 @@
                         </MenuFlyoutItem>
                         <MenuFlyoutItem x:Name="CopyPathMenuItem"
                                         Text="Copy path"
-                                        AutomationProperties.AutomationId="CopyPathMenuItem"
+                                        AutomationProperties.AutomationId="ContextCopyPath"
                                         IsEnabled="False"
-                                        Click="CopyPathMenuItem_Click">
-                            <MenuFlyoutItem.KeyboardAccelerators>
-                                <KeyboardAccelerator Key="C" Modifiers="Control,Shift" />
-                            </MenuFlyoutItem.KeyboardAccelerators>
+                                        Click="CopyPathMenuItem_Click"
+                                        KeyboardAcceleratorTextOverride="Ctrl+Shift+C">
                             <MenuFlyoutItem.Icon>
                                 <PathIcon Width="16" Height="16"
                                           Data="M4.08535 2C4.29127 1.4174 4.84689 1 5.5 1H8.5C9.15311 1 9.70873 1.4174 9.91465 2H10.5C11.3284 2 12 2.67157 12 3.5V7H11V3.5C11 3.22386 10.7761 3 10.5 3H9.91465C9.70873 3.5826 9.15311 4 8.5 4H5.5C4.84689 4 4.29127 3.5826 4.08535 3H3.5C3.22386 3 3 3.22386 3 3.5V13.5C3 13.7761 3.22386 14 3.5 14H4.75777C5.01056 14.3776 5.31899 14.7149 5.67133 15H3.5C2.67157 15 2 14.3284 2 13.5V3.5C2 2.67157 2.67157 2 3.5 2H4.08535ZM5.5 2C5.22386 2 5 2.22386 5 2.5C5 2.77614 5.22386 3 5.5 3H8.5C8.77614 3 9 2.77614 9 2.5C9 2.22386 8.77614 2 8.5 2H5.5ZM15 11.5C15 9.567 13.433 8 11.5 8L11.4101 8.00806C11.1769 8.05039 11 8.25454 11 8.5C11 8.77614 11.2239 9 11.5 9L11.6644 9.00532C12.9685 9.08996 14 10.1745 14 11.5C14 12.8807 12.8807 14 11.5 14L11.4977 14.0046L11.4079 14.0131C11.1748 14.0565 10.9989 14.2614 11 14.5069C11.0013 14.783 11.2262 15.0059 11.5023 15.0046V15L11.6941 14.9948C13.5357 14.8951 15 13.3686 15 11.5ZM9 8.5C9 8.22386 8.77614 8 8.5 8L8.30796 8.00518C6.46428 8.10487 5 9.63144 5 11.5C5 13.433 6.567 15 8.5 15L8.58988 14.9919C8.82312 14.9496 9 14.7455 9 14.5C9 14.2239 8.77614 14 8.5 14L8.33562 13.9947C7.03154 13.91 6 12.8255 6 11.5C6 10.1193 7.11929 9 8.5 9L8.58988 8.99194C8.82312 8.94961 9 8.74546 9 8.5ZM11.5002 11.0023L8.50023 11L8.41035 11.008C8.17708 11.0502 8.00011 11.2543 8 11.4998C7.99987 11.7759 8.22363 11.9999 8.49977 12L11.4998 12.0023L11.5897 11.9943C11.8229 11.9521 11.9999 11.748 12 11.5025C12.0001 11.2264 11.7764 11.0024 11.5002 11.0023Z" />
@@ -94,12 +90,10 @@
                         <MenuFlyoutSeparator />
                         <MenuFlyoutItem x:Name="SaveAsMenuItem"
                                         Text="Save as…"
-                                        AutomationProperties.AutomationId="SaveAsMenuItem"
+                                        AutomationProperties.AutomationId="ContextSaveAs"
                                         IsEnabled="False"
-                                        Click="SaveAsMenuItem_Click">
-                            <MenuFlyoutItem.KeyboardAccelerators>
-                                <KeyboardAccelerator Key="S" Modifiers="Control" />
-                            </MenuFlyoutItem.KeyboardAccelerators>
+                                        Click="SaveAsMenuItem_Click"
+                                        KeyboardAcceleratorTextOverride="Ctrl+S">
                             <MenuFlyoutItem.Icon>
                                 <PathIcon Width="16" Height="16"
                                           Data="M4.00018 3C3.4479 3 3.00018 3.44772 3.00018 4V12C3.00018 12.5523 3.4479 13 4.00018 13V9.5C4.00018 8.67157 4.67176 8 5.50018 8H10.5002C11.3286 8 12.0002 8.67157 12.0002 9.5V13C12.5525 13 13.0002 12.5523 13.0002 12V5.62132C13.0002 5.3561 12.8948 5.10175 12.7073 4.91421L11.086 3.29289C10.8984 3.10536 10.6441 3 10.3789 3H10.0002V4.5C10.0002 5.32843 9.32861 6 8.50018 6H6.50018C5.67176 6 5.00018 5.32843 5.00018 4.5V3H4.00018ZM6.00018 3V4.5C6.00018 4.77614 6.22404 5 6.50018 5H8.50018C8.77633 5 9.00018 4.77614 9.00018 4.5V3H6.00018ZM11.0002 13V9.5C11.0002 9.22386 10.7763 9 10.5002 9H5.50018C5.22404 9 5.00018 9.22386 5.00018 9.5V13H11.0002ZM2.00018 4C2.00018 2.89543 2.89561 2 4.00018 2H10.3789C10.9093 2 11.418 2.21071 11.7931 2.58579L13.4144 4.20711C13.7895 4.58218 14.0002 5.09089 14.0002 5.62132V12C14.0002 13.1046 13.1048 14 12.0002 14H4.00018C2.89561 14 2.00018 13.1046 2.00018 12V4Z" />
@@ -107,7 +101,7 @@
                         </MenuFlyoutItem>
                         <MenuFlyoutItem x:Name="ShowInExplorerMenuItem"
                                         Text="Show in Explorer"
-                                        AutomationProperties.AutomationId="ShowInExplorerMenuItem"
+                                        AutomationProperties.AutomationId="ContextShowInExplorer"
                                         IsEnabled="False"
                                         Click="ShowInExplorerMenuItem_Click">
                             <MenuFlyoutItem.Icon>
@@ -118,12 +112,10 @@
                         <MenuFlyoutSeparator />
                         <MenuFlyoutItem x:Name="FitMenuItem"
                                         Text="Fit"
-                                        AutomationProperties.AutomationId="FitMenuItem"
+                                        AutomationProperties.AutomationId="ContextFit"
                                         IsEnabled="False"
-                                        Click="FitMenuItem_Click">
-                            <MenuFlyoutItem.KeyboardAccelerators>
-                                <KeyboardAccelerator Key="F" />
-                            </MenuFlyoutItem.KeyboardAccelerators>
+                                        Click="FitMenuItem_Click"
+                                        KeyboardAcceleratorTextOverride="F">
                             <MenuFlyoutItem.Icon>
                                 <PathIcon Width="16" Height="16"
                                           Data="M11 4C11 4.55228 11.4477 5 12 5H13.5C13.7761 5 14 5.22386 14 5.5C14 5.77614 13.7761 6 13.5 6H12C10.8954 6 10 5.10457 10 4V2.5C10 2.22386 10.2239 2 10.5 2C10.7761 2 11 2.22386 11 2.5V4ZM11 12C11 11.4477 11.4477 11 12 11H13.5C13.7761 11 14 10.7761 14 10.5C14 10.2239 13.7761 10 13.5 10H12C10.8954 10 10 10.8954 10 12V13.5C10 13.7761 10.2239 14 10.5 14C10.7761 14 11 13.7761 11 13.5V12ZM4 11C4.55228 11 5 11.4477 5 12V13.5C5 13.7761 5.22386 14 5.5 14C5.77614 14 6 13.7761 6 13.5V12C6 10.8954 5.10457 10 4 10H2.5C2.22386 10 2 10.2239 2 10.5C2 10.7761 2.22386 11 2.5 11H4ZM5 4C5 4.55228 4.55228 5 4 5H2.5C2.22386 5 2 5.22386 2 5.5C2 5.77614 2.22386 6 2.5 6H4C5.10457 6 6 5.10457 6 4V2.5C6 2.22386 5.77614 2 5.5 2C5.22386 2 5 2.22386 5 2.5V4Z" />
@@ -131,12 +123,10 @@
                         </MenuFlyoutItem>
                         <MenuFlyoutItem x:Name="ActualSizeMenuItem"
                                         Text="Actual size"
-                                        AutomationProperties.AutomationId="ActualSizeMenuItem"
+                                        AutomationProperties.AutomationId="ContextActualSize"
                                         IsEnabled="False"
-                                        Click="ActualSizeMenuItem_Click">
-                            <MenuFlyoutItem.KeyboardAccelerators>
-                                <KeyboardAccelerator Key="Number0" />
-                            </MenuFlyoutItem.KeyboardAccelerators>
+                                        Click="ActualSizeMenuItem_Click"
+                                        KeyboardAcceleratorTextOverride="0">
                             <MenuFlyoutItem.Icon>
                                 <PathIcon Width="16" Height="16"
                                           Data="M5.4103 5.65974C5.52822 5.73262 5.6 5.86137 5.6 6V10C5.6 10.22088 5.42091 10.4 5.2 10.4C4.97909 10.4 4.8 10.22088 4.8 10V6.64722L4.57889 6.75777C4.3813 6.85657 4.14102 6.77648 4.04223 6.57889C3.94343 6.3813 4.02352 6.14102 4.22111 6.04223L5.02111 5.64223C5.14511 5.58023 5.29237 5.58686 5.4103 5.65974ZM11.2 6C11.2 5.86137 11.12824 5.73262 11.01032 5.65974C10.8924 5.58686 10.74512 5.58023 10.62112 5.64223L9.82112 6.04223C9.62352 6.14102 9.54344 6.3813 9.64224 6.57889C9.74104 6.77648 9.98128 6.85657 10.17888 6.75777L10.4 6.64722V10C10.4 10.22088 10.57912 10.4 10.8 10.4C11.02088 10.4 11.2 10.22088 11.2 10V6ZM8 6.8C8 7.02091 7.82091 7.2 7.6 7.2C7.37909 7.2 7.2 7.02091 7.2 6.8C7.2 6.57909 7.37909 6.4 7.6 6.4C7.82091 6.4 8 6.57909 8 6.8ZM7.6 9.6C7.82091 9.6 8 9.42088 8 9.2C8 8.97912 7.82091 8.8 7.6 8.8C7.37909 8.8 7.2 8.97912 7.2 9.2C7.2 9.42088 7.37909 9.6 7.6 9.6ZM1.6 5.4C1.6 4.18498 2.58498 3.2 3.8 3.2H12.2C13.41504 3.2 14.4 4.18498 14.4 5.4V10.6C14.4 11.81504 13.41504 12.8 12.2 12.8H3.8C2.58498 12.8 1.6 11.81504 1.6 10.6V5.4ZM3.8 4C3.0268 4 2.4 4.6268 2.4 5.4V10.6C2.4 11.3732 3.0268 12 3.8 12H12.2C12.9732 12 13.6 11.3732 13.6 10.6V5.4C13.6 4.6268 12.9732 4 12.2 4H3.8Z" />
@@ -145,7 +135,7 @@
                         <MenuFlyoutSeparator />
                         <MenuFlyoutItem x:Name="SettingsMenuItem"
                                         Text="Settings"
-                                        AutomationProperties.AutomationId="SettingsMenuItem"
+                                        AutomationProperties.AutomationId="ContextSettings"
                                         KeyboardAcceleratorTextOverride="Ctrl+,"
                                         Click="SettingsMenuItem_Click">
                             <MenuFlyoutItem.Icon>
@@ -182,25 +172,83 @@
                               Visibility="Collapsed"
                               HorizontalAlignment="Center"
                               VerticalAlignment="Center" />
+
+                <!-- Empty state. Without it a fresh launch is a blank canvas
+                     with a disabled toolbar and no hint about what to do. -->
+                <StackPanel x:Name="EmptyState"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="8"
+                            AutomationProperties.AutomationId="EmptyState"
+                            AutomationProperties.Name="No image open">
+                    <PathIcon Width="48"
+                              Height="48"
+                              HorizontalAlignment="Center"
+                              Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                              Data="M 14,7.5 A 1.5,1.5,0,1,1,11,7.5 A 1.5,1.5,0,0,1,14,7.5 M 13,7.5 A 0.5,0.5,0,1,0,12,7.5 A 0.5,0.5,0,0,0,13,7.5 M 3,6 A 3,3,0,0,1,6,3 L 14,3 A 3,3,0,0,1,17,6 L 17,14 A 3,3,0,0,1,14,17 L 6,17 A 3,3,0,0,1,3,14 Z M 6,4 A 2,2,0,0,0,4,6 L 4,14 C 4,14.373,4.102,14.722,4.28,15.02 L 8.949,10.432 A 1.5,1.5,0,0,1,11.051,10.432 L 15.721,15.02 A 2,2,0,0,0,16,14 L 16,6 A 2,2,0,0,0,14,4 Z M 6,16 L 14,16 C 14.37,16,14.715,15.9,15.012,15.726 L 10.35,11.146 A 0.5,0.5,0,0,0,9.65,11.146 L 4.988,15.726 A 2,2,0,0,0,6,16" />
+                    <TextBlock Text="No image open"
+                               HorizontalAlignment="Center"
+                               Style="{StaticResource SubtitleTextBlockStyle}"
+                               AutomationProperties.AutomationId="EmptyStateTitle" />
+                    <TextBlock x:Name="EmptyStateHint"
+                               Text="Drop an image here, or press Ctrl+O to open one."
+                               MaxWidth="360"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"
+                               HorizontalAlignment="Center"
+                               Style="{StaticResource BodyTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               AutomationProperties.AutomationId="EmptyStateHint" />
+                    <Button Content="Open image"
+                            HorizontalAlignment="Center"
+                            Margin="0,8,0,0"
+                            Style="{StaticResource AccentButtonStyle}"
+                            AutomationProperties.AutomationId="EmptyOpenButton"
+                            Click="OpenButton_Click" />
+                </StackPanel>
             </Grid>
 
-            <!-- Floating toolbar. The official CommandBar owns the surface,
-                 button metrics, overflow behavior and keyboard handling. It is
-                 positioned over the viewer without a second hand-drawn shell. -->
+            <!-- Command layer. The official CommandBar owns the surface, button
+                 metrics, overflow behavior and keyboard handling. It is docked
+                 to the top of the content area, so the acrylic surface runs
+                 edge to edge and the canvas keeps its full height. -->
             <CommandBar x:Name="ViewerCommandBar"
-                        HorizontalAlignment="Left"
+                        Grid.Row="0"
+                        HorizontalAlignment="Stretch"
                         VerticalAlignment="Top"
-                        Margin="12"
-                        CornerRadius="{ThemeResource OverlayCornerRadius}"
-                        Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
-                        BorderBrush="{ThemeResource SurfaceStrokeColorFlyoutBrush}"
-                        BorderThickness="1"
-                        Translation="0,0,16"
+                        Background="Transparent"
+                        BorderThickness="0"
                         DefaultLabelPosition="Collapsed"
                         IsDynamicOverflowEnabled="True">
-                <CommandBar.Shadow>
-                    <ThemeShadow />
-                </CommandBar.Shadow>
+                <CommandBar.Content>
+                    <!-- Status belongs to the command layer. The filename and
+                         view state sit in the command bar content area instead
+                         of a second bar along the bottom edge. -->
+                    <Grid Padding="12,0"
+                          ColumnSpacing="16"
+                          VerticalAlignment="Center">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="FileStatusText"
+                                   AutomationProperties.AutomationId="FileStatus"
+                                   AutomationProperties.Name="Image status"
+                                   Style="{StaticResource BodyTextBlockStyle}"
+                                   Text="No image"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock x:Name="ViewStatusText"
+                                   Grid.Column="1"
+                                   AutomationProperties.AutomationId="ViewStatus"
+                                   AutomationProperties.Name="View status"
+                                   Style="{StaticResource BodyTextBlockStyle}"
+                                   VerticalAlignment="Center"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   Text="" />
+                    </Grid>
+                </CommandBar.Content>
                 <CommandBar.PrimaryCommands>
                         <AppBarButton x:Name="OpenButton"
                                       Label="Open image"
@@ -406,38 +454,14 @@
             </CommandBar>
         </Grid>
 
-        <!-- Bottom status bar: the current file on the left, view state on
-             the right. It stays in the window grid so it is also visible when
-             an error panel is shown. -->
-        <Border x:Name="StatusBar" Grid.Row="2"
-                Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
-                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-                BorderThickness="0,1,0,0">
-            <Grid Padding="12,6">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <TextBlock x:Name="FileStatusText"
-                           AutomationProperties.AutomationId="FileStatus"
-                           AutomationProperties.Name="Image status"
-                           Style="{StaticResource CaptionTextBlockStyle}"
-                           Text="No image"
-                           VerticalAlignment="Center"
-                           TextTrimming="CharacterEllipsis"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-
-                <TextBlock x:Name="ViewStatusText"
-                           Grid.Column="1"
-                           AutomationProperties.AutomationId="ViewStatus"
-                           AutomationProperties.Name="View status"
-                           Style="{StaticResource CaptionTextBlockStyle}"
-                           VerticalAlignment="Center"
-                           Margin="16,0,0,0"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                           Text="" />
-            </Grid>
-        </Border>
+        <!-- Settings is a full-window page in this window, the way the design
+             guidance and the WinUI Gallery place it. It replaces the viewer
+             while it is open; the back command returns to the image. -->
+        <ContentControl x:Name="SettingsHost"
+                        Grid.Row="1"
+                        Visibility="Collapsed"
+                        IsTabStop="False"
+                        HorizontalContentAlignment="Stretch"
+                        VerticalContentAlignment="Stretch" />
     </Grid>
 </Window>

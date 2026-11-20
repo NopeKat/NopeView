@@ -632,5 +632,13 @@ public sealed partial class MainWindow : Window
         FileStatusText.Text = string.IsNullOrEmpty(format)
             ? $"{name} | {dimensions}"
             : $"{name} | {dimensions} | {format}";
+
+        // The caption identifies the open document, the way a document window
+        // does; the title bar trims it with an ellipsis when it does not fit.
+        _documentName = name;
+        RefreshWindowTitle();
+
+        // The empty state is only for a viewer that has never shown an image.
+        EmptyState.Visibility = Visibility.Collapsed;
     }
 }

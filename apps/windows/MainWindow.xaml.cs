@@ -106,18 +106,16 @@ public sealed partial class MainWindow : Window
     // ThemeDictionaries in App.xaml switch without touching system brushes.
     private readonly SettingsService _settings = new();
 
-    // Settings lives in its own window so the viewer stays usable while the
-    // page is open. A null field means no settings window is on screen.
-    private SettingsWindow? _settingsWindow;
-
-    // The settings window opens at 80% of the viewer's current size.
-    private const double SettingsSizeRatio = 0.8;
+    // Name of the open document. The caption shows it, and the settings page
+    // temporarily takes the caption over.
+    private string? _documentName;
 
     public MainWindow()
     {
         InitializeComponent();
-        // Mica is the Fluent window backdrop. It only becomes visible while
-        // the settings page is shown; the viewer keeps its own solid surface.
+        // Mica is the Fluent window backdrop. The content layer uses a low
+        // opacity fill so the material shows through the title bar and the
+        // viewer surface, which keeps both areas in one continuous plane.
         SystemBackdrop = new MicaBackdrop();
 
         // The viewport receives pointer events for panning and touch pinch
@@ -284,11 +282,6 @@ public sealed partial class MainWindow : Window
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
-        // The settings window is independent, so closing the viewer must also
-        // close it or the process would keep running without a main window.
-        _settingsWindow?.Close();
-        _settingsWindow = null;
-
         _animationTimer.Stop();
         _decodeCancellation?.Cancel();
         RouterApi.Close(_routerContext);
@@ -394,6 +387,14 @@ public sealed partial class MainWindow : Window
         KeyboardAccelerator sender,
         KeyboardAcceleratorInvokedEventArgs args)
     {
+        // Escape backs out of the settings page first, then leaves full screen.
+        if (IsSettingsOpen)
+        {
+            args.Handled = true;
+            CloseSettings();
+            return;
+        }
+
         if (!_isFullScreen)
         {
             return;
@@ -426,17 +427,31 @@ public sealed partial class MainWindow : Window
                 presenter.State == OverlappedPresenterState.Maximized;
             AppWindow.SetPresenter(AppWindowPresenterKind.FullScreen);
             _isFullScreen = true;
+            SetChromeVisible(false);
         }
         else
         {
             AppWindow.SetPresenter(AppWindowPresenterKind.Overlapped);
             _isFullScreen = false;
+            SetChromeVisible(true);
             if (_wasMaximizedBeforeFullScreen &&
                 AppWindow.Presenter is OverlappedPresenter presenter)
             {
                 presenter.Maximize();
             }
         }
+    }
+
+    /// <summary>
+    /// Full screen is a viewing mode: the caption and the command layer step
+    /// aside so the picture owns the whole display. Escape or F11 restores
+    /// both, and the caption keeps its system buttons once it is back.
+    /// </summary>
+    private void SetChromeVisible(bool visible)
+    {
+        var visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        AppTitleBar.Visibility = visibility;
+        ViewerCommandBar.Visibility = visibility;
     }
 
     /// <summary>
