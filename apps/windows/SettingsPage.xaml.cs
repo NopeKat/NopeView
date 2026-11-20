@@ -150,9 +150,10 @@ public sealed partial class SettingsPage : Page
         ThemeComboBox.SelectedIndex = -1;
         ThemeComboBox.SelectedIndex = theme switch
         {
-            AppTheme.Light => 0,
-            AppTheme.Dark => 1,
-            _ => 2,
+            AppTheme.System => 0,
+            AppTheme.Light => 1,
+            AppTheme.Dark => 2,
+            _ => 0,
         };
         _syncingTheme = false;
 
@@ -195,8 +196,8 @@ public sealed partial class SettingsPage : Page
         LanguageComboBox.SelectedIndex = -1;
         LanguageComboBox.SelectedIndex = language switch
         {
-            Localization.SimplifiedChinese => 2,
-            Localization.FallbackLanguage => 1,
+            Localization.SimplifiedChinese => 1,
+            Localization.FallbackLanguage => 2,
             _ => 0,
         };
         _syncingLanguage = false;

@@ -126,7 +126,7 @@
     <value>Dark</value>
   </data>
   <data name="ThemeSystem.Content" xml:space="preserve">
-    <value>Use system setting</value>
+    <value>Auto</value>
   </data>
   <data name="AboutSection.Text" xml:space="preserve">
     <value>About</value>
@@ -155,15 +155,13 @@
     <value>Choose the language used across the app</value>
   </data>
   <data name="LanguageSystem.Content" xml:space="preserve">
-    <value>Use system language</value>
+    <value>Follow system</value>
   </data>
   <data name="LanguageEnglish.Content" xml:space="preserve">
-    <value>English</value>
-    <comment>Endonym, not translated.</comment>
+    <value>American English</value>
   </data>
   <data name="LanguageChinese.Content" xml:space="preserve">
-    <value>&#x4E2D;&#x6587;&#xFF08;&#x7B80;&#x4F53;&#xFF09;</value>
-    <comment>Endonym for Simplified Chinese, not translated.</comment>
+    <value>Simplified Chinese</value>
   </data>
 
   <!-- Actions whose text changes with state. -->
@@ -339,7 +337,7 @@
     <value>Choose how the image is separated from the background</value>
   </data>
   <data name="ImageFrameNone.Content" xml:space="preserve">
-    <value>None</value>
+    <value>Default</value>
   </data>
   <data name="ImageFrameStroke.Content" xml:space="preserve">
     <value>Outline</value>
