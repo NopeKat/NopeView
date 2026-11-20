@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Page
     x:Class="NopeView.App.SettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -10,18 +10,22 @@
     <!-- One settings page fills the window: the page header names the surface,
          section headers group the settings, and the about block closes the page
          instead of competing with appearance for a navigation slot. -->
-    <Grid>
+    <Grid MaxWidth="{StaticResource SettingsPageMaxWidth}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <!-- The back arrow sits in the left gutter so the title keeps the same
-             left edge as the cards below. -->
-        <Grid MaxWidth="{StaticResource SettingsContentMaxWidth}"
-              Margin="0,24,0,0">
+        <!-- The back arrow and page title share one row, with the title to the
+             right of the arrow. Both still start from the 36 px page inset. -->
+        <Grid Margin="36,24,36,0"
+              ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
             <Button x:Name="BackButton"
-                    Width="32"
-                    Height="32"
+                    Width="40"
+                    Height="40"
                     Padding="0"
                     HorizontalAlignment="Left"
                     VerticalAlignment="Center"
@@ -31,11 +35,13 @@
                     AutomationProperties.Name="Back"
                     ToolTipService.ToolTip="Back"
                     Click="BackButton_Click">
-                <PathIcon Width="16" Height="16"
-                          Data="M10.3536 3.14645C10.5488 3.34171 10.5488 3.65829 10.3536 3.85355L6.20711 8L10.3536 12.1464C10.5488 12.3417 10.5488 12.6583 10.3536 12.8536C10.1583 13.0488 9.84171 13.0488 9.64645 12.8536L5.14645 8.35355C4.95118 8.15829 4.95118 7.84171 5.14645 7.64645L9.64645 3.14645C9.84171 2.95118 10.1583 2.95118 10.3536 3.14645Z" />
+                <FontIcon Glyph="&#xE72B;"
+                          FontSize="16"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center" />
             </Button>
             <TextBlock x:Name="SettingsHeader"
-                       Margin="36,0,0,0"
+                       Grid.Column="1"
                        VerticalAlignment="Center"
                        Style="{StaticResource TitleTextBlockStyle}"
                        AutomationProperties.AutomationId="SettingsPageHeader"
@@ -52,11 +58,11 @@
                 </StackPanel.ChildrenTransitions>
 
                 <TextBlock x:Name="AppearanceSectionHeader"
-                           Style="{StaticResource SettingsSectionHeaderStyle}" />
+                           Style="{StaticResource SettingsSectionHeaderStyle}"
+                           AutomationProperties.HeadingLevel="Level2" />
                 <toolkit:SettingsCard x:Name="ThemeCard">
                     <toolkit:SettingsCard.HeaderIcon>
-                        <PathIcon Width="20" Height="20"
-                                  Data="M 10,2 A 8,8,0,0,1,13.388,17.249 A 3.77,3.77,0,0,1,10.097,17.19 C 9.123,16.687,8.401,15.723,8.449,14.459 C 8.466,14.014,8.531,13.592,8.592,13.216 C 8.655,12.829,8.71,12.504,8.728,12.201 C 8.746,11.904,8.724,11.668,8.65,11.469 C 8.58,11.278,8.45,11.088,8.2,10.9 C 7.887,10.665,7.62,10.625,7.355,10.663 C 7.055,10.706,6.741,10.851,6.341,11.05 C 5.606,11.415,4.565,11.992,3.367,11.382 C 2.265,10.82,1.943,9.514,2.147,8.465 A 8,8,0,0,1,10,2 M 10,3 A 7,7,0,0,0,3.129,8.655 C 2.976,9.443,3.255,10.202,3.82,10.49 C 4.504,10.838,5.071,10.564,5.896,10.154 C 6.276,9.966,6.73,9.742,7.214,9.673 C 7.734,9.598,8.268,9.701,8.8,10.1 C 9.19,10.392,9.445,10.734,9.588,11.121 C 9.728,11.5,9.75,11.889,9.728,12.261 C 9.706,12.627,9.638,13.014,9.579,13.377 A 9,9,0,0,0,9.449,14.497 C 9.417,15.309,9.867,15.945,10.557,16.302 A 2.77,2.77,0,0,0,12.964,16.344 A 7.002,7.002,0,0,0,10,3 M 12.5,13 A 1,1,0,1,1,12.5,15 A 1,1,0,0,1,12.5,13 M 14.5,10.5 A 1,1,0,1,1,14.5,12.5 A 1,1,0,0,1,14.5,10.5 M 14.5,7.5 A 1,1,0,1,1,14.5,9.5 A 1,1,0,0,1,14.5,7.5 M 12.5,5 A 1,1,0,1,1,12.5,7 A 1,1,0,0,1,12.5,5 M 9.5,4.5 A 1,1,0,1,1,9.5,6.5 A 1,1,0,0,1,9.5,4.5" />
+                        <FontIcon Glyph="&#xE790;" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </toolkit:SettingsCard.HeaderIcon>
                     <ComboBox x:Name="ThemeComboBox"
                               HorizontalAlignment="Right"
@@ -77,8 +83,7 @@
                 <toolkit:SettingsCard x:Name="ImageFrameCard"
                                       Margin="0,0,0,36">
                     <toolkit:SettingsCard.HeaderIcon>
-                        <PathIcon Width="20" Height="20"
-                                  Data="M 14,7.5 A 1.5,1.5,0,1,1,11,7.5 A 1.5,1.5,0,0,1,14,7.5 M 13,7.5 A 0.5,0.5,0,1,0,12,7.5 A 0.5,0.5,0,0,0,13,7.5 M 3,6 A 3,3,0,0,1,6,3 L 14,3 A 3,3,0,0,1,17,6 L 17,14 A 3,3,0,0,1,14,17 L 6,17 A 3,3,0,0,1,3,14 Z M 6,4 A 2,2,0,0,0,4,6 L 4,14 C 4,14.373,4.102,14.722,4.28,15.02 L 8.949,10.432 A 1.5,1.5,0,0,1,11.051,10.432 L 15.721,15.02 A 2,2,0,0,0,16,14 L 16,6 A 2,2,0,0,0,14,4 Z M 6,16 L 14,16 C 14.37,16,14.715,15.9,15.012,15.726 L 10.35,11.146 A 0.5,0.5,0,0,0,9.65,11.146 L 4.988,15.726 A 2,2,0,0,0,6,16" />
+                        <FontIcon Glyph="&#xE8B9;" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </toolkit:SettingsCard.HeaderIcon>
                     <ComboBox x:Name="ImageFrameComboBox"
                               HorizontalAlignment="Right"
@@ -97,12 +102,12 @@
                 </toolkit:SettingsCard>
 
                 <TextBlock x:Name="LanguageSectionHeader"
-                           Style="{StaticResource SettingsSectionHeaderStyle}" />
+                           Style="{StaticResource SettingsSectionHeaderStyle}"
+                           AutomationProperties.HeadingLevel="Level2" />
                 <toolkit:SettingsCard x:Name="LanguageCard"
                                       Margin="0,0,0,36">
                     <toolkit:SettingsCard.HeaderIcon>
-                        <PathIcon Width="20" Height="20"
-                                  Data="M9.5 1.996a.5.5 0 0 0 0 1H13v1.869C13 6.03 11.832 7 10.5 7a.5.5 0 0 0 0 1C12.21 8 14 6.742 14 4.865V2.496a.5.5 0 0 0-.5-.5h-4ZM7.961 5.307a.5.5 0 0 0-.923 0l-5 12a.5.5 0 1 0 .923.385l1.537-3.69H10.5l1.539 3.695a.5.5 0 1 0 .923-.385l-1.662-3.99a.552.552 0 0 0-.01-.022L7.963 5.307Zm2.122 7.696H4.915L7.5 6.8l2.584 6.203ZM15.5 1.996a.5.5 0 0 1 .5.5v3.505h1.5a.5.5 0 0 1 0 1H16v6.495a.5.5 0 1 1-1 0v-11a.5.5 0 0 1 .5-.5Z" />
+                        <FontIcon Glyph="&#xF2B7;" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </toolkit:SettingsCard.HeaderIcon>
                     <ComboBox x:Name="LanguageComboBox"
                               HorizontalAlignment="Right"
@@ -121,12 +126,15 @@
                 </toolkit:SettingsCard>
 
                 <TextBlock x:Name="AboutSectionHeader"
-                           Style="{StaticResource SettingsSectionHeaderStyle}" />
+                           Style="{StaticResource SettingsSectionHeaderStyle}"
+                           AutomationProperties.HeadingLevel="Level2" />
                 <toolkit:SettingsExpander x:Name="AboutExpander"
                                           Margin="0,0,0,36"
                                           AutomationProperties.AutomationId="AboutExpander">
                     <toolkit:SettingsExpander.HeaderIcon>
-                        <BitmapIcon ShowAsMonochrome="False"
+                        <BitmapIcon Width="20"
+                                    Height="20"
+                                    ShowAsMonochrome="False"
                                     UriSource="ms-appx:///assets/nopeview-title.png" />
                     </toolkit:SettingsExpander.HeaderIcon>
                     <TextBlock x:Name="VersionText"
@@ -136,8 +144,7 @@
                     <toolkit:SettingsExpander.Items>
                         <toolkit:SettingsCard x:Name="RepositoryCard">
                             <toolkit:SettingsCard.HeaderIcon>
-                                <PathIcon Width="20" Height="20"
-                                          Data="M 12.64,1.02 A 0.5,0.5,0,0,1,12.98,1.64 L 7.98,18.64 A 0.5,0.5,0,0,1,7.02,18.36 L 12.02,1.36 A 0.5,0.5,0,0,1,12.64,1.02 M 5.127,5.169 A 0.5,0.5,0,0,1,5.875,5.833 L 2.169,10 L 5.874,14.168 A 0.5,0.5,0,0,1,5.126,14.832 L 1.126,10.332 A 0.5,0.5,0,0,1,1.126,9.668 Z M 14.169,5.127 A 0.5,0.5,0,0,1,14.875,5.169 L 18.875,9.669 A 0.5,0.5,0,0,1,18.875,10.333 L 14.875,14.833 A 0.5,0.5,0,0,1,14.127,14.169 L 17.831,10 L 14.126,5.832 A 0.5,0.5,0,0,1,14.168,5.126" />
+                                <FontIcon Glyph="&#xE71B;" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </toolkit:SettingsCard.HeaderIcon>
                             <HyperlinkButton Content="NopeKat/NopeView"
                                              NavigateUri="https://github.com/NopeKat/NopeView" />

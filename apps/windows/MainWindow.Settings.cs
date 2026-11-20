@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using System;
+using System.Runtime.InteropServices;
 using Windows.UI;
 
 namespace NopeView.App;
@@ -12,6 +13,35 @@ namespace NopeView.App;
 // way the Windows design guidance and the WinUI Gallery present settings.
 public sealed partial class MainWindow : Window
 {
+    private const uint SpiGetHighContrast = 0x0042;
+    private const uint HcfHighContrastOn = 0x0001;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct HighContrastInfo
+    {
+        public uint Size;
+        public uint Flags;
+        public nint DefaultScheme;
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SystemParametersInfo(
+        uint action, uint parameter, ref HighContrastInfo info, uint update);
+
+    // AccessibilitySettings is a UWP contract and is not reliable for an
+    // unpackaged WinUI 3 process. SystemParametersInfo exposes the same
+    // high-contrast flag without activating that WinRT object.
+    private static bool IsHighContrastOn()
+    {
+        var info = new HighContrastInfo
+        {
+            Size = (uint)Marshal.SizeOf<HighContrastInfo>(),
+        };
+        return SystemParametersInfo(SpiGetHighContrast, info.Size, ref info, 0)
+            && (info.Flags & HcfHighContrastOn) != 0;
+    }
+
     private SettingsPage? _settingsPage;
 
     private bool IsSettingsOpen => SettingsHost.Visibility == Visibility.Visible;
@@ -135,6 +165,22 @@ public sealed partial class MainWindow : Window
         };
         var isDark = effectiveTheme == ElementTheme.Dark;
         var titleBar = AppWindow.TitleBar;
+
+        // High contrast owns a separate system palette for text and surfaces.
+        // Clearing the overrides lets the system draw the caption buttons with
+        // that palette instead of the app's dark/light glyph colors.
+        if (IsHighContrastOn())
+        {
+            titleBar.ButtonBackgroundColor = null;
+            titleBar.ButtonInactiveBackgroundColor = null;
+            titleBar.ButtonForegroundColor = null;
+            titleBar.ButtonHoverForegroundColor = null;
+            titleBar.ButtonHoverBackgroundColor = null;
+            titleBar.ButtonPressedForegroundColor = null;
+            titleBar.ButtonPressedBackgroundColor = null;
+            titleBar.ButtonInactiveForegroundColor = null;
+            return;
+        }
 
         titleBar.ButtonBackgroundColor = Colors.Transparent;
         titleBar.ButtonInactiveBackgroundColor = Colors.Transparent;

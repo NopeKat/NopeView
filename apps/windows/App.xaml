@@ -18,7 +18,14 @@
             </Style>
             <x:Double x:Key="SettingsCardSpacing">4</x:Double>
             <x:Double x:Key="SettingsContentMaxWidth">1064</x:Double>
+            <x:Double x:Key="SettingsPageMaxWidth">1136</x:Double>
             <Thickness x:Key="SettingsContentPadding">36,0,36,0</Thickness>
+
+            <!-- AppBarButton reserves 2,6,2,6 around its hover surface inside
+                 the compact 48x48 slot, which makes the visible press area a
+                 44x36 rectangle. A uniform 4 inset leaves a 40x40 square. -->
+            <Thickness x:Key="AppBarButtonInnerBorderMargin">4</Thickness>
+            <Thickness x:Key="AppBarButtonInnerBorderCompactMargin">4</Thickness>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
