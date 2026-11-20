@@ -4,4 +4,4 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose") version "2.4.21" apply false
 }
 
-layout.buildDirectory.set(file("${rootDir}/../../../.build/android/root"))
+layout.buildDirectory.set(file("${rootDir}/../../../../.build/android/root"))

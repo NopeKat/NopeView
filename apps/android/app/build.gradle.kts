@@ -74,7 +74,7 @@ kotlin {
     }
 }
 
-layout.buildDirectory.set(file("${rootDir}/../../../.build/android/app"))
+layout.buildDirectory.set(file("${rootDir}/../../../../.build/android/app"))
 
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2025.12.00"))
