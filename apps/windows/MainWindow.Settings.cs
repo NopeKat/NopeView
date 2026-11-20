@@ -1,7 +1,10 @@
+using Microsoft.UI;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using System;
+using Windows.UI;
 
 namespace NopeView.App;
 
@@ -111,6 +114,42 @@ public sealed partial class MainWindow : Window
         // dictionaries in App.xaml take effect. The settings page lives under
         // the same root, so it follows without a second theme application.
         ThemeApplication.Apply(RootGrid, theme);
+        ApplyTitleBarColors(theme);
+    }
+
+    // The caption buttons are drawn by the system, outside the XAML theme.
+    // Pin their colors to the app theme so a forced dark theme cannot leave
+    // light-theme black glyphs on a dark Mica bar.
+    private void ApplyTitleBarColors(AppTheme theme)
+    {
+        if (!AppWindowTitleBar.IsCustomizationSupported())
+        {
+            return;
+        }
+
+        var effectiveTheme = theme switch
+        {
+            AppTheme.Dark => ElementTheme.Dark,
+            AppTheme.Light => ElementTheme.Light,
+            _ => RootGrid.ActualTheme,
+        };
+        var isDark = effectiveTheme == ElementTheme.Dark;
+        var titleBar = AppWindow.TitleBar;
+
+        titleBar.ButtonBackgroundColor = Colors.Transparent;
+        titleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
+        titleBar.ButtonForegroundColor = isDark ? Colors.White : Colors.Black;
+        titleBar.ButtonHoverForegroundColor = isDark ? Colors.White : Colors.Black;
+        titleBar.ButtonHoverBackgroundColor = isDark
+            ? Color.FromArgb(0x0F, 0xFF, 0xFF, 0xFF)
+            : Color.FromArgb(0x09, 0x00, 0x00, 0x00);
+        titleBar.ButtonPressedForegroundColor = isDark ? Colors.White : Colors.Black;
+        titleBar.ButtonPressedBackgroundColor = isDark
+            ? Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF)
+            : Color.FromArgb(0x0A, 0x00, 0x00, 0x00);
+        titleBar.ButtonInactiveForegroundColor = isDark
+            ? Color.FromArgb(0xFF, 0xA0, 0xA0, 0xA0)
+            : Color.FromArgb(0xFF, 0x60, 0x60, 0x60);
     }
 
     private void ApplyImageFrame(ImageFrameStyle frame)

@@ -177,6 +177,11 @@ public sealed partial class MainWindow : Window
         // Extend content into the title bar so the official TitleBar control
         // occupies the caption area and keeps the system buttons.
         ExtendsContentIntoTitleBar = true;
+        ApplyTitleBarColors(_settings.Theme);
+
+        // System theme changes update ActualTheme without going through
+        // ApplyTheme, so the system caption buttons need their own refresh.
+        RootGrid.ActualThemeChanged += (_, _) => ApplyTitleBarColors(_settings.Theme);
 
         ConfigureStartupWindow();
 
