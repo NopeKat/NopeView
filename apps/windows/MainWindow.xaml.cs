@@ -4,6 +4,7 @@ using Microsoft.UI.Windowing;
 using System.Diagnostics;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
+using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
@@ -29,6 +30,12 @@ public sealed partial class MainWindow : Window
     // un-maximizing always produces a visibly smaller window, even on a display
     // where the preferred size would cover the whole screen.
     private const double RestoreAreaRatio = 0.9;
+
+    // The smallest window that still fits the command layer on one row and a
+    // settings card side by side. It follows the small breakpoint in the design
+    // guidance, so layouts are never forced into the cramped case.
+    private const int PreferredMinimumWidth = 640;
+    private const int PreferredMinimumHeight = 480;
 
     private readonly DispatcherTimer _animationTimer = new();
 
@@ -333,6 +340,10 @@ public sealed partial class MainWindow : Window
 
         if (appWindow.Presenter is OverlappedPresenter presenter)
         {
+            presenter.PreferredMinimumWidth =
+                (int)Math.Round(PreferredMinimumWidth * scale);
+            presenter.PreferredMinimumHeight =
+                (int)Math.Round(PreferredMinimumHeight * scale);
             presenter.Maximize();
         }
     }
@@ -343,7 +354,35 @@ public sealed partial class MainWindow : Window
         // the system caption buttons and their active/inactive states.
         SetTitleBar(AppTitleBar);
         ConfigureOverflowButton();
+        ConfigureErrorBar();
         OpenImageFromCommandLine();
+    }
+
+    /// <summary>
+    /// The error bar keeps its stock template, but its close command and
+    /// severity glyph come with names localized by the system. The window copy
+    /// is English, so both are renamed to keep one language in the reading
+    /// order instead of mixing the two.
+    /// </summary>
+    private void ConfigureErrorBar()
+    {
+        ErrorPanel.ApplyTemplate();
+
+        Button? closeButton = FindDescendant<Button>(ErrorPanel, "CloseButton");
+        if (closeButton is not null)
+        {
+            AutomationProperties.SetName(closeButton, "Close");
+            ToolTipService.SetToolTip(closeButton, "Close");
+        }
+
+        // The glyph is decorative: the title and the message already describe
+        // what happened, so it stays out of the reading order.
+        TextBlock? icon = FindDescendant<TextBlock>(ErrorPanel, "Icon")
+            ?? FindDescendant<TextBlock>(ErrorPanel, "StandardIcon");
+        if (icon is not null)
+        {
+            AutomationProperties.SetAccessibilityView(icon, AccessibilityView.Raw);
+        }
     }
 
     private void ConfigureOverflowButton()

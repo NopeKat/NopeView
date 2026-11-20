@@ -16,6 +16,10 @@ public sealed partial class MainWindow : Window
         {
             Rect = new Rect(0, 0, e.NewSize.Width, e.NewSize.Height)
         };
+
+        // The zoom percentage is relative to the fit scale, which follows the
+        // viewport, so the status line is rebuilt once the new layout lands.
+        DispatcherQueue.TryEnqueue(UpdateViewStatus);
     }
 
     private void Viewport_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
@@ -299,6 +303,14 @@ public sealed partial class MainWindow : Window
 
     private void UpdateViewStatus()
     {
+        // A resize reaches this before any image exists; there is no view to
+        // describe yet, so the line stays empty instead of claiming a fit.
+        if (_imagePixelWidth == 0)
+        {
+            ViewStatusText.Text = string.Empty;
+            return;
+        }
+
         var rotation = Math.Round(_view.Rotation);
         var panX = Math.Round(_view.PanX);
         var panY = Math.Round(_view.PanY);

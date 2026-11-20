@@ -19,10 +19,15 @@ public sealed partial class SettingsPage : Page
     private SettingsPageParameter? _parameter;
     private bool _syncingTheme;
 
+    // Focus is requested before the page has been measured, so the request is
+    // held until Loaded; a control that is not in the tree cannot take focus.
+    private bool _focusOnLoad;
+
     public SettingsPage()
     {
         InitializeComponent();
         VersionText.Text = typeof(App).Assembly.GetName().Version?.ToString() ?? "0.0.0.0";
+        Loaded += SettingsPage_Loaded;
     }
 
     /// <summary>
@@ -35,6 +40,33 @@ public sealed partial class SettingsPage : Page
     {
         _parameter = parameter;
         RefreshTheme();
+    }
+
+    /// <summary>
+    /// Moves keyboard focus into the page when it takes over the window. The
+    /// back command is first in tab order, so focus there matches what a
+    /// keyboard user reaches first.
+    /// </summary>
+    internal void FocusDefault()
+    {
+        if (IsLoaded)
+        {
+            BackButton.Focus(FocusState.Programmatic);
+            return;
+        }
+
+        _focusOnLoad = true;
+    }
+
+    private void SettingsPage_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (!_focusOnLoad)
+        {
+            return;
+        }
+
+        _focusOnLoad = false;
+        BackButton.Focus(FocusState.Programmatic);
     }
 
     private void BackButton_Click(object sender, RoutedEventArgs e)

@@ -385,6 +385,12 @@ public sealed partial class MainWindow : Window
 
         LoadingRing.Visibility = loading ? Visibility.Visible : Visibility.Collapsed;
         LoadingRing.IsActive = loading;
+
+        // The empty state and the ring share the same center, so the copy steps
+        // aside while a decode runs and comes back only if no image arrived.
+        EmptyState.Visibility = loading || _imagePixelWidth > 0
+            ? Visibility.Collapsed
+            : Visibility.Visible;
     }
 
     private void UpdateImageAutomationName(string path)
@@ -512,7 +518,6 @@ public sealed partial class MainWindow : Window
     {
         var animated = _frameCount > 1;
         var visibility = animated ? Visibility.Visible : Visibility.Collapsed;
-        AnimationSeparator.Visibility = visibility;
         PlayPauseButton.Visibility = visibility;
         LoopButton.Visibility = visibility;
         PlayPauseButton.IsEnabled = animated;

@@ -52,7 +52,15 @@ public sealed partial class MainWindow : Window
 
         ContentRoot.Visibility = Visibility.Collapsed;
         SettingsHost.Visibility = Visibility.Visible;
+
+        // The page owns the window while it is open, so the viewer behind it
+        // must not accept a dropped image.
+        RootGrid.AllowDrop = false;
         RefreshWindowTitle();
+
+        // Keyboard focus starts on the page, not on the caption, so the first
+        // Tab lands in the settings content and the back command is reachable.
+        _settingsPage?.FocusDefault();
     }
 
     private void CloseSettings()
@@ -64,6 +72,7 @@ public sealed partial class MainWindow : Window
 
         SettingsHost.Visibility = Visibility.Collapsed;
         ContentRoot.Visibility = Visibility.Visible;
+        RootGrid.AllowDrop = true;
         RefreshWindowTitle();
         ViewerCommandBar.Focus(FocusState.Programmatic);
     }
