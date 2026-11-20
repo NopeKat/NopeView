@@ -41,7 +41,7 @@ public sealed partial class MainWindow : Window
         {
             SuggestedStartLocation = PickerLocationId.PicturesLibrary,
             ViewMode = PickerViewMode.Thumbnail,
-            CommitButtonText = "Open image"
+            CommitButtonText = Localization.Get("Picker.OpenCommit")
         };
 
         foreach (var extension in SupportedExtensions())
@@ -395,15 +395,16 @@ public sealed partial class MainWindow : Window
 
     private void UpdateImageAutomationName(string path)
     {
-        var name = "Current image: " + Path.GetFileName(path);
+        var name = Localization.Format("Image.Name", Path.GetFileName(path));
         if (_previewActive)
         {
             // Tells assistive tech that the displayed bitmap is downscaled.
-            name += " (preview)";
+            name += Localization.Get("Image.Preview");
         }
         if (_frameCount > 1)
         {
-            name += $" [frame {_frameIndex + 1}/{_frameCount}]";
+            name += Localization.Format(
+                "Image.Frame", _frameIndex + 1, _frameCount);
         }
         AutomationProperties.SetName(ImageView, name);
     }
@@ -530,10 +531,14 @@ public sealed partial class MainWindow : Window
                 typeof(Geometry),
                 _isAnimationPlaying ? PauseIconData : PlayIconData)
         };
-        AutomationProperties.SetName(PlayPauseButton, _isAnimationPlaying ? "Pause" : "Play");
-        AutomationProperties.SetName(LoopButton, _animationLoop ? "Loop on" : "Loop off");
-        PlayPauseButton.Label = _isAnimationPlaying ? "Pause" : "Play";
-        LoopButton.Label = _animationLoop ? "Loop on" : "Loop off";
+        var playLabel = Localization.Get(
+            _isAnimationPlaying ? "Action.Pause" : "Action.Play");
+        var loopLabel = Localization.Get(
+            _animationLoop ? "Action.LoopOn" : "Action.LoopOff");
+        AutomationProperties.SetName(PlayPauseButton, playLabel);
+        AutomationProperties.SetName(LoopButton, loopLabel);
+        PlayPauseButton.Label = playLabel;
+        LoopButton.Label = loopLabel;
     }
 
     private void PlayPauseButton_Click(object sender, RoutedEventArgs e)
@@ -635,8 +640,8 @@ public sealed partial class MainWindow : Window
         var format = Path.GetExtension(path).TrimStart('.').ToUpperInvariant();
         var dimensions = $"{_imagePixelWidth} x {_imagePixelHeight}";
         FileStatusText.Text = string.IsNullOrEmpty(format)
-            ? $"{name} | {dimensions}"
-            : $"{name} | {dimensions} | {format}";
+            ? Localization.Format("Status.File", name, dimensions)
+            : Localization.Format("Status.FileWithFormat", name, dimensions, format);
 
         // The caption identifies the open document, the way a document window
         // does; the title bar trims it with an ellipsis when it does not fit.

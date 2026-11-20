@@ -19,7 +19,8 @@ internal enum AppTheme
 /// the source-generated serializer able to write it without reflection.
 /// </summary>
 internal sealed record SettingsDocument(
-    [property: JsonPropertyName("theme")] string Theme);
+    [property: JsonPropertyName("theme")] string Theme,
+    [property: JsonPropertyName("language")] string? Language);
 
 [JsonSourceGenerationOptions(
     WriteIndented = true,
@@ -50,6 +51,11 @@ internal sealed class SettingsService
 
     internal AppTheme Theme { get; private set; } = AppTheme.System;
 
+    /// <summary>
+    /// Stored language preference, or an empty string to follow Windows.
+    /// </summary>
+    internal string Language { get; private set; } = Localization.SystemPreference;
+
     internal void Load()
     {
         try
@@ -68,6 +74,13 @@ internal sealed class SettingsService
             {
                 Theme = parsed;
             }
+
+            Language = document?.Language switch
+            {
+                Localization.SimplifiedChinese => Localization.SimplifiedChinese,
+                Localization.FallbackLanguage => Localization.FallbackLanguage,
+                _ => Localization.SystemPreference
+            };
         }
         catch (Exception ex)
         {
@@ -80,6 +93,17 @@ internal sealed class SettingsService
     internal void SetTheme(AppTheme theme)
     {
         Theme = theme;
+        Save();
+    }
+
+    internal void SetLanguage(string language)
+    {
+        Language = language;
+        Save();
+    }
+
+    private void Save()
+    {
         var temporary = _path + ".tmp";
         try
         {
@@ -90,7 +114,7 @@ internal sealed class SettingsService
             }
 
             var json = JsonSerializer.Serialize(
-                new SettingsDocument(theme.ToString()),
+                new SettingsDocument(Theme.ToString(), Language),
                 SettingsJsonContext.Default.SettingsDocument);
 
             // Write beside the target and replace in one step. Readers either

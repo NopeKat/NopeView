@@ -13,7 +13,7 @@ A fast, lightweight, and extensible cross-platform image viewer.
 ## Current progress
 
 - **Codecs**: the router core and the decoders for PNG, JPG, GIF, and BMP are implemented. The encode entry point exists, but all four formats return "unsupported".
-- **Windows app**: WinUI 3 viewer MVP. The content is extended into the title bar, with a self-drawn title bar whose minimize / maximize / close buttons are XAML buttons using Fluent `PathIcon` (the native title bar strip and its tooltips are collapsed), PerMonitorV2 declared, and the NopeView brand logo shown at the left. The app icon is set both in the executable and on the running window for Explorer, taskbar, Alt-Tab and Start. The content area renders decoded images, with file picker and drag-and-drop opening, previous/next navigation within the same directory, Fit and 1:1 modes, mouse-wheel zoom, drag pan, rotation, and a view status line. Animated GIFs play through per-frame decoding with the frame delay from the codec; playback can be paused, resumed, and looped.
+- **Windows app**: WinUI 3 viewer MVP. The content is extended into the title bar, with a self-drawn title bar whose minimize / maximize / close buttons are XAML buttons using Fluent `PathIcon` (the native title bar strip and its tooltips are collapsed), PerMonitorV2 declared, and the NopeView brand logo shown at the left. The app icon is set both in the executable and on the running window for Explorer, taskbar, Alt-Tab and Start. The content area renders decoded images, with file picker and drag-and-drop opening, previous/next navigation within the same directory, Fit and 1:1 modes, mouse-wheel zoom, drag pan, rotation, and a view status line. Animated GIFs play through per-frame decoding with the frame delay from the codec; playback can be paused, resumed, and looped. Interface text ships in American English and Simplified Chinese, follows the Windows display language by default, and can be switched from Settings without restarting.
 - **Three ABI boundaries**: router (`nv_router_abi.h`), format (`nv_format_abi.h`), and application plugin (`nv_plugin_abi.h`) are all in place. Router and format are at `0.0.0.1`; the plugin ABI is still at `0.0.0.0` (the `x.y.z.n` scheme).
 - **Shared assets**: the base logo SVG lives in `shared/resource/`; platform builds derive their own icon and title-bar files from it.
 - **Other modules**: the CLI, application plugins, and the platform capability layer contain only directories and notes; nothing is implemented. The CLI, plugins, and platform capability layer live under `shared/` as non-GUI foundations.
@@ -43,7 +43,7 @@ Decoding is built on `apps/shared/codec/third_party/stb/stb_image.h`. More forma
 ## Planned capabilities
 
 - File association (planned with MSIX packaging)
-- Interface localization: Simplified Chinese, Traditional Chinese, American English, Japanese, Korean, Russian, French, and German
+- Interface localization: American English and Simplified Chinese are implemented; Traditional Chinese, Japanese, Korean, Russian, French, and German are planned
 - Themes: follow system, dark, and light
 - Diagnostic export (crash logs, user settings, and runtime environment, packaged as a zip archive), shared only when the user chooses to send it
 
@@ -64,6 +64,7 @@ The project is a single monorepo:
 apps/
 ├── windows/                    Windows app (WinUI 3)
 │   ├── assets/                 derived ICO and title-bar PNG
+│   ├── Strings/                en-US and zh-Hans resource files
 │   └── native/                 P/Invoke bindings and test images
 └── shared/
     ├── cli/                    command-line entry point (notes only)

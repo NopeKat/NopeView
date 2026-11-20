@@ -5,7 +5,6 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"
     AutomationProperties.AutomationId="SettingsPage"
-    AutomationProperties.Name="Settings"
     Background="Transparent">
 
     <!-- One settings page fills the window: the page header names the surface,
@@ -35,7 +34,7 @@
                 <PathIcon Width="16" Height="16"
                           Data="M10.3536 3.14645C10.5488 3.34171 10.5488 3.65829 10.3536 3.85355L6.20711 8L10.3536 12.1464C10.5488 12.3417 10.5488 12.6583 10.3536 12.8536C10.1583 13.0488 9.84171 13.0488 9.64645 12.8536L5.14645 8.35355C4.95118 8.15829 4.95118 7.84171 5.14645 7.64645L9.64645 3.14645C9.84171 2.95118 10.1583 2.95118 10.3536 3.14645Z" />
             </Button>
-            <TextBlock Text="Settings"
+            <TextBlock x:Name="SettingsHeader"
                        Margin="36,0,0,0"
                        VerticalAlignment="Center"
                        Style="{StaticResource TitleTextBlockStyle}"
@@ -52,10 +51,9 @@
                     <RepositionThemeTransition />
                 </StackPanel.ChildrenTransitions>
 
-                <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
-                           Text="Appearance" />
-                <toolkit:SettingsCard Description="Select which app theme to display"
-                                      Header="App theme"
+                <TextBlock x:Name="AppearanceSectionHeader"
+                           Style="{StaticResource SettingsSectionHeaderStyle}" />
+                <toolkit:SettingsCard x:Name="ThemeCard"
                                       Margin="0,0,0,36">
                     <toolkit:SettingsCard.HeaderIcon>
                         <PathIcon Width="20" Height="20"
@@ -68,27 +66,46 @@
                                   HorizontalAlignment="Right"
                                   AutomationProperties.AutomationId="ThemeComboBox"
                                   SelectionChanged="ThemeComboBox_SelectionChanged">
-                            <ComboBoxItem Content="Light"
+                            <ComboBoxItem x:Name="ThemeLightOption"
                                           Tag="Light"
                                           AutomationProperties.AutomationId="ThemeLight" />
-                            <ComboBoxItem Content="Dark"
+                            <ComboBoxItem x:Name="ThemeDarkOption"
                                           Tag="Dark"
                                           AutomationProperties.AutomationId="ThemeDark" />
-                            <ComboBoxItem Content="Use system setting"
+                            <ComboBoxItem x:Name="ThemeSystemOption"
                                           Tag="System"
                                           AutomationProperties.AutomationId="ThemeSystem" />
                         </ComboBox>
-                        <HyperlinkButton Content="Windows color settings"
+                        <HyperlinkButton x:Name="ColorSettingsLink"
                                          HorizontalAlignment="Right"
                                          AutomationProperties.AutomationId="ColorSettingsLink"
                                          Click="ColorSettingsLink_Click" />
                     </StackPanel>
                 </toolkit:SettingsCard>
 
-                <TextBlock Style="{StaticResource SettingsSectionHeaderStyle}"
-                           Text="About" />
-                <toolkit:SettingsExpander Header="NopeView"
-                                          Description="A fast, lightweight image viewer"
+                <TextBlock x:Name="LanguageSectionHeader"
+                           Style="{StaticResource SettingsSectionHeaderStyle}" />
+                <toolkit:SettingsCard x:Name="LanguageCard"
+                                      Margin="0,0,0,36">
+                    <ComboBox x:Name="LanguageComboBox"
+                              HorizontalAlignment="Right"
+                              AutomationProperties.AutomationId="LanguageComboBox"
+                              SelectionChanged="LanguageComboBox_SelectionChanged">
+                        <ComboBoxItem x:Name="LanguageSystemOption"
+                                      Tag=""
+                                      AutomationProperties.AutomationId="LanguageSystem" />
+                        <ComboBoxItem x:Name="LanguageEnglishOption"
+                                      Tag="en-US"
+                                      AutomationProperties.AutomationId="LanguageEnglish" />
+                        <ComboBoxItem x:Name="LanguageChineseOption"
+                                      Tag="zh-Hans"
+                                      AutomationProperties.AutomationId="LanguageChinese" />
+                    </ComboBox>
+                </toolkit:SettingsCard>
+
+                <TextBlock x:Name="AboutSectionHeader"
+                           Style="{StaticResource SettingsSectionHeaderStyle}" />
+                <toolkit:SettingsExpander x:Name="AboutExpander"
                                           Margin="0,0,0,36"
                                           AutomationProperties.AutomationId="AboutExpander">
                     <toolkit:SettingsExpander.HeaderIcon>
@@ -100,8 +117,7 @@
                                IsTextSelectionEnabled="True"
                                AutomationProperties.AutomationId="VersionText" />
                     <toolkit:SettingsExpander.Items>
-                        <toolkit:SettingsCard Header="Repository"
-                                              Description="Source code on GitHub">
+                        <toolkit:SettingsCard x:Name="RepositoryCard">
                             <toolkit:SettingsCard.HeaderIcon>
                                 <PathIcon Width="20" Height="20"
                                           Data="M 12.64,1.02 A 0.5,0.5,0,0,1,12.98,1.64 L 7.98,18.64 A 0.5,0.5,0,0,1,7.02,18.36 L 12.02,1.36 A 0.5,0.5,0,0,1,12.64,1.02 M 5.127,5.169 A 0.5,0.5,0,0,1,5.875,5.833 L 2.169,10 L 5.874,14.168 A 0.5,0.5,0,0,1,5.126,14.832 L 1.126,10.332 A 0.5,0.5,0,0,1,1.126,9.668 Z M 14.169,5.127 A 0.5,0.5,0,0,1,14.875,5.169 L 18.875,9.669 A 0.5,0.5,0,0,1,18.875,10.333 L 14.875,14.833 A 0.5,0.5,0,0,1,14.127,14.169 L 17.831,10 L 14.126,5.832 A 0.5,0.5,0,0,1,14.168,5.126" />

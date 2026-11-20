@@ -44,7 +44,8 @@ public sealed partial class MainWindow : Window
         if (_settingsPage is null)
         {
             var page = new SettingsPage();
-            page.Initialize(new SettingsPageParameter(_settings, ApplyTheme));
+            page.Initialize(new SettingsPageParameter(
+                _settings, ApplyTheme, ApplyLanguage));
             page.BackRequested += (_, _) => CloseSettings();
             _settingsPage = page;
             SettingsHost.Content = page;
@@ -85,7 +86,7 @@ public sealed partial class MainWindow : Window
     {
         if (IsSettingsOpen)
         {
-            AppTitleBar.Title = "Settings";
+            AppTitleBar.Title = Localization.Get("SettingsHeader.Text");
         }
         else if (string.IsNullOrEmpty(_documentName))
         {
@@ -93,8 +94,14 @@ public sealed partial class MainWindow : Window
         }
         else
         {
-            AppTitleBar.Title = $"{_documentName} - NopeView";
+            AppTitleBar.Title = Localization.Format("Window.DocumentTitle", _documentName);
         }
+    }
+
+    private void ApplyLanguage(string language)
+    {
+        Localization.Apply(language);
+        ApplyLocalization();
     }
 
     private void ApplyTheme(AppTheme theme)

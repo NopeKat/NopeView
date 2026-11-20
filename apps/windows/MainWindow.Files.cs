@@ -133,11 +133,14 @@ public sealed partial class MainWindow : Window
         {
             SuggestedFileName = Path.GetFileNameWithoutExtension(path),
             SuggestedStartLocation = PickerLocationId.PicturesLibrary,
-            CommitButtonText = "Save"
+            CommitButtonText = Localization.Get("Picker.SaveCommit")
         };
-        picker.FileTypeChoices.Add("PNG image", new List<string> { ".png" });
-        picker.FileTypeChoices.Add("JPEG image", new List<string> { ".jpg" });
-        picker.FileTypeChoices.Add("BMP image", new List<string> { ".bmp" });
+        picker.FileTypeChoices.Add(
+            Localization.Get("Format.Png"), new List<string> { ".png" });
+        picker.FileTypeChoices.Add(
+            Localization.Get("Format.Jpeg"), new List<string> { ".jpg" });
+        picker.FileTypeChoices.Add(
+            Localization.Get("Format.Bmp"), new List<string> { ".bmp" });
 
         var result = await picker.PickSaveFileAsync();
         if (result is null)

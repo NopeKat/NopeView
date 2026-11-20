@@ -159,7 +159,9 @@ public sealed partial class MainWindow : Window
         }
 
         _settings.Load();
+        Localization.Apply(_settings.Language);
         ApplyTheme(_settings.Theme);
+        ApplyLocalization();
 
         // Set the window icon explicitly. For an unpackaged WinUI 3 app the
         // executable's ApplicationIcon alone does not reach Explorer, so the
@@ -359,10 +361,9 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>
-    /// The error bar keeps its stock template, but its close command and
-    /// severity glyph come with names localized by the system. The window copy
-    /// is English, so both are renamed to keep one language in the reading
-    /// order instead of mixing the two.
+    /// The error bar arrives with a stock template whose close command carries
+    /// the framework's own text. The command is renamed from the app resources
+    /// so it matches the language of the window.
     /// </summary>
     private void ConfigureErrorBar()
     {
@@ -371,8 +372,9 @@ public sealed partial class MainWindow : Window
         Button? closeButton = FindDescendant<Button>(ErrorPanel, "CloseButton");
         if (closeButton is not null)
         {
-            AutomationProperties.SetName(closeButton, "Close");
-            ToolTipService.SetToolTip(closeButton, "Close");
+            var close = Localization.Get("Action.Close");
+            AutomationProperties.SetName(closeButton, close);
+            ToolTipService.SetToolTip(closeButton, close);
         }
 
         // The glyph is decorative: the title and the message already describe
@@ -395,10 +397,72 @@ public sealed partial class MainWindow : Window
         Button? moreButton = FindDescendant<Button>(ViewerCommandBar, "MoreButton");
         if (moreButton is not null)
         {
+            var more = Localization.Get("Action.More");
             AutomationProperties.SetAutomationId(moreButton, "ActionsButton");
-            AutomationProperties.SetName(moreButton, "More actions");
-            ToolTipService.SetToolTip(moreButton, "More actions");
+            AutomationProperties.SetName(moreButton, more);
+            ToolTipService.SetToolTip(moreButton, more);
         }
+    }
+
+    /// <summary>
+    /// Applies the current language to every string this window owns. The
+    /// window carries no hard coded text, so this runs on first load and again
+    /// after a switch, without rebuilding the window.
+    /// </summary>
+    private void ApplyLocalization()
+    {
+        // A failure message in the previous language would be stale, so the
+        // bar closes on a switch instead of mixing two languages.
+        ErrorPanel.IsOpen = false;
+        ErrorPanel.Title = Localization.Get("ErrorPanel.Title");
+
+        EmptyStateTitle.Text = Localization.Get("EmptyStateTitle.Text");
+        EmptyStateHint.Text = Localization.Get("EmptyStateHint.Text");
+        EmptyOpenButton.Content = Localization.Get("EmptyOpenButton.Content");
+
+        OpenButton.Label = Localization.Get("OpenButton.Label");
+        PreviousButton.Label = Localization.Get("PreviousButton.Label");
+        NextButton.Label = Localization.Get("NextButton.Label");
+        ZoomOutButton.Label = Localization.Get("ZoomOutButton.Label");
+        ZoomInButton.Label = Localization.Get("ZoomInButton.Label");
+        RotateButton.Label = Localization.Get("RotateButton.Label");
+        FitButton.Label = Localization.Get("FitButton.Label");
+        ActualSizeButton.Label = Localization.Get("ActualSizeButton.Label");
+        PlayPauseButton.Label = Localization.Get(
+            _isAnimationPlaying ? "Action.Pause" : "Action.Play");
+        LoopButton.Label = Localization.Get(
+            _animationLoop ? "Action.LoopOn" : "Action.LoopOff");
+
+        CopyImageMenuItem.Text = Localization.Get("ContextCopyImage.Text");
+        CopyPathMenuItem.Text = Localization.Get("ContextCopyPath.Text");
+        SaveAsMenuItem.Text = Localization.Get("ContextSaveAs.Text");
+        ShowInExplorerMenuItem.Text = Localization.Get("ContextShowInExplorer.Text");
+        FitMenuItem.Text = Localization.Get("ContextFit.Text");
+        ActualSizeMenuItem.Text = Localization.Get("ContextActualSize.Text");
+        SettingsMenuItem.Text = Localization.Get("ContextSettings.Text");
+
+        CopyImageCommand.Label = Localization.Get("CopyImageCommand.Label");
+        CopyPathCommand.Label = Localization.Get("CopyPathCommand.Label");
+        SaveAsCommand.Label = Localization.Get("SaveAsCommand.Label");
+        ShowInExplorerCommand.Label = Localization.Get("ShowInExplorerCommand.Label");
+        SettingsCommand.Label = Localization.Get("SettingsCommand.Label");
+
+        AutomationProperties.SetName(
+            LoadingRing, Localization.Get("Loading.Name"));
+
+        ConfigureErrorBar();
+        ConfigureOverflowButton();
+        UpdateAnimationControls();
+        UpdateViewStatus();
+
+        var path = CurrentPath;
+        if (path is not null)
+        {
+            UpdateFileStatus(path);
+            UpdateImageAutomationName(path);
+        }
+
+        RefreshWindowTitle();
     }
 
     private static T? FindDescendant<T>(DependencyObject root, string name)
@@ -510,9 +574,9 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void ShowError(string message, string title = Strings.OpenTitle)
+    private void ShowError(string message, string? title = null)
     {
-        ErrorPanel.Title = title;
+        ErrorPanel.Title = title ?? Strings.OpenTitle;
         ErrorPanel.Message = message;
         ErrorPanel.IsOpen = true;
     }

@@ -314,21 +314,27 @@ public sealed partial class MainWindow : Window
         var rotation = Math.Round(_view.Rotation);
         var panX = Math.Round(_view.PanX);
         var panY = Math.Round(_view.PanY);
-        var pan = Math.Abs(panX) >= 1 || Math.Abs(panY) >= 1
-            ? $" | pan {panX:0},{panY:0}"
-            : "";
-        var frame = _frameCount > 1
-            ? $" | {_frameIndex + 1}/{_frameCount}"
-            : "";
+        var details = "";
+        if (Math.Abs(panX) >= 1 || Math.Abs(panY) >= 1)
+        {
+            details += Localization.Format("Status.PanSuffix", panX, panY);
+        }
+        if (_frameCount > 1)
+        {
+            details += Localization.Format(
+                "Status.FrameSuffix", _frameIndex + 1, _frameCount);
+        }
 
         if (Math.Abs(_view.Zoom - 1.0) < 0.001)
         {
-            ViewStatusText.Text = $"Fit | {rotation:0} deg{frame}{pan}";
+            ViewStatusText.Text =
+                Localization.Format("Status.ViewFit", rotation) + details;
             return;
         }
 
         var percent = _view.Zoom * FitToPixelRatio * 100.0;
-        ViewStatusText.Text = $"{Math.Round(percent):0}% | {rotation:0} deg{frame}{pan}";
+        ViewStatusText.Text = Localization.Format(
+            "Status.ViewPercent", Math.Round(percent), rotation) + details;
     }
 
     private void SetViewControlsEnabled(bool enabled)

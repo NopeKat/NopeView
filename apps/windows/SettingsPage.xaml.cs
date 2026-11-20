@@ -12,12 +12,14 @@ namespace NopeView.App;
 /// </summary>
 internal sealed record SettingsPageParameter(
     SettingsService Settings,
-    Action<AppTheme> ApplyTheme);
+    Action<AppTheme> ApplyTheme,
+    Action<string> ApplyLanguage);
 
 public sealed partial class SettingsPage : Page
 {
     private SettingsPageParameter? _parameter;
     private bool _syncingTheme;
+    private bool _syncingLanguage;
 
     // Focus is requested before the page has been measured, so the request is
     // held until Loaded; a control that is not in the tree cannot take focus.
@@ -39,7 +41,48 @@ public sealed partial class SettingsPage : Page
     internal void Initialize(SettingsPageParameter parameter)
     {
         _parameter = parameter;
+        ApplyLocalization();
         RefreshTheme();
+        RefreshLanguage();
+    }
+
+    /// <summary>
+    /// Writes every localized string the page shows. The page carries no hard
+    /// coded text, so this runs on first load and again after a language switch.
+    /// </summary>
+    private void ApplyLocalization()
+    {
+        AutomationProperties.SetName(this, Localization.Get("SettingsHeader.Text"));
+        SettingsHeader.Text = Localization.Get("SettingsHeader.Text");
+        AppearanceSectionHeader.Text = Localization.Get("AppearanceSection.Text");
+
+        ThemeCard.Header = Localization.Get("ThemeCard.Header");
+        ThemeCard.Description = Localization.Get("ThemeCard.Description");
+        ThemeLightOption.Content = Localization.Get("ThemeLight.Content");
+        ThemeDarkOption.Content = Localization.Get("ThemeDark.Content");
+        ThemeSystemOption.Content = Localization.Get("ThemeSystem.Content");
+        ColorSettingsLink.Content = Localization.Get("ColorSettingsLink.Content");
+
+        LanguageSectionHeader.Text = Localization.Get("LanguageSection.Text");
+        LanguageCard.Header = Localization.Get("LanguageCard.Header");
+        LanguageCard.Description = Localization.Get("LanguageCard.Description");
+        LanguageSystemOption.Content = Localization.Get("LanguageSystem.Content");
+        LanguageEnglishOption.Content = Localization.Get("LanguageEnglish.Content");
+        LanguageChineseOption.Content = Localization.Get("LanguageChinese.Content");
+        // The settings card supplies the label, but the combo box caches the
+        // name it was built with, so it is set again on every switch.
+        AutomationProperties.SetName(
+            LanguageComboBox, LanguageCard.Header?.ToString() ?? string.Empty);
+
+        AboutSectionHeader.Text = Localization.Get("AboutSection.Text");
+        AboutExpander.Header = Localization.Get("AboutExpander.Header");
+        AboutExpander.Description = Localization.Get("AboutExpander.Description");
+        RepositoryCard.Header = Localization.Get("RepositoryCard.Header");
+        RepositoryCard.Description = Localization.Get("RepositoryCard.Description");
+
+        var back = Localization.Get("Action.Back");
+        AutomationProperties.SetName(BackButton, back);
+        ToolTipService.SetToolTip(BackButton, back);
     }
 
     /// <summary>
@@ -95,6 +138,9 @@ public sealed partial class SettingsPage : Page
         var theme = _parameter?.Settings.Theme ?? AppTheme.System;
 
         _syncingTheme = true;
+        // Clear the selection first: the collapsed combo box caches the text it
+        // shows, and it has to be rebuilt when the item text changes language.
+        ThemeComboBox.SelectedIndex = -1;
         ThemeComboBox.SelectedIndex = theme switch
         {
             AppTheme.Light => 0,
@@ -105,7 +151,47 @@ public sealed partial class SettingsPage : Page
 
         // The current value lives in the control automation name so the
         // setting can be read back without adding a redundant text row.
-        AutomationProperties.SetName(ThemeComboBox, "Theme: " + theme);
+        var value = theme switch
+        {
+            AppTheme.Light => Localization.Get("Theme.ValueLight"),
+            AppTheme.Dark => Localization.Get("Theme.ValueDark"),
+            _ => Localization.Get("Theme.ValueSystem"),
+        };
+        AutomationProperties.SetName(
+            ThemeComboBox, Localization.Format("Theme.Automation", value));
+    }
+
+    private void LanguageComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var parameter = _parameter;
+        if (_syncingLanguage || parameter is null)
+        {
+            return;
+        }
+
+        var language = LanguageComboBox.SelectedItem is ComboBoxItem { Tag: string tag }
+            ? tag
+            : Localization.SystemPreference;
+        parameter.Settings.SetLanguage(language);
+        parameter.ApplyLanguage(language);
+        ApplyLocalization();
+        RefreshTheme();
+        RefreshLanguage();
+    }
+
+    private void RefreshLanguage()
+    {
+        var language = _parameter?.Settings.Language ?? Localization.SystemPreference;
+
+        _syncingLanguage = true;
+        LanguageComboBox.SelectedIndex = -1;
+        LanguageComboBox.SelectedIndex = language switch
+        {
+            Localization.SimplifiedChinese => 2,
+            Localization.FallbackLanguage => 1,
+            _ => 0,
+        };
+        _syncingLanguage = false;
     }
 
     private async void ColorSettingsLink_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
