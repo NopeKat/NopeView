@@ -3,7 +3,7 @@
 The facade between the application and the operating system. It wraps
 platform-specific capabilities behind one unified interface.
 
-- Location: `apps/shared/platform/` groups the platform facade under shared.
+- Location: `src/shared/platform/` groups the platform facade under shared.
   The nesting is repository grouping only; shared codecs and file services
   never depend on `platforms`.
 - Scope: platform differences only, such as screen capture, always-on-top

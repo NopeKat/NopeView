@@ -38,7 +38,7 @@ A fast, lightweight, and extensible cross-platform image viewer.
 | GIF | Yes, per frame | No | `DECODE` + `ANIMATED` |
 | BMP | Yes | No | `DECODE` |
 
-Decoding is built on `apps/shared/codec/third_party/stb/stb_image.h`. More formats are planned; the format roadmap will be announced once it is defined.
+Decoding is built on `src/shared/codec/third_party/stb/stb_image.h`. More formats are planned; the format roadmap will be announced once it is defined.
 
 ## Planned capabilities
 
@@ -52,8 +52,8 @@ File opening through the picker and drag and drop, previous/next navigation, and
 ## Building
 
 - The repository contains **no build scripts**.
-- Windows app: requires the .NET SDK and the Windows App SDK; build `apps/windows/NopeView.App.csproj`.
-- C codecs, the router core, and the file list service: compile them with MSVC into DLLs, place them in `apps/windows/native/x64/`, and the app loads them from there.
+- Windows app: requires the .NET SDK and the Windows App SDK; build `src/windows/NopeView.App.csproj`.
+- C codecs, the router core, and the file list service: compile them with MSVC into DLLs, place them in `src/windows/native/x64/`, and the app loads them from there.
 - The current Windows build is driven by local scripts kept outside the repository; a complete reproducible build guide is not committed yet.
 
 ## Repository layout
@@ -61,7 +61,7 @@ File opening through the picker and drag and drop, previous/next navigation, and
 The project is a single monorepo:
 
 ```
-apps/
+src/
 ├── windows/                    Windows app (WinUI 3)
 │   ├── assets/                 derived ICO and title-bar PNG
 │   ├── Strings/                en-US and zh-Hans resource files

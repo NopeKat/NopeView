@@ -1,8 +1,8 @@
 /*
  * nv_format_abi.h - Boundary B: format ABI.
  *
- * The contract between the codec router (apps/shared/codec/router) and each
- * format codec (apps/shared/codec/formats/<format>). Every format codec is an
+ * The contract between the codec router (src/shared/codec/router) and each
+ * format codec (src/shared/codec/formats/<format>). Every format codec is an
  * independent dynamic library that implements the entry points declared here.
  *
  * Naming: this header is named after the side that provides the interface.

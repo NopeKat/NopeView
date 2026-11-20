@@ -5,9 +5,9 @@ codec core. Examples include format conversion, batch rename, image
 organization, screen capture, and pin-to-screen.
 
 > Naming note: a plugin here is a user-facing feature extension, not a
-> codec/format. Codecs live under `apps/shared/codec/formats`.
+> codec/format. Codecs live under `src/shared/codec/formats`.
 
-- Location: `apps/shared/plugin/` groups plugins with the other non-GUI
+- Location: `src/shared/plugin/` groups plugins with the other non-GUI
   modules. The nesting is repository grouping only.
 - One folder per plugin.
 - Plugins may call shared core services and `platforms`; platform-specific work

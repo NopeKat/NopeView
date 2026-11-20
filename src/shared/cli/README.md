@@ -3,7 +3,7 @@
 The command-line entry point. A standalone executable that does not depend on
 the GUI application or its startup path.
 
-- Location: `apps/shared/cli/` groups the non-GUI entry points under shared.
+- Location: `src/shared/cli/` groups the non-GUI entry points under shared.
   It is a top-level front end and is never imported by other shared libraries.
 - Depends on `platforms` and `core`; never the reverse.
 - Intended to expose the same browsing and conversion capabilities without a

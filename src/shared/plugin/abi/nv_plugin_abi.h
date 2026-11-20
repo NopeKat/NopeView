@@ -3,7 +3,7 @@
  *
  * The contract between the host application and an application plugin.
  * A plugin is a user-facing feature extension (for example format conversion
- * or batch rename), not a codec. See apps/shared/plugin/README.md.
+ * or batch rename), not a codec. See src/shared/plugin/README.md.
  *
  * Design rules for this boundary:
  *  - Plain C calling convention (C ABI).

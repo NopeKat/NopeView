@@ -9,4 +9,4 @@ components of this core, so both contracts live here.
   (router calls, format implements).
 
 The plugin ABI is not here: plugins are a separate shared module, so their
-contract lives in `apps/shared/plugin/abi/`.
+contract lives in `src/shared/plugin/abi/`.
