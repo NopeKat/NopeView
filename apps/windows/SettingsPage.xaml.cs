@@ -1,7 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
-using System;
 
 namespace NopeView.App;
 
@@ -64,7 +63,6 @@ public sealed partial class SettingsPage : Page
         ThemeLightOption.Content = Localization.Get("ThemeLight.Content");
         ThemeDarkOption.Content = Localization.Get("ThemeDark.Content");
         ThemeSystemOption.Content = Localization.Get("ThemeSystem.Content");
-        ColorSettingsLink.Content = Localization.Get("ColorSettingsLink.Content");
 
         ImageFrameCard.Header = Localization.Get("ImageFrameCard.Header");
         ImageFrameCard.Description = Localization.Get("ImageFrameCard.Description");
@@ -244,20 +242,5 @@ public sealed partial class SettingsPage : Page
         };
         AutomationProperties.SetName(
             ImageFrameComboBox, Localization.Format("ImageFrame.Automation", value));
-    }
-
-    private async void ColorSettingsLink_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
-    {
-        // The settings page hands the user to the system color page, where the
-        // wallpaper-driven Mica tint and the system mode are managed.
-        try
-        {
-            await Windows.System.Launcher.LaunchUriAsync(new Uri("ms-settings:colors"));
-        }
-        catch (Exception)
-        {
-            // A missing Settings app is not worth an error panel here; the
-            // theme options above keep working.
-        }
     }
 }

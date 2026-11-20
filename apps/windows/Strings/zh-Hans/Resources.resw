@@ -128,10 +128,6 @@
   <data name="ThemeSystem.Content" xml:space="preserve">
     <value>使用系统设置</value>
   </data>
-  <data name="ColorSettingsLink.Content" xml:space="preserve">
-    <value>Windows 颜色设置</value>
-    <comment>Opens the Windows Settings page for colors and transparency.</comment>
-  </data>
   <data name="AboutSection.Text" xml:space="preserve">
     <value>关于</value>
   </data>
