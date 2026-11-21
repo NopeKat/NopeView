@@ -9,6 +9,11 @@ only the router; it never probes formats directly.
   (boundary B) sits between this router and each format codec.
 - Format codecs live in `../formats/<format>/`, one dynamic library each.
 - The router itself contains no format-specific logic.
+- The sources are split by concern: `router.c` holds the ABI surface and the
+  dispatch, `router_loader.c` finds and loads the libraries, `router_io.c` turns
+  paths and descriptors into bytes, `router_cache.c` keeps the last file read,
+  and `router_platform.c` holds the locks, the log line and the module handles.
+  They share nothing but `router_internal.h` and `router_platform.h`.
 - Decode requests carry raw file bytes read by the router, so format codecs
   never open files by name. This keeps UTF-8 paths working on Windows.
 - A format library is used only when its `nv_format_abi_version` matches the
