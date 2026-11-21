@@ -107,26 +107,6 @@
   </data>
 
   <!-- Settings page. -->
-  <data name="Navigation.Name" xml:space="preserve">
-    <value>主导航</value>
-    <comment>Accessible name for the top-level navigation view.</comment>
-  </data>
-  <data name="Navigation.Toggle.Name" xml:space="preserve">
-    <value>导航</value>
-    <comment>Accessible name and tooltip for the title bar hamburger button.</comment>
-  </data>
-  <data name="Navigation.Viewer.Content" xml:space="preserve">
-    <value>查看图片</value>
-    <comment>Top-level navigation item for the image viewer.</comment>
-  </data>
-  <data name="Navigation.Settings.Content" xml:space="preserve">
-    <value>设置</value>
-    <comment>Top-level navigation item for settings.</comment>
-  </data>
-  <data name="Navigation.About.Content" xml:space="preserve">
-    <value>关于</value>
-    <comment>Top-level navigation item for the About page.</comment>
-  </data>
   <data name="AboutVersionLine" xml:space="preserve">
     <value>版本 {0}</value>
     <comment>{0} is the assembly version.</comment>
@@ -157,9 +137,6 @@
   </data>
   <data name="AboutExpander.Header" xml:space="preserve">
     <value>NopeView</value>
-  </data>
-  <data name="AboutExpander.Description" xml:space="preserve">
-    <value>快速、轻量的图像查看器</value>
   </data>
   <data name="RepositoryCard.Header" xml:space="preserve">
     <value>存储库</value>

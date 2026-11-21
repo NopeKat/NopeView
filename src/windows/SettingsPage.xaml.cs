@@ -83,6 +83,8 @@ public sealed partial class SettingsPage : Page
         // guidance places it.
         AboutSectionHeader.Text = Localization.Get("AboutSection.Text");
         AboutExpander.Header = Localization.Get("AboutExpander.Header");
+        // The collapsed row reports the version in the description slot; the
+        // tagline was dropped, so the row stays a name and a number.
         AboutExpander.Description = Localization.Format("AboutVersionLine", _version);
         RepositoryCard.Header = Localization.Get("RepositoryCard.Header");
         RepositoryCard.Description = Localization.Get("RepositoryCard.Description");

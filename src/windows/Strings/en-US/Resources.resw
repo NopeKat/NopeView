@@ -107,26 +107,6 @@
   </data>
 
   <!-- Settings page. -->
-  <data name="Navigation.Name" xml:space="preserve">
-    <value>Main navigation</value>
-    <comment>Accessible name for the top-level navigation view.</comment>
-  </data>
-  <data name="Navigation.Toggle.Name" xml:space="preserve">
-    <value>Navigation</value>
-    <comment>Accessible name and tooltip for the title bar hamburger button.</comment>
-  </data>
-  <data name="Navigation.Viewer.Content" xml:space="preserve">
-    <value>Viewer</value>
-    <comment>Top-level navigation item for the image viewer.</comment>
-  </data>
-  <data name="Navigation.Settings.Content" xml:space="preserve">
-    <value>Settings</value>
-    <comment>Top-level navigation item for settings.</comment>
-  </data>
-  <data name="Navigation.About.Content" xml:space="preserve">
-    <value>About</value>
-    <comment>Top-level navigation item for the About page.</comment>
-  </data>
   <data name="AboutVersionLine" xml:space="preserve">
     <value>Version {0}</value>
     <comment>{0} is the assembly version.</comment>
@@ -157,9 +137,6 @@
   </data>
   <data name="AboutExpander.Header" xml:space="preserve">
     <value>NopeView</value>
-  </data>
-  <data name="AboutExpander.Description" xml:space="preserve">
-    <value>A fast, lightweight image viewer</value>
   </data>
   <data name="RepositoryCard.Header" xml:space="preserve">
     <value>Repository</value>

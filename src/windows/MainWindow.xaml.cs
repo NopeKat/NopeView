@@ -452,7 +452,7 @@ public sealed partial class MainWindow : Window
         FitMenuItem.Text = Localization.Get("ContextFit.Text");
         ActualSizeMenuItem.Text = Localization.Get("ContextActualSize.Text");
         SettingsMenuItem.Text = Localization.Get("ContextSettings.Text");
-        SettingsCommand.Label = Localization.Get("ContextSettings.Text");
+        SettingsCommand.Label = Localization.Get("SettingsCommand.Label");
         AutomationProperties.SetName(
             SettingsCommand,
             Localization.Get("ContextSettings.Text"));
