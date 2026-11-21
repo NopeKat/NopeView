@@ -506,11 +506,9 @@ public sealed partial class MainWindow : Window
         LoopButton.IsEnabled = animated;
         PlayPauseButton.IsChecked = _isAnimationPlaying;
         LoopButton.IsChecked = _animationLoop;
-        PlayPauseButton.Icon = new FontIcon
-        {
-            Glyph = _isAnimationPlaying ? "\uE769" : "\uE768",
-            FontSize = 16,
-        };
+        // The command swaps between the play and pause drawings; both are
+        // Fluent UI System Icons created fresh by the Icons factory.
+        PlayPauseButton.Icon = Icons.CreatePlayPauseIcon(_isAnimationPlaying);
         var playLabel = Localization.Get(
             _isAnimationPlaying ? "Action.Pause" : "Action.Play");
         var loopLabel = Localization.Get(
