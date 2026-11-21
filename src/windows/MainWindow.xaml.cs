@@ -434,7 +434,11 @@ public sealed partial class MainWindow : Window
         ZoomInButton.Label = Localization.Get("ZoomInButton.Label");
         RotateButton.Label = Localization.Get("RotateButton.Label");
         FitButton.Label = Localization.Get("FitButton.Label");
-        ActualSizeButton.Label = Localization.Get("ActualSizeButton.Label");
+        // The command shows a numeric scale label instead of a glyph, so the
+        // accessible name and tooltip carry the localized wording.
+        string actualSizeLabel = Localization.Get("ActualSizeButton.Label");
+        AutomationProperties.SetName(ActualSizeButton, actualSizeLabel);
+        ToolTipService.SetToolTip(ActualSizeButton, actualSizeLabel);
         PlayPauseButton.Label = Localization.Get(
             _isAnimationPlaying ? "Action.Pause" : "Action.Play");
         LoopButton.Label = Localization.Get(
