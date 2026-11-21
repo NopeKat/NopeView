@@ -17,6 +17,12 @@ internal sealed record SettingsPageParameter(
 
 public sealed partial class SettingsPage : Page
 {
+    // The about section reports the assembly version, which stays fixed for the
+    // lifetime of the page and only needs re-reading when the label language
+    // changes.
+    private readonly string _version =
+        typeof(App).Assembly.GetName().Version?.ToString() ?? "0.0.0.0";
+
     private SettingsPageParameter? _parameter;
     private bool _syncingTheme;
     private bool _syncingLanguage;
@@ -72,6 +78,14 @@ public sealed partial class SettingsPage : Page
         // name it was built with, so it is set again on every switch.
         AutomationProperties.SetName(
             LanguageComboBox, LanguageCard.Header?.ToString() ?? string.Empty);
+
+        // The about section sits at the bottom of the page, the way the design
+        // guidance places it.
+        AboutSectionHeader.Text = Localization.Get("AboutSection.Text");
+        AboutExpander.Header = Localization.Get("AboutExpander.Header");
+        AboutExpander.Description = Localization.Format("AboutVersionLine", _version);
+        RepositoryCard.Header = Localization.Get("RepositoryCard.Header");
+        RepositoryCard.Description = Localization.Get("RepositoryCard.Description");
     }
 
     /// <summary>

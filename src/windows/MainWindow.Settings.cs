@@ -1,34 +1,21 @@
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media.Animation;
 using System;
 using Windows.Graphics;
 
 namespace NopeView.App;
 
-// Top-level navigation and settings plumbing. The viewer and about surfaces are
-// destinations inside one NavigationView. Settings is a window of its own, so
-// the pane item, the context menu and Ctrl+, all open that window instead of
-// switching the surface in place.
+// Settings plumbing. Settings and the about content live in a window of their
+// own, so this window only ever shows the viewer; the command bar, the context
+// menu and Ctrl+, all open that window.
 public sealed partial class MainWindow : Window
 {
-    private enum AppSection
-    {
-        Viewer,
-        About,
-    }
-
-    private AboutPage? _aboutPage;
     private SettingsWindow? _settingsWindow;
-    private AppSection _section = AppSection.Viewer;
 
     // Set while the main window is closing. Closing the settings window at the
     // same time must not try to activate a window that is already gone.
     private bool _closing;
-
-    private bool IsAboutOpen => _section == AppSection.About;
 
     private void SettingsMenuItem_Click(object sender, RoutedEventArgs e)
     {
@@ -45,56 +32,11 @@ public sealed partial class MainWindow : Window
         args.Handled = true;
     }
 
-    private void ViewerSectionAccelerator_Invoked(
-        KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
-    {
-        ActivateSection(AppSection.Viewer);
-        args.Handled = true;
-    }
-
     private void SettingsSectionAccelerator_Invoked(
         KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         OpenSettingsWindow();
         args.Handled = true;
-    }
-
-    private void AboutSectionAccelerator_Invoked(
-        KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
-    {
-        ActivateSection(AppSection.About);
-        args.Handled = true;
-    }
-
-    // The official TitleBar forwards its pane button to the NavigationView.
-    private void TitleBar_PaneToggleRequested(TitleBar sender, object args)
-    {
-        TopLevelNav.IsPaneOpen = !TopLevelNav.IsPaneOpen;
-    }
-
-    private void TopLevelNav_SelectionChanged(
-        NavigationView sender, NavigationViewSelectionChangedEventArgs args)
-    {
-        if (args.SelectedItem is not NavigationViewItem { Tag: string tag })
-        {
-            return;
-        }
-
-        ShowSection(tag == "about" ? AppSection.About : AppSection.Viewer);
-    }
-
-    /// <summary>
-    /// The settings item keeps the selection unchanged (SelectsOnInvoked is off),
-    /// so it arrives as a command: open its window and close the pane the way a
-    /// menu action does.
-    /// </summary>
-    private void TopLevelNav_ItemInvoked(
-        NavigationView sender, NavigationViewItemInvokedEventArgs args)
-    {
-        if (args.InvokedItemContainer is NavigationViewItem { Tag: "settings" })
-        {
-            OpenSettingsWindow();
-        }
     }
 
     /// <summary>
@@ -104,8 +46,6 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private void OpenSettingsWindow()
     {
-        TopLevelNav.IsPaneOpen = false;
-
         if (_settingsWindow is null)
         {
             // The new window opens on the display that hosts the viewer.
@@ -134,106 +74,13 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void ActivateSection(AppSection section)
-    {
-        var item = section == AppSection.About ? AboutNavItem : ViewerNavItem;
-
-        if (ReferenceEquals(TopLevelNav.SelectedItem, item))
-        {
-            ShowSection(section);
-            return;
-        }
-
-        // SelectionChanged updates the surface, so the switch happens in one
-        // place whether the user clicks the pane or a command selects it.
-        TopLevelNav.SelectedItem = item;
-    }
-
-    private void ShowSection(AppSection section)
-    {
-        var changed = _section != section;
-        _section = section;
-        EnsurePage(section);
-
-        ContentRoot.Visibility = section == AppSection.Viewer
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-        AboutHost.Visibility = section == AppSection.About
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-
-        // The viewer is the only surface that accepts a dropped image.
-        RootGrid.AllowDrop = section == AppSection.Viewer;
-
-        if (changed)
-        {
-            AnimateSurface(section == AppSection.About
-                ? AboutHost
-                : (FrameworkElement)ContentRoot);
-        }
-
-        if (section == AppSection.About)
-        {
-            _aboutPage?.FocusDefault();
-        }
-        else
-        {
-            ViewerCommandBar.Focus(FocusState.Programmatic);
-        }
-
-        RefreshWindowTitle();
-    }
-
     /// <summary>
-    /// A short fade marks the top-level page change without delaying it. The
-    /// animation is skipped before the first layout pass, where XamlRoot is not
-    /// available yet.
-    /// </summary>
-    private static void AnimateSurface(FrameworkElement surface)
-    {
-        surface.Opacity = 1;
-        if (surface.XamlRoot is null)
-        {
-            return;
-        }
-
-        var animation = new DoubleAnimation
-        {
-            From = 0,
-            To = 1,
-            Duration = TimeSpan.FromMilliseconds(160),
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
-        };
-        Storyboard.SetTarget(animation, surface);
-        Storyboard.SetTargetProperty(animation, "Opacity");
-        var storyboard = new Storyboard();
-        storyboard.Children.Add(animation);
-        storyboard.Begin();
-    }
-
-    private void EnsurePage(AppSection section)
-    {
-        if (section == AppSection.About && _aboutPage is null)
-        {
-            var page = new AboutPage();
-            page.ApplyLocalization();
-            _aboutPage = page;
-            AboutHost.Content = page;
-        }
-    }
-
-    /// <summary>
-    /// The caption names the open document, and switches to the page name while
-    /// about owns the window. Settings no longer takes the caption over: it has a
-    /// caption of its own.
+    /// The caption names the open document. There is no page to take it over any
+    /// more: settings has its own caption, and about sits inside that window.
     /// </summary>
     private void RefreshWindowTitle()
     {
-        if (IsAboutOpen)
-        {
-            AppTitleBar.Title = Localization.Get("AboutSection.Text");
-        }
-        else if (string.IsNullOrEmpty(_documentName))
+        if (string.IsNullOrEmpty(_documentName))
         {
             AppTitleBar.Title = "NopeView";
         }

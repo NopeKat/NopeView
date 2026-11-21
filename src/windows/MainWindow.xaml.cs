@@ -163,7 +163,6 @@ public sealed partial class MainWindow : Window
         ApplyTheme(_settings.Theme);
         ApplyImageFrame(_settings.ImageFrame);
         ApplyLocalization();
-        TopLevelNav.SelectedItem = ViewerNavItem;
 
         // Set the window icon explicitly. For an unpackaged WinUI 3 app the
         // executable's ApplicationIcon alone does not reach Explorer, so the
@@ -453,11 +452,10 @@ public sealed partial class MainWindow : Window
         FitMenuItem.Text = Localization.Get("ContextFit.Text");
         ActualSizeMenuItem.Text = Localization.Get("ContextActualSize.Text");
         SettingsMenuItem.Text = Localization.Get("ContextSettings.Text");
-        ViewerNavItem.Content = Localization.Get("Navigation.Viewer.Content");
-        SettingsNavItem.Content = Localization.Get("Navigation.Settings.Content");
-        AboutNavItem.Content = Localization.Get("Navigation.About.Content");
+        SettingsCommand.Label = Localization.Get("ContextSettings.Text");
         AutomationProperties.SetName(
-            TopLevelNav, Localization.Get("Navigation.Name"));
+            SettingsCommand,
+            Localization.Get("ContextSettings.Text"));
 
         CopyImageCommand.Label = Localization.Get("CopyImageCommand.Label");
         CopyPathCommand.Label = Localization.Get("CopyPathCommand.Label");
@@ -471,7 +469,6 @@ public sealed partial class MainWindow : Window
         ConfigureOverflowButton();
         UpdateAnimationControls();
         UpdateViewStatus();
-        _aboutPage?.ApplyLocalization();
         _settingsWindow?.ApplyLocalization();
 
         var path = CurrentPath;
@@ -509,15 +506,8 @@ public sealed partial class MainWindow : Window
         KeyboardAccelerator sender,
         KeyboardAcceleratorInvokedEventArgs args)
     {
-        // Escape backs out of the about surface, then leaves full screen. The
-        // settings window handles its own Escape and closes itself.
-        if (IsAboutOpen)
-        {
-            args.Handled = true;
-            ActivateSection(AppSection.Viewer);
-            return;
-        }
-
+        // Escape leaves full screen. The settings window handles its own Escape
+        // and closes itself.
         if (!_isFullScreen)
         {
             return;
@@ -575,13 +565,6 @@ public sealed partial class MainWindow : Window
         var visibility = visible ? Visibility.Visible : Visibility.Collapsed;
         AppTitleBar.Visibility = visibility;
         ViewerCommandBar.Visibility = visibility;
-
-        // Full screen is for the image only. The minimal pane would otherwise
-        // stay on top of the picture if it was open when F11 was pressed.
-        if (!visible)
-        {
-            TopLevelNav.IsPaneOpen = false;
-        }
     }
 
     /// <summary>
