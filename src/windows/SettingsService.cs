@@ -37,13 +37,16 @@ internal sealed record SettingsDocument(
 /// <summary>
 /// Pixel rectangle of the settings window, in the same units the windowing
 /// APIs report. The values are stored as they were measured so the window
-/// reopens at the size and place the user left it.
+/// reopens at the size and place the user left it. The flags say whether the
+/// window was maximized on top of that rectangle, because a maximized window
+/// has no rectangle of its own worth remembering.
 /// </summary>
 internal sealed record WindowBounds(
     [property: JsonPropertyName("x")] int X,
     [property: JsonPropertyName("y")] int Y,
     [property: JsonPropertyName("width")] int Width,
-    [property: JsonPropertyName("height")] int Height);
+    [property: JsonPropertyName("height")] int Height,
+    [property: JsonPropertyName("maximized")] bool Maximized = false);
 
 
 [JsonSourceGenerationOptions(

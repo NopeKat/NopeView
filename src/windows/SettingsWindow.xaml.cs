@@ -35,6 +35,8 @@ public sealed partial class SettingsWindow : Window
     private RectInt32 _lastBounds;
     private DispatcherQueueTimer? _boundsTimer;
     private bool _sized;
+    private bool _maximized;
+    private bool _openMaximized;
 
     internal SettingsWindow(
         SettingsService settings,
@@ -51,14 +53,32 @@ public sealed partial class SettingsWindow : Window
         // WinAppSDK hands a new window over in a maximized state and drops an
         // AppWindow resize until the content has loaded, so the first open used
         // to flash a nearly full screen window before snapping to the settings
-        // size. Restoring the state and applying the rectangle through Win32
-        // happens before that frame is drawn.
+        // size. The state is cleared through both the presenter and Win32, and
+        // the rectangle is applied through Win32, all before the first frame.
+        // Clearing it through the presenter is what also turns the caption back
+        // into a maximize button instead of a restore one.
         var initialHandle = Handle;
+        if (AppWindow.Presenter is OverlappedPresenter initialPresenter)
+        {
+            initialPresenter.Restore();
+        }
+
         Win32Window.Restore(initialHandle);
         var initialScale = Win32Window.GetScaleFactor(initialHandle);
         var initialBounds = ComputeBounds(initialScale);
         Win32Window.SetBounds(
             initialHandle, initialBounds.X, initialBounds.Y, initialBounds.Width, initialBounds.Height);
+        _lastBounds = initialBounds;
+
+        // A window that was left maximized opens maximized again, on top of the
+        // normal rectangle above, so un-maximizing returns to that size. The
+        // maximize itself waits for the content, like every other window
+        // operation on a window that is not shown yet.
+        if (settings.SettingsWindowBounds is { Maximized: true })
+        {
+            _maximized = true;
+            _openMaximized = true;
+        }
 
         SystemBackdrop = new MicaBackdrop();
 
@@ -110,10 +130,16 @@ public sealed partial class SettingsWindow : Window
     /// </summary>
     internal void ShowAndFocus()
     {
+        // Restoring from the taskbar drops a maximized window back to normal, so
+        // a window that is supposed to be maximized is maximized again.
         if (Win32Window.IsMinimized(Handle) &&
             AppWindow.Presenter is OverlappedPresenter presenter)
         {
             presenter.Restore();
+            if (_maximized)
+            {
+                presenter.Maximize();
+            }
         }
 
         Activate();
@@ -141,14 +167,24 @@ public sealed partial class SettingsWindow : Window
         {
             _sized = true;
             var scale = Win32Window.GetScaleFactor(Handle);
-            var bounds = ComputeBounds(scale);
-            AppWindow.MoveAndResize(bounds);
+            var bounds = _lastBounds;
+            if (!_openMaximized)
+            {
+                // A maximized window ignores this: it only moves the rectangle
+                // it would restore to, which the constructor already set.
+                AppWindow.MoveAndResize(bounds);
+            }
+
             ApplyMinimumSize(scale);
 
-            // A window that was never moved does not raise a change event, so
-            // the rectangle it opened with is recorded here; otherwise closing
-            // right away would have nothing to remember.
-            _lastBounds = bounds;
+            if (_openMaximized &&
+                AppWindow.Presenter is OverlappedPresenter presenter)
+            {
+                // The constructor already cleared the state the window was
+                // created with, so this maximizes a normal window and keeps
+                // the rectangle above as the one to restore to.
+                presenter.Maximize();
+            }
         }
     }
 
@@ -214,7 +250,21 @@ public sealed partial class SettingsWindow : Window
 
         var position = AppWindow.Position;
         var size = AppWindow.Size;
-        _lastBounds = new RectInt32(position.X, position.Y, size.Width, size.Height);
+
+        // The state flags cannot tell a maximized window apart reliably on every
+        // desktop, so the size is compared instead: the configured window never
+        // grows past 92% of the work area, so filling it means maximized. A
+        // maximized window only marks the flag and keeps the rectangle the user
+        // chose before maximizing.
+        if (size.Width >= _anchorWorkArea.Width || size.Height >= _anchorWorkArea.Height)
+        {
+            _maximized = true;
+        }
+        else
+        {
+            _maximized = false;
+            _lastBounds = new RectInt32(position.X, position.Y, size.Width, size.Height);
+        }
 
         // Dragging fires a change for every step, so the write waits until the
         // user stops moving the window for a moment.
@@ -244,23 +294,13 @@ public sealed partial class SettingsWindow : Window
 
     private void SaveBounds()
     {
-        // A maximized window fills the work area, which would overwrite the size
-        // the user chose before maximizing. The state flags cannot tell the two
-        // apart reliably on every desktop, so the size is compared instead: the
-        // configured window never grows past 92% of the work area.
         if (_lastBounds.Width <= 0 || _lastBounds.Height <= 0)
         {
             return;
         }
 
-        if (_lastBounds.Width >= _anchorWorkArea.Width ||
-            _lastBounds.Height >= _anchorWorkArea.Height)
-        {
-            return;
-        }
-
         _settings.SetSettingsWindowBounds(new WindowBounds(
-            _lastBounds.X, _lastBounds.Y, _lastBounds.Width, _lastBounds.Height));
+            _lastBounds.X, _lastBounds.Y, _lastBounds.Width, _lastBounds.Height, _maximized));
     }
 
     private nint Handle => WindowNative.GetWindowHandle(this);
