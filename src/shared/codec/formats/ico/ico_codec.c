@@ -40,6 +40,7 @@ typedef struct ico_entry {
 #pragma pack(pop)
 
 #define ICO_TYPE_ICON 1u
+#define ICO_TYPE_CURSOR 2u
 #define ICO_MAX_ENTRIES 256u
 #define ICO_HEADER_SIZE 6u
 #define ICO_ENTRY_SIZE 16u
@@ -65,7 +66,7 @@ nv_format_status nv_format_query(nv_format_info *out_info)
 
     out_info->name = "Windows icon";
     out_info->format_id = "ico";
-    out_info->extensions = "ico";
+    out_info->extensions = "ico,cur";
     out_info->capabilities = NV_FORMAT_CAP_DECODE;
     return NV_FORMAT_OK;
 }
@@ -395,7 +396,11 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     read_u16(data, &reserved);
     read_u16(data + 2, &type);
     read_u16(data + 4, &count);
-    if (reserved != 0u || type != ICO_TYPE_ICON || count == 0u ||
+    /* A cursor shares the icon container and its entry layout; the two fields
+     * that hold the planes and the bit depth in an icon entry are the hotspot
+     * in a cursor entry, which the decode never reads. */
+    if (reserved != 0u ||
+        (type != ICO_TYPE_ICON && type != ICO_TYPE_CURSOR) || count == 0u ||
         count > ICO_MAX_ENTRIES) {
         return NV_FORMAT_ERR_DECODE_FAILED;
     }

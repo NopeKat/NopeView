@@ -13,8 +13,9 @@ next to its sources and is only partially imported, as noted below.
 - `tinyexr` (1.0.8) — `tinyexr.h` only, used by the `exr` codec to load OpenEXR
   images. The header compiles on its own because nanozlib and zfp stay
   disabled. BSD-3-Clause licence in `LICENSE`.
-- `miniz` — `miniz.c` and `miniz.h`, used by the `exr`, `tiff` and `psd` codecs
-  for Deflate data. Public domain.
+- `miniz` — `miniz.c` and `miniz.h`, used by the `exr`, `tiff`, `psd` and `svg`
+  codecs for Deflate data; the `svg` codec only inflates the gzip wrapper of an
+  svgz. Public domain.
 - `bcdec` — `bcdec.h` only, used by the `dds` codec to expand BC1 to BC7 blocks.
   Public domain, licence text inside the header.
 - `openjpeg` (2.5.2) — `src/lib/openjp2`: the whole decode path plus the small

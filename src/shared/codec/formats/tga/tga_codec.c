@@ -44,7 +44,7 @@ nv_format_status nv_format_query(nv_format_info *out_info)
 
     out_info->name = "TGA";
     out_info->format_id = "tga";
-    out_info->extensions = "tga";
+    out_info->extensions = "tga,icb,vda,vst";
     out_info->capabilities = NV_FORMAT_CAP_DECODE;
     return NV_FORMAT_OK;
 }

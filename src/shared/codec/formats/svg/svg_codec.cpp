@@ -19,6 +19,83 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* miniz is compiled as C, so only the entry point needed here is declared. */
+extern "C" size_t tinfl_decompress_mem_to_mem(
+    void* out, size_t out_size, const void* source, size_t source_size, int flags);
+
+#define SVG_INFLATE_FAILED ((size_t)(-1))
+
+/*
+ * Skips the gzip header and inflates the deflate stream that follows. The
+ * allocator version of the inflate entry point hands back nothing with this
+ * vendored miniz build, so the buffer is sized from the uncompressed length in
+ * the trailer and a stream that disagrees with it is reported as a failure.
+ */
+static unsigned char* svg_gunzip(const unsigned char* data, size_t size, size_t* out_size)
+{
+    size_t header = 10u;
+    size_t expected;
+    unsigned int flags;
+    unsigned char* output;
+    size_t got;
+
+    *out_size = 0u;
+    if (size < 18u || data[0] != 0x1fu || data[1] != 0x8bu || data[2] != 0x08u) {
+        return nullptr;
+    }
+    flags = data[3];
+    if ((flags & 0xe0u) != 0u) {
+        return nullptr;
+    }
+    if ((flags & 0x04u) != 0u) {
+        unsigned int extra;
+        if (header + 2u > size) {
+            return nullptr;
+        }
+        extra = (unsigned int)data[10] | ((unsigned int)data[11] << 8);
+        header += 2u + (size_t)extra;
+    }
+    if ((flags & 0x08u) != 0u) {
+        while (header < size && data[header] != 0u) {
+            header++;
+        }
+        header++;
+    }
+    if ((flags & 0x10u) != 0u) {
+        while (header < size && data[header] != 0u) {
+            header++;
+        }
+        header++;
+    }
+    if ((flags & 0x02u) != 0u) {
+        header += 2u;
+    }
+    if (header + 8u >= size) {
+        return nullptr;
+    }
+
+    /* The trailer holds the crc and the uncompressed length; the length is only
+     * used to size the buffer, and the result is checked against it. */
+    expected = (size_t)data[size - 4u] | ((size_t)data[size - 3u] << 8) |
+               ((size_t)data[size - 2u] << 16) | ((size_t)data[size - 1u] << 24);
+    if (expected == 0u || expected > (size_t)NV_MAX_DECODE_BYTES) {
+        return nullptr;
+    }
+
+    output = static_cast<unsigned char*>(malloc(expected));
+    if (output == nullptr) {
+        return nullptr;
+    }
+    got = tinfl_decompress_mem_to_mem(output, expected, data + header,
+                                      size - header - 8u, 0);
+    if (got == SVG_INFLATE_FAILED) {
+        free(output);
+        return nullptr;
+    }
+    *out_size = got;
+    return output;
+}
+
 const char* nv_format_abi_version(void)
 {
     return NV_FORMAT_ABI_VERSION;
@@ -35,7 +112,7 @@ nv_format_status nv_format_query(nv_format_info* out_info)
 
     out_info->name = "SVG";
     out_info->format_id = "svg";
-    out_info->extensions = "svg";
+    out_info->extensions = "svg,svgz";
     out_info->capabilities = NV_FORMAT_CAP_DECODE;
     return NV_FORMAT_OK;
 }
@@ -49,6 +126,9 @@ nv_format_status nv_format_decode(const nv_format_decode_request* request, nv_fo
     NSVGimage* document;
     NSVGrasterizer* rasterizer;
     char* document_text;
+    const unsigned char* document_bytes;
+    unsigned char* document_owned;
+    size_t document_size;
     nv_format_pixel_format output_format;
     int components;
     int width;
@@ -85,13 +165,30 @@ nv_format_status nv_format_decode(const nv_format_decode_request* request, nv_fo
     components = nv_components_for(request->desired_pixel_format);
 
     /* The parser walks a null-terminated document, so the encoded bytes are
-     * copied into a scratch buffer first. */
-    document_text = static_cast<char*>(malloc(request->data_size + 1u));
+     * copied into a scratch buffer first; an svgz is inflated on the way. */
+    document_bytes = request->data;
+    document_size = request->data_size;
+    document_owned = nullptr;
+    if (document_size > 2u && document_bytes[0] == 0x1fu && document_bytes[1] == 0x8bu) {
+        document_owned = svg_gunzip(document_bytes, document_size, &document_size);
+        if (document_owned == nullptr) {
+            return NV_FORMAT_ERR_DECODE_FAILED;
+        }
+        document_bytes = document_owned;
+    }
+    if (document_size > NV_MAX_DECODE_BYTES) {
+        free(document_owned);
+        return NV_FORMAT_ERR_INVALID_ARGUMENT;
+    }
+
+    document_text = static_cast<char*>(malloc(document_size + 1u));
     if (document_text == nullptr) {
+        free(document_owned);
         return NV_FORMAT_ERR_OUT_OF_MEMORY;
     }
-    memcpy(document_text, request->data, request->data_size);
-    document_text[request->data_size] = '\0';
+    memcpy(document_text, document_bytes, document_size);
+    document_text[document_size] = '\0';
+    free(document_owned);
 
     document = nsvgParse(document_text, "px", 96.0f);
     free(document_text);

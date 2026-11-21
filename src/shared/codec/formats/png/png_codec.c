@@ -352,7 +352,7 @@ nv_format_status nv_format_query(nv_format_info *out_info)
 
     out_info->name = "PNG";
     out_info->format_id = "png";
-    out_info->extensions = "png";
+    out_info->extensions = "png,apng";
     out_info->capabilities = NV_FORMAT_CAP_DECODE | NV_FORMAT_CAP_ENCODE | NV_FORMAT_CAP_ANIMATED;
     return NV_FORMAT_OK;
 }

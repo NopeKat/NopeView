@@ -148,7 +148,7 @@ nv_format_status nv_format_query(nv_format_info *out_info)
 
     out_info->name = "JPEG 2000";
     out_info->format_id = "jp2";
-    out_info->extensions = "jp2,j2k,j2c,jpf,jpx";
+    out_info->extensions = "jp2,j2c,jpf,jpc,jpx,j2k";
     out_info->capabilities = NV_FORMAT_CAP_DECODE;
     return NV_FORMAT_OK;
 }

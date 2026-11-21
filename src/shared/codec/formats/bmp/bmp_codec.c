@@ -47,7 +47,7 @@ nv_format_status nv_format_query(nv_format_info *out_info)
 
     out_info->name = "BMP";
     out_info->format_id = "bmp";
-    out_info->extensions = "bmp";
+    out_info->extensions = "bmp,dib";
     out_info->capabilities = NV_FORMAT_CAP_DECODE | NV_FORMAT_CAP_ENCODE;
     return NV_FORMAT_OK;
 }
