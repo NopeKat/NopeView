@@ -31,7 +31,20 @@ internal enum ImageFrameStyle
 internal sealed record SettingsDocument(
     [property: JsonPropertyName("theme")] string Theme,
     [property: JsonPropertyName("language")] string? Language,
-    [property: JsonPropertyName("imageFrame")] string? ImageFrame);
+    [property: JsonPropertyName("imageFrame")] string? ImageFrame,
+    [property: JsonPropertyName("settingsWindow")] WindowBounds? SettingsWindow);
+
+/// <summary>
+/// Pixel rectangle of the settings window, in the same units the windowing
+/// APIs report. The values are stored as they were measured so the window
+/// reopens at the size and place the user left it.
+/// </summary>
+internal sealed record WindowBounds(
+    [property: JsonPropertyName("x")] int X,
+    [property: JsonPropertyName("y")] int Y,
+    [property: JsonPropertyName("width")] int Width,
+    [property: JsonPropertyName("height")] int Height);
+
 
 [JsonSourceGenerationOptions(
     WriteIndented = true,
@@ -73,6 +86,13 @@ internal sealed class SettingsService
     /// </summary>
     internal string Language { get; private set; } = Localization.SystemPreference;
 
+    /// <summary>
+    /// Last size and position of the settings window, or null before the window
+    /// has been closed once. The settings window is its own top level window, so
+    /// it remembers where the user left it instead of always opening centred.
+    /// </summary>
+    internal WindowBounds? SettingsWindowBounds { get; private set; }
+
     internal void Load()
     {
         try
@@ -105,6 +125,15 @@ internal sealed class SettingsService
             {
                 ImageFrame = frame;
             }
+
+            // A zero or absurd rectangle is treated like no stored value, so a
+            // hand-edited or truncated file cannot open a window nothing can show.
+            if (document?.SettingsWindow is { } bounds &&
+                bounds.Width >= 200 && bounds.Height >= 200 &&
+                bounds.Width <= 4000 && bounds.Height <= 4000)
+            {
+                SettingsWindowBounds = bounds;
+            }
         }
         catch (Exception ex)
         {
@@ -132,6 +161,12 @@ internal sealed class SettingsService
         Save();
     }
 
+    internal void SetSettingsWindowBounds(WindowBounds bounds)
+    {
+        SettingsWindowBounds = bounds;
+        Save();
+    }
+
     private void Save()
     {
         var temporary = _path + ".tmp";
@@ -144,7 +179,8 @@ internal sealed class SettingsService
             }
 
             var json = JsonSerializer.Serialize(
-                new SettingsDocument(Theme.ToString(), Language, ImageFrame.ToString()),
+                new SettingsDocument(
+                    Theme.ToString(), Language, ImageFrame.ToString(), SettingsWindowBounds),
                 SettingsJsonContext.Default.SettingsDocument);
 
             // Write beside the target and replace in one step. Readers either
