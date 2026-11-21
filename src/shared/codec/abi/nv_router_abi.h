@@ -40,7 +40,7 @@ extern "C" {
  * explicitly requests otherwise, only the fourth segment is incremented.
  * Independent from the format ABI and the plugin ABI.
  */
-#define NV_ROUTER_ABI_VERSION "0.0.0.4"
+#define NV_ROUTER_ABI_VERSION "0.0.0.5"
 
 typedef enum nv_router_status {
     NV_ROUTER_OK = 0,
@@ -82,6 +82,7 @@ typedef struct nv_router_image {
     uint32_t frame_delay_ms;   /* Display duration for this frame, in milliseconds. */
     int32_t source_width;      /* Dimensions before max_dimension scaling. */
     int32_t source_height;     /* Equal to width/height when no scaling happened. */
+    void *pixels_release;      /* Codec that owns pixels; set by the router. */
 } nv_router_image;
 
 /*

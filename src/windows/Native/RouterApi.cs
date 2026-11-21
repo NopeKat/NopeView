@@ -17,6 +17,8 @@ internal struct NvRouterImage
     public uint FrameDelayMs;
     public int SourceWidth;
     public int SourceHeight;
+    /// <summary>Codec that owns Pixels; the router fills it in.</summary>
+    public IntPtr PixelsRelease;
 }
 
 /// <summary>Mirror of nv_router_format in nv_router_abi.h.</summary>

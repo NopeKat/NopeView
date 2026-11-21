@@ -12,6 +12,7 @@
 #include "nv_format_abi.h"
 
 #include <limits.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -107,6 +108,37 @@ static inline void nv_rgba_to_format(
         memcpy(destination, source, pixel_count * 4u);
         break;
     }
+}
+
+/*
+ * One channel of an unbounded HDR image, tone mapped to eight bits: a Reinhard
+ * curve first, then sRGB gamma. Alpha is a plain fraction and skips the curve.
+ * The EXR and the Radiance codec both display through this.
+ */
+static inline unsigned char nv_float_channel_to_byte(float value)
+{
+    float mapped;
+
+    if (!(value > 0.0f)) {
+        return 0;
+    }
+    mapped = value / (1.0f + value);
+    mapped = powf(mapped, 1.0f / 2.2f);
+    if (mapped >= 1.0f) {
+        return 255;
+    }
+    return (unsigned char)(mapped * 255.0f + 0.5f);
+}
+
+static inline unsigned char nv_float_alpha_to_byte(float value)
+{
+    if (!(value > 0.0f)) {
+        return 0;
+    }
+    if (value >= 1.0f) {
+        return 255;
+    }
+    return (unsigned char)(value * 255.0f + 0.5f);
 }
 
 /* Shared validation for formats that do not implement encoding yet. */

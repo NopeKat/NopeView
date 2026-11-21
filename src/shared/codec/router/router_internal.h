@@ -37,11 +37,22 @@ typedef struct nv_format_entry {
     uint32_t capabilities;
 } nv_format_entry;
 
+/* The last file read, kept by one context and released with it. */
+typedef struct nv_file_cache {
+    char *path;
+    uint64_t size;
+    int64_t mtime;
+    uint8_t *data;
+    size_t data_size;
+} nv_file_cache;
+
 struct nv_router_context {
     nv_format_entry *entries;
     uint32_t entry_count;
     uint32_t entry_capacity;
     uint32_t abi_mismatch_count;
+    nv_file_cache cache;
+    nv_rwlock cache_lock;
 };
 
 /*
@@ -64,16 +75,18 @@ void nv_copy_str(char *destination, size_t destination_size, const char *source)
 nv_router_status nv_loader_start(nv_router_context *context, const char *codec_dir);
 
 /* router_io.c: reads and writes whole files, and releases what it returned. */
-int nv_io_read_file(const char *path, nv_file_bytes *out);
+int nv_io_read_file(nv_router_context *context, const char *path, nv_file_bytes *out);
 int nv_io_read_fd(int fd, nv_file_bytes *out);
 int nv_io_write_file(const char *path, const uint8_t *data, size_t size);
-void nv_io_release(nv_file_bytes *bytes);
+void nv_io_release(nv_router_context *context, nv_file_bytes *bytes);
 
 /* router_cache.c: a hit returns the cached bytes with the read lock held. */
-int nv_cache_lookup(const char *path, uint64_t file_size, int64_t mtime,
-                    nv_file_bytes *out);
-void nv_cache_store(const char *path, const uint8_t *data, size_t size,
-                    uint64_t file_size, int64_t mtime);
-void nv_cache_release(void);
+int nv_cache_lookup(nv_router_context *context, const char *path,
+                    uint64_t file_size, int64_t mtime, nv_file_bytes *out);
+void nv_cache_store(nv_router_context *context, const char *path,
+                    const uint8_t *data, size_t size, uint64_t file_size,
+                    int64_t mtime);
+void nv_cache_release(nv_router_context *context);
+void nv_cache_clear(nv_router_context *context);
 
 #endif /* NV_ROUTER_INTERNAL_H */

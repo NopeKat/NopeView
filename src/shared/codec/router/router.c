@@ -34,70 +34,9 @@ void nv_copy_str(char *destination, size_t destination_size, const char *source)
 
 /*
  * Pixels produced by a format library must be released with that library's own
- * free function. nv_router_image_free receives no context, so ownership is kept
- * in a process-wide registry keyed by the pixel pointer.
+ * free function. The router stores that function in the image itself, under
+ * pixels_release, because nv_router_image_free receives no context.
  */
-typedef struct nv_image_owner {
-    void *pixels;
-    fn_image_free image_free;
-} nv_image_owner;
-
-static nv_image_owner *g_owners;
-static uint32_t g_owner_count;
-static uint32_t g_owner_capacity;
-static nv_rwlock g_owner_lock = NV_RWLOCK_INITIALIZER;
-
-/* Registers which format library owns a pixel buffer. */
-static int owner_add(void *pixels, fn_image_free image_free)
-{
-    int added = 0;
-
-    nv_rwlock_write(&g_owner_lock);
-    {
-        if (g_owner_count == g_owner_capacity) {
-            uint32_t capacity = (g_owner_capacity == 0u) ? 8u : g_owner_capacity * 2u;
-            nv_image_owner *grown =
-                (nv_image_owner *)realloc(g_owners, (size_t)capacity * sizeof(nv_image_owner));
-
-            if (grown != NULL) {
-                g_owners = grown;
-                g_owner_capacity = capacity;
-            }
-        }
-
-        if (g_owner_count < g_owner_capacity) {
-            g_owners[g_owner_count].pixels = pixels;
-            g_owners[g_owner_count].image_free = image_free;
-            g_owner_count++;
-            added = 1;
-        }
-    }
-    nv_rwlock_write_unlock(&g_owner_lock);
-
-    return added;
-}
-
-/* Removes and returns the free function registered for a pixel buffer. */
-static fn_image_free owner_take(void *pixels)
-{
-    fn_image_free image_free = NULL;
-    uint32_t index;
-
-    nv_rwlock_write(&g_owner_lock);
-    {
-        for (index = 0u; index < g_owner_count; index++) {
-            if (g_owners[index].pixels == pixels) {
-                image_free = g_owners[index].image_free;
-                g_owners[index] = g_owners[g_owner_count - 1u];
-                g_owner_count--;
-                break;
-            }
-        }
-    }
-    nv_rwlock_write_unlock(&g_owner_lock);
-
-    return image_free;
-}
 
 /* Case-insensitive match of a comma-separated extension list against a file extension. */
 static int extension_matches(const char *list, const char *extension)
@@ -188,6 +127,7 @@ static void clear_router_image(nv_router_image *out_image)
     out_image->frame_delay_ms = 0;
     out_image->source_width = 0;
     out_image->source_height = 0;
+    out_image->pixels_release = NULL;
 }
 
 /*
@@ -242,11 +182,6 @@ static nv_router_status dispatch_decode(
             continue;
         }
 
-        if (owner_add(image.pixels, entry->image_free) == 0) {
-            entry->image_free(&image);
-            return NV_ROUTER_ERR_OUT_OF_MEMORY;
-        }
-
         out_image->struct_size = (uint32_t)sizeof(*out_image);
         out_image->width = image.width;
         out_image->height = image.height;
@@ -258,6 +193,10 @@ static nv_router_status dispatch_decode(
         out_image->frame_delay_ms = image.frame_delay_ms;
         out_image->source_width = image.source_width;
         out_image->source_height = image.source_height;
+
+        /* The host holds only this pointer, so the codec travels with the
+         * image; the cast is back to fn_image_free in the free path. */
+        out_image->pixels_release = (void *)entry->image_free;
         return NV_ROUTER_OK;
     }
 
@@ -287,9 +226,11 @@ nv_router_status nv_router_create(const char *codec_dir, nv_router_context **out
     if (context == NULL) {
         return NV_ROUTER_ERR_OUT_OF_MEMORY;
     }
+    nv_rwlock_init(&context->cache_lock);
 
     status = nv_loader_start(context, codec_dir);
     if (status != NV_ROUTER_OK) {
+        nv_rwlock_dispose(&context->cache_lock);
         free(context);
         return status;
     }
@@ -306,7 +247,10 @@ void nv_router_destroy(nv_router_context *context)
 
     /* Format modules stay loaded for the process lifetime. nv_router_image_free
      * has no context, so an image may be released after this destroy call and
-     * still needs its library's free function to be valid. */
+     * still needs its library's free function to be valid. The cache belongs to
+     * this context, so its bytes go with it. */
+    nv_cache_clear(context);
+    nv_rwlock_dispose(&context->cache_lock);
     free(context->entries);
     free(context);
 }
@@ -377,14 +321,14 @@ nv_router_status nv_router_decode_file_ex(
 
     path_extension(path, extension, sizeof(extension));
 
-    if (nv_io_read_file(path, &file) == 0) {
+    if (nv_io_read_file(context, path, &file) == 0) {
         return NV_ROUTER_ERR_IO;
     }
 
     status = dispatch_decode(
         context, file.data, file.size, path, extension,
         desired_pixel_format, frame_index, max_dimension, out_image);
-    nv_io_release(&file);
+    nv_io_release(context, &file);
     return status;
 }
 
@@ -410,7 +354,7 @@ nv_router_status nv_router_decode_fd_ex(
     status = dispatch_decode(
         context, file.data, file.size, NULL, "",
         desired_pixel_format, frame_index, max_dimension, out_image);
-    nv_io_release(&file);
+    nv_io_release(context, &file);
     return status;
 }
 
@@ -519,13 +463,18 @@ nv_router_status nv_router_encode_file(
 
 void nv_router_image_free(nv_router_image *image)
 {
-    fn_image_free image_free;
+    fn_image_free image_free = NULL;
 
     if (image == NULL || image->pixels == NULL) {
         return;
     }
 
-    image_free = owner_take(image->pixels);
+    /* pixels_release is the last field, so a struct smaller than this one
+     * cannot hold it; the pixels are then left to the process, which is only
+     * possible with a host built against an older header. */
+    if (image->struct_size >= (uint32_t)sizeof(*image)) {
+        image_free = (fn_image_free)image->pixels_release;
+    }
     if (image_free != NULL) {
         nv_format_image format_image;
 
@@ -544,4 +493,5 @@ void nv_router_image_free(nv_router_image *image)
     image->frame_delay_ms = 0;
     image->source_width = 0;
     image->source_height = 0;
+    image->pixels_release = NULL;
 }

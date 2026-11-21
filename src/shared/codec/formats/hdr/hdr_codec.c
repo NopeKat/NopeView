@@ -17,36 +17,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/*
- * Radiance values are unbounded, so each channel goes through a Reinhard curve
- * before the sRGB gamma. Alpha stays a plain fraction.
- */
-static unsigned char hdr_to_byte(float value)
-{
-    float mapped;
-
-    if (!(value > 0.0f)) {
-        return 0;
-    }
-    mapped = value / (1.0f + value);
-    mapped = powf(mapped, 1.0f / 2.2f);
-    if (mapped >= 1.0f) {
-        return 255;
-    }
-    return (unsigned char)(mapped * 255.0f + 0.5f);
-}
-
-static unsigned char hdr_alpha_to_byte(float value)
-{
-    if (!(value > 0.0f)) {
-        return 0;
-    }
-    if (value >= 1.0f) {
-        return 255;
-    }
-    return (unsigned char)(value * 255.0f + 0.5f);
-}
-
 const char *nv_format_abi_version(void)
 {
     return NV_FORMAT_ABI_VERSION;
@@ -132,10 +102,10 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
         return NV_FORMAT_ERR_OUT_OF_MEMORY;
     }
     for (index = 0u; index < pixel_count; index++) {
-        pixels[index * 4u] = hdr_to_byte(rgba[index * 4u]);
-        pixels[index * 4u + 1u] = hdr_to_byte(rgba[index * 4u + 1u]);
-        pixels[index * 4u + 2u] = hdr_to_byte(rgba[index * 4u + 2u]);
-        pixels[index * 4u + 3u] = hdr_alpha_to_byte(rgba[index * 4u + 3u]);
+        pixels[index * 4u] = nv_float_channel_to_byte(rgba[index * 4u]);
+        pixels[index * 4u + 1u] = nv_float_channel_to_byte(rgba[index * 4u + 1u]);
+        pixels[index * 4u + 2u] = nv_float_channel_to_byte(rgba[index * 4u + 2u]);
+        pixels[index * 4u + 3u] = nv_float_alpha_to_byte(rgba[index * 4u + 3u]);
     }
     stbi_image_free(rgba);
     rgba = NULL;

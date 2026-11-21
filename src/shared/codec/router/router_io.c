@@ -73,7 +73,7 @@ static int input_size_ok(uint64_t size)
  * Reads a whole file before dispatch. This keeps UTF-8 host paths working on
  * Windows, where narrow fopen would use the active code page.
  */
-int nv_io_read_file(const char *path, nv_file_bytes *out)
+int nv_io_read_file(nv_router_context *context, const char *path, nv_file_bytes *out)
 {
     uint64_t file_size = 0u;
     int64_t mtime = 0;
@@ -85,7 +85,7 @@ int nv_io_read_file(const char *path, nv_file_bytes *out)
     out->owned = 0;
 
     have_stamp = file_stamp(path, &file_size, &mtime);
-    if (have_stamp != 0 && nv_cache_lookup(path, file_size, mtime, out) != 0) {
+    if (have_stamp != 0 && nv_cache_lookup(context, path, file_size, mtime, out) != 0) {
         return 1;
     }
 
@@ -152,7 +152,7 @@ int nv_io_read_file(const char *path, nv_file_bytes *out)
         CloseHandle(file);
 
         if (have_stamp != 0) {
-            nv_cache_store(path, buffer, (size_t)file_size, file_size, mtime);
+            nv_cache_store(context, path, buffer, (size_t)file_size, file_size, mtime);
         }
 
         out->data = buffer;
@@ -209,7 +209,7 @@ int nv_io_read_file(const char *path, nv_file_bytes *out)
             return 0;
         }
         if (have_stamp != 0) {
-            nv_cache_store(path, buffer, (size_t)file_size, file_size, mtime);
+            nv_cache_store(context, path, buffer, (size_t)file_size, file_size, mtime);
         }
 
         out->data = buffer;
@@ -283,10 +283,10 @@ int nv_io_read_fd(int fd, nv_file_bytes *out)
 #endif
 }
 
-void nv_io_release(nv_file_bytes *bytes)
+void nv_io_release(nv_router_context *context, nv_file_bytes *bytes)
 {
     if (bytes->cached != 0) {
-        nv_cache_release();
+        nv_cache_release(context);
     }
     else if (bytes->owned != 0) {
         free((void *)bytes->data);

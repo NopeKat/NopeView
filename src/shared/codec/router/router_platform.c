@@ -9,6 +9,16 @@
 
 #if defined(_WIN32)
 
+void nv_rwlock_init(nv_rwlock *lock)
+{
+    InitializeSRWLock(lock);
+}
+
+void nv_rwlock_dispose(nv_rwlock *lock)
+{
+    (void)lock;
+}
+
 void nv_rwlock_read(nv_rwlock *lock)
 {
     AcquireSRWLockShared(lock);
@@ -50,6 +60,16 @@ void nv_module_close(nv_module module)
 }
 
 #else
+
+void nv_rwlock_init(nv_rwlock *lock)
+{
+    pthread_rwlock_init(lock, NULL);
+}
+
+void nv_rwlock_dispose(nv_rwlock *lock)
+{
+    pthread_rwlock_destroy(lock);
+}
 
 void nv_rwlock_read(nv_rwlock *lock)
 {

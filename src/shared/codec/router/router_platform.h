@@ -49,6 +49,8 @@ typedef pthread_rwlock_t nv_rwlock;
 #define NV_RWLOCK_INITIALIZER PTHREAD_RWLOCK_INITIALIZER
 #endif
 
+void nv_rwlock_init(nv_rwlock *lock);
+void nv_rwlock_dispose(nv_rwlock *lock);
 void nv_rwlock_read(nv_rwlock *lock);
 void nv_rwlock_write(nv_rwlock *lock);
 void nv_rwlock_read_unlock(nv_rwlock *lock);
