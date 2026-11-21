@@ -17,6 +17,14 @@ next to its sources and is only partially imported, as noted below.
   for Deflate data. Public domain.
 - `bcdec` — `bcdec.h` only, used by the `dds` codec to expand BC1 to BC7 blocks.
   Public domain, licence text inside the header.
+- `openjpeg` (2.5.2) — `src/lib/openjp2`: the whole decode path plus the small
+  encoder it needs, minus the JPIP index writers (`cidx_manager`, `phix_manager`,
+  `ppix_manager`, `thix_manager`, `tpix_manager`). The `jp2` codec uses it for
+  JP2 containers and bare JPEG 2000 codestreams. `opj_config.h` and
+  `opj_config_private.h` are written by hand because CMake normally generates
+  them. BSD-2-Clause licence in `LICENSE`.
 
 Only files that a codec actually links are kept; encoder-side sources are not
-vendored, so the DLLs cannot write WebP, SVG, EXR, TIFF, DDS or PSD.
+vendored, so the DLLs cannot write WebP, SVG, EXR, TIFF, DDS, PSD or JPEG 2000.
+OpenJPEG ships encode and decode in the same translation units, so its encoder
+comes along, but the `jp2` codec still only claims the decode capability.
