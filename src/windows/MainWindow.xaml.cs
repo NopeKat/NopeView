@@ -298,6 +298,8 @@ public sealed partial class MainWindow : Window
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
+        _closing = true;
+        _settingsWindow?.Close();
         _animationTimer.Stop();
         _decodeCancellation?.Cancel();
         RouterApi.Close(_routerContext);
@@ -470,6 +472,7 @@ public sealed partial class MainWindow : Window
         UpdateAnimationControls();
         UpdateViewStatus();
         _aboutPage?.ApplyLocalization();
+        _settingsWindow?.ApplyLocalization();
 
         var path = CurrentPath;
         if (path is not null)
@@ -506,11 +509,12 @@ public sealed partial class MainWindow : Window
         KeyboardAccelerator sender,
         KeyboardAcceleratorInvokedEventArgs args)
     {
-        // Escape backs out of a top-level page first, then leaves full screen.
-        if (IsSettingsOpen || IsAboutOpen)
+        // Escape backs out of the about surface, then leaves full screen. The
+        // settings window handles its own Escape and closes itself.
+        if (IsAboutOpen)
         {
             args.Handled = true;
-            CloseSettings();
+            ActivateSection(AppSection.Viewer);
             return;
         }
 

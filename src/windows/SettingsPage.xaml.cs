@@ -48,7 +48,6 @@ public sealed partial class SettingsPage : Page
     private void ApplyLocalization()
     {
         AutomationProperties.SetName(this, Localization.Get("SettingsHeader.Text"));
-        SettingsHeader.Text = Localization.Get("SettingsHeader.Text");
         AppearanceSectionHeader.Text = Localization.Get("AppearanceSection.Text");
 
         ThemeCard.Header = Localization.Get("ThemeCard.Header");

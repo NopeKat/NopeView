@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="NopeView.App.SettingsWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Settings">
+
+    <!-- Settings is a window of its own, not a destination inside the viewer.
+         It carries the same title bar and layer fill as the main window so the
+         two surfaces read as one app, while the window frame itself stays
+         independent. -->
+    <Grid x:Name="RootGrid"
+          Loaded="RootGrid_Loaded"
+          Background="{ThemeResource LayerFillColorDefaultBrush}">
+        <Grid.KeyboardAccelerators>
+            <KeyboardAccelerator Key="Escape" Invoked="EscapeAccelerator_Invoked" />
+        </Grid.KeyboardAccelerators>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TitleBar x:Name="AppTitleBar"
+                  Grid.Row="0"
+                  Title="Settings"
+                  Background="{ThemeResource LayerFillColorDefaultBrush}"
+                  IsPaneToggleButtonVisible="False"
+                  IsBackButtonVisible="False"
+                  AutomationProperties.AutomationId="SettingsTitleBar">
+            <TitleBar.IconSource>
+                <ImageIconSource ImageSource="ms-appx:///assets/nopeview-title.png" />
+            </TitleBar.IconSource>
+        </TitleBar>
+
+        <ContentControl x:Name="SettingsHost"
+                        Grid.Row="1"
+                        IsTabStop="False"
+                        HorizontalContentAlignment="Stretch"
+                        VerticalContentAlignment="Stretch" />
+    </Grid>
+</Window>

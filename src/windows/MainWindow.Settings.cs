@@ -1,81 +1,47 @@
-using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media.Animation;
 using System;
-using System.Runtime.InteropServices;
-using Windows.UI;
+using Windows.Graphics;
 
 namespace NopeView.App;
 
-// Top-level navigation and settings plumbing. The viewer, settings and about
-// surfaces are peers in one NavigationView instead of a page with a back stack.
+// Top-level navigation and settings plumbing. The viewer and about surfaces are
+// destinations inside one NavigationView. Settings is a window of its own, so
+// the pane item, the context menu and Ctrl+, all open that window instead of
+// switching the surface in place.
 public sealed partial class MainWindow : Window
 {
-    private const uint SpiGetHighContrast = 0x0042;
-    private const uint HcfHighContrastOn = 0x0001;
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct HighContrastInfo
-    {
-        public uint Size;
-        public uint Flags;
-        public nint DefaultScheme;
-    }
-
-    [DllImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SystemParametersInfo(
-        uint action, uint parameter, ref HighContrastInfo info, uint update);
-
-    // AccessibilitySettings is a UWP contract and is not reliable for an
-    // unpackaged WinUI 3 process. SystemParametersInfo exposes the same
-    // high-contrast flag without activating that WinRT object.
-    private static bool IsHighContrastOn()
-    {
-        var info = new HighContrastInfo
-        {
-            Size = (uint)Marshal.SizeOf<HighContrastInfo>(),
-        };
-        return SystemParametersInfo(SpiGetHighContrast, info.Size, ref info, 0)
-            && (info.Flags & HcfHighContrastOn) != 0;
-    }
-
     private enum AppSection
     {
         Viewer,
-        Settings,
         About,
     }
 
-    private SettingsPage? _settingsPage;
     private AboutPage? _aboutPage;
+    private SettingsWindow? _settingsWindow;
     private AppSection _section = AppSection.Viewer;
 
-    private bool IsSettingsOpen => _section == AppSection.Settings;
+    // Set while the main window is closing. Closing the settings window at the
+    // same time must not try to activate a window that is already gone.
+    private bool _closing;
 
     private bool IsAboutOpen => _section == AppSection.About;
 
     private void SettingsMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        OpenSettings();
+        OpenSettingsWindow();
     }
 
-    // Ctrl+, opens settings, or returns to the viewer when settings is already
-    // open. The same key works while a top-level page has focus.
+    // Ctrl+, brings the settings window forward. It is a separate window now, so
+    // the key cannot toggle a surface: it opens the window on the first press and
+    // focuses it on every later one.
     private void SettingsAccelerator_Invoked(
         KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
-        if (IsSettingsOpen)
-        {
-            CloseSettings();
-        }
-        else
-        {
-            OpenSettings();
-        }
+        OpenSettingsWindow();
         args.Handled = true;
     }
 
@@ -89,7 +55,7 @@ public sealed partial class MainWindow : Window
     private void SettingsSectionAccelerator_Invoked(
         KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
-        ActivateSection(AppSection.Settings);
+        OpenSettingsWindow();
         args.Handled = true;
     }
 
@@ -114,34 +80,63 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        var section = tag switch
+        ShowSection(tag == "about" ? AppSection.About : AppSection.Viewer);
+    }
+
+    /// <summary>
+    /// The settings item keeps the selection unchanged (SelectsOnInvoked is off),
+    /// so it arrives as a command: open its window and close the pane the way a
+    /// menu action does.
+    /// </summary>
+    private void TopLevelNav_ItemInvoked(
+        NavigationView sender, NavigationViewItemInvokedEventArgs args)
+    {
+        if (args.InvokedItemContainer is NavigationViewItem { Tag: "settings" })
         {
-            "settings" => AppSection.Settings,
-            "about" => AppSection.About,
-            _ => AppSection.Viewer,
-        };
-
-        ShowSection(section);
+            OpenSettingsWindow();
+        }
     }
 
-    private void OpenSettings()
+    /// <summary>
+    /// Opens the settings window, or brings the open one forward. The window is
+    /// not owned by this window, so it keeps its own taskbar button and closes on
+    /// its own; only the stored values and the theme callbacks are shared.
+    /// </summary>
+    private void OpenSettingsWindow()
     {
-        ActivateSection(AppSection.Settings);
+        TopLevelNav.IsPaneOpen = false;
+
+        if (_settingsWindow is null)
+        {
+            // The new window opens on the display that hosts the viewer.
+            var workArea = DisplayArea
+                .GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary)
+                .WorkArea;
+            _settingsWindow = new SettingsWindow(
+                _settings, ApplyTheme, ApplyLanguage, ApplyImageFrame, workArea);
+            _settingsWindow.Closed += SettingsWindow_Closed;
+        }
+
+        _settingsWindow.ShowAndFocus();
     }
 
-    private void CloseSettings()
+    // The settings window is not owned by the viewer, so it is closed explicitly
+    // when the viewer exits; otherwise the process would stay alive with a window
+    // that has nothing left to configure.
+    private void SettingsWindow_Closed(object sender, WindowEventArgs args)
     {
-        ActivateSection(AppSection.Viewer);
+        _settingsWindow = null;
+
+        if (!_closing)
+        {
+            // Focus returns to the viewer, the way a dialog hands focus back.
+            Activate();
+        }
     }
 
     private void ActivateSection(AppSection section)
     {
-        var item = section switch
-        {
-            AppSection.Settings => SettingsNavItem,
-            AppSection.About => AboutNavItem,
-            _ => ViewerNavItem,
-        };
+        var item = section == AppSection.About ? AboutNavItem : ViewerNavItem;
 
         if (ReferenceEquals(TopLevelNav.SelectedItem, item))
         {
@@ -163,9 +158,6 @@ public sealed partial class MainWindow : Window
         ContentRoot.Visibility = section == AppSection.Viewer
             ? Visibility.Visible
             : Visibility.Collapsed;
-        SettingsHost.Visibility = section == AppSection.Settings
-            ? Visibility.Visible
-            : Visibility.Collapsed;
         AboutHost.Visibility = section == AppSection.About
             ? Visibility.Visible
             : Visibility.Collapsed;
@@ -175,20 +167,12 @@ public sealed partial class MainWindow : Window
 
         if (changed)
         {
-            var surface = section switch
-            {
-                AppSection.Settings => (FrameworkElement)SettingsHost,
-                AppSection.About => AboutHost,
-                _ => ContentRoot,
-            };
-            AnimateSurface(surface);
+            AnimateSurface(section == AppSection.About
+                ? AboutHost
+                : (FrameworkElement)ContentRoot);
         }
 
-        if (section == AppSection.Settings)
-        {
-            _settingsPage?.FocusDefault();
-        }
-        else if (section == AppSection.About)
+        if (section == AppSection.About)
         {
             _aboutPage?.FocusDefault();
         }
@@ -229,15 +213,7 @@ public sealed partial class MainWindow : Window
 
     private void EnsurePage(AppSection section)
     {
-        if (section == AppSection.Settings && _settingsPage is null)
-        {
-            var page = new SettingsPage();
-            page.Initialize(new SettingsPageParameter(
-                _settings, ApplyTheme, ApplyLanguage, ApplyImageFrame));
-            _settingsPage = page;
-            SettingsHost.Content = page;
-        }
-        else if (section == AppSection.About && _aboutPage is null)
+        if (section == AppSection.About && _aboutPage is null)
         {
             var page = new AboutPage();
             page.ApplyLocalization();
@@ -248,15 +224,12 @@ public sealed partial class MainWindow : Window
 
     /// <summary>
     /// The caption names the open document, and switches to the page name while
-    /// a top-level page owns the window. All surfaces share one title bar.
+    /// about owns the window. Settings no longer takes the caption over: it has a
+    /// caption of its own.
     /// </summary>
     private void RefreshWindowTitle()
     {
-        if (IsSettingsOpen)
-        {
-            AppTitleBar.Title = Localization.Get("SettingsHeader.Text");
-        }
-        else if (IsAboutOpen)
+        if (IsAboutOpen)
         {
             AppTitleBar.Title = Localization.Get("AboutSection.Text");
         }
@@ -281,61 +254,18 @@ public sealed partial class MainWindow : Window
     {
         // System means "no override", so the OS theme flows through. Explicit
         // choices pin the root element, which makes the local Dark/Light
-        // dictionaries in App.xaml take effect. The settings page lives under
-        // the same root, so it follows without a second theme application.
+        // dictionaries in App.xaml take effect. The settings window applies the
+        // same theme to its own root before forwarding it here.
         ThemeApplication.Apply(RootGrid, theme);
         ApplyTitleBarColors(theme);
     }
 
     // The caption buttons are drawn by the system, outside the XAML theme.
-    // Pin their colors to the app theme so a forced dark theme cannot leave
+    // WindowChrome pins their colors so a forced dark theme cannot leave
     // light-theme black glyphs on a dark Mica bar.
     private void ApplyTitleBarColors(AppTheme theme)
     {
-        if (!AppWindowTitleBar.IsCustomizationSupported())
-        {
-            return;
-        }
-
-        var effectiveTheme = theme switch
-        {
-            AppTheme.Dark => ElementTheme.Dark,
-            AppTheme.Light => ElementTheme.Light,
-            _ => RootGrid.ActualTheme,
-        };
-        var isDark = effectiveTheme == ElementTheme.Dark;
-        var titleBar = AppWindow.TitleBar;
-
-        // High contrast owns a separate system palette for text and surfaces.
-        // Clearing the overrides lets the system draw the caption buttons with
-        // that palette instead of the app's dark/light glyph colors.
-        if (IsHighContrastOn())
-        {
-            titleBar.ButtonBackgroundColor = null;
-            titleBar.ButtonInactiveBackgroundColor = null;
-            titleBar.ButtonForegroundColor = null;
-            titleBar.ButtonHoverForegroundColor = null;
-            titleBar.ButtonHoverBackgroundColor = null;
-            titleBar.ButtonPressedForegroundColor = null;
-            titleBar.ButtonPressedBackgroundColor = null;
-            titleBar.ButtonInactiveForegroundColor = null;
-            return;
-        }
-
-        titleBar.ButtonBackgroundColor = Colors.Transparent;
-        titleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
-        titleBar.ButtonForegroundColor = isDark ? Colors.White : Colors.Black;
-        titleBar.ButtonHoverForegroundColor = isDark ? Colors.White : Colors.Black;
-        titleBar.ButtonHoverBackgroundColor = isDark
-            ? Color.FromArgb(0x0F, 0xFF, 0xFF, 0xFF)
-            : Color.FromArgb(0x09, 0x00, 0x00, 0x00);
-        titleBar.ButtonPressedForegroundColor = isDark ? Colors.White : Colors.Black;
-        titleBar.ButtonPressedBackgroundColor = isDark
-            ? Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF)
-            : Color.FromArgb(0x0A, 0x00, 0x00, 0x00);
-        titleBar.ButtonInactiveForegroundColor = isDark
-            ? Color.FromArgb(0xFF, 0xA0, 0xA0, 0xA0)
-            : Color.FromArgb(0xFF, 0x60, 0x60, 0x60);
+        WindowChrome.ApplyTitleBarColors(this, RootGrid, theme);
     }
 
     private void ApplyImageFrame(ImageFrameStyle frame)

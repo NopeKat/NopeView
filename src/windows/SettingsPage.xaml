@@ -7,21 +7,11 @@
     AutomationProperties.AutomationId="SettingsPage"
     Background="Transparent">
 
-    <!-- Settings is a top-level destination now, so the page keeps its title
-         but no longer owns a back command. -->
+    <!-- Settings lives in its own window now, so the caption carries the page
+         name and the page starts with the section headers instead of repeating
+         a title underneath it. -->
     <Grid MaxWidth="{StaticResource SettingsPageMaxWidth}">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-        <Grid Margin="36,24,36,0">
-            <TextBlock x:Name="SettingsHeader"
-                       Style="{StaticResource TitleTextBlockStyle}"
-                       AutomationProperties.AutomationId="SettingsPageHeader"
-                       AutomationProperties.HeadingLevel="Level1" />
-        </Grid>
-        <ScrollView Grid.Row="1"
-                    Padding="{StaticResource SettingsContentPadding}"
+        <ScrollView Padding="36,8,36,0"
                     VerticalScrollBarVisibility="Auto"
                     VerticalScrollMode="Auto">
             <StackPanel MaxWidth="{StaticResource SettingsContentMaxWidth}"
