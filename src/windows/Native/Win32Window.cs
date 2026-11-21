@@ -14,6 +14,49 @@ internal static partial class Win32Window
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool IsIconic(nint hWnd);
 
+    [LibraryImport("user32.dll", EntryPoint = "SetWindowPos")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetWindowPos(
+        nint hWnd, nint insertAfter, int x, int y, int width, int height, uint flags);
+
+    [LibraryImport("user32.dll", EntryPoint = "ShowWindow")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool ShowWindow(nint hWnd, int command);
+
+    private const uint SWP_NOZORDER = 0x0004;
+    private const uint SWP_NOACTIVATE = 0x0010;
+    private const int SW_RESTORE = 9;
+
+    /// <summary>
+    /// Puts the window back into its normal state. A window that WinAppSDK
+    /// handed over already maximized cannot be resized through SetWindowPos,
+    /// which only moves its restore rectangle.
+    /// </summary>
+    internal static void Restore(nint hWnd)
+    {
+        if (hWnd != 0)
+        {
+            ShowWindow(hWnd, SW_RESTORE);
+        }
+    }
+
+    /// <summary>
+    /// Moves and resizes a window through Win32. The windowing API defers its
+    /// own resize until the content is loaded, which lets the framework size
+    /// show up first; this one is applied immediately, so a window can open at
+    /// its intended rectangle instead of jumping to it one frame later.
+    /// </summary>
+    internal static bool SetBounds(nint hWnd, int x, int y, int width, int height)
+    {
+        if (hWnd == 0)
+        {
+            return false;
+        }
+
+        return SetWindowPos(
+            hWnd, 0, x, y, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+
     /// <summary>
     /// Whether the window is minimized.
     /// </summary>

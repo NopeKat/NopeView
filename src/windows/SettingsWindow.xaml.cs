@@ -48,6 +48,18 @@ public sealed partial class SettingsWindow : Window
         _applyThemeToApp = applyTheme;
         _anchorWorkArea = anchorWorkArea;
 
+        // WinAppSDK hands a new window over in a maximized state and drops an
+        // AppWindow resize until the content has loaded, so the first open used
+        // to flash a nearly full screen window before snapping to the settings
+        // size. Restoring the state and applying the rectangle through Win32
+        // happens before that frame is drawn.
+        var initialHandle = Handle;
+        Win32Window.Restore(initialHandle);
+        var initialScale = Win32Window.GetScaleFactor(initialHandle);
+        var initialBounds = ComputeBounds(initialScale);
+        Win32Window.SetBounds(
+            initialHandle, initialBounds.X, initialBounds.Y, initialBounds.Width, initialBounds.Height);
+
         SystemBackdrop = new MicaBackdrop();
 
         _page = new SettingsPage();
@@ -122,13 +134,21 @@ public sealed partial class SettingsWindow : Window
     {
         SetTitleBar(AppTitleBar);
 
-        // The window is sized after its content loads: a resize applied before
-        // the first show is dropped, and the window would open at the framework
-        // default instead of the intended settings size.
+        // The early Win32 sizing in the constructor normally lands before the
+        // first frame. This pass repeats it through the windowing API and sets
+        // the presenter minimums, which need the content to be loaded.
         if (!_sized)
         {
             _sized = true;
-            ConfigureWindow(_anchorWorkArea);
+            var scale = Win32Window.GetScaleFactor(Handle);
+            var bounds = ComputeBounds(scale);
+            AppWindow.MoveAndResize(bounds);
+            ApplyMinimumSize(scale);
+
+            // A window that was never moved does not raise a change event, so
+            // the rectangle it opened with is recorded here; otherwise closing
+            // right away would have nothing to remember.
+            _lastBounds = bounds;
         }
     }
 
@@ -141,17 +161,16 @@ public sealed partial class SettingsWindow : Window
         Close();
     }
 
-    private void ConfigureWindow(RectInt32 workArea)
+    private RectInt32 ComputeBounds(double scale)
     {
-        var scale = Win32Window.GetScaleFactor(Handle);
         var saved = _settings.SettingsWindowBounds;
 
         // The stored rectangle is already in physical pixels, so it is reused
         // as-is; only the fallback size has to be scaled from the design units.
         var minWidth = (int)Math.Round(PreferredMinimumWidth * scale);
         var minHeight = (int)Math.Round(PreferredMinimumHeight * scale);
-        var limitWidth = Math.Max(minWidth, (int)Math.Round(workArea.Width * WorkAreaRatio));
-        var limitHeight = Math.Max(minHeight, (int)Math.Round(workArea.Height * WorkAreaRatio));
+        var limitWidth = Math.Max(minWidth, (int)Math.Round(_anchorWorkArea.Width * WorkAreaRatio));
+        var limitHeight = Math.Max(minHeight, (int)Math.Round(_anchorWorkArea.Height * WorkAreaRatio));
 
         var width = Math.Clamp(
             saved?.Width ?? (int)Math.Round(PreferredWidth * scale), minWidth, limitWidth);
@@ -162,18 +181,27 @@ public sealed partial class SettingsWindow : Window
         // hosts the viewer, so a window dragged onto a monitor that is gone
         // cannot reopen where nothing can show it.
         var x = saved is { } storedX
-            ? Math.Clamp(storedX.X, workArea.X, Math.Max(workArea.X, workArea.X + workArea.Width - width))
-            : workArea.X + Math.Max(0, (workArea.Width - width) / 2);
+            ? Math.Clamp(
+                storedX.X,
+                _anchorWorkArea.X,
+                Math.Max(_anchorWorkArea.X, _anchorWorkArea.X + _anchorWorkArea.Width - width))
+            : _anchorWorkArea.X + Math.Max(0, (_anchorWorkArea.Width - width) / 2);
         var y = saved is { } storedY
-            ? Math.Clamp(storedY.Y, workArea.Y, Math.Max(workArea.Y, workArea.Y + workArea.Height - height))
-            : workArea.Y + Math.Max(0, (workArea.Height - height) / 2);
+            ? Math.Clamp(
+                storedY.Y,
+                _anchorWorkArea.Y,
+                Math.Max(_anchorWorkArea.Y, _anchorWorkArea.Y + _anchorWorkArea.Height - height))
+            : _anchorWorkArea.Y + Math.Max(0, (_anchorWorkArea.Height - height) / 2);
 
-        AppWindow.MoveAndResize(new RectInt32(x, y, width, height));
+        return new RectInt32(x, y, width, height);
+    }
 
+    private void ApplyMinimumSize(double scale)
+    {
         if (AppWindow.Presenter is OverlappedPresenter presenter)
         {
-            presenter.PreferredMinimumWidth = minWidth;
-            presenter.PreferredMinimumHeight = minHeight;
+            presenter.PreferredMinimumWidth = (int)Math.Round(PreferredMinimumWidth * scale);
+            presenter.PreferredMinimumHeight = (int)Math.Round(PreferredMinimumHeight * scale);
         }
     }
 
