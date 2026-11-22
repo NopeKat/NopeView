@@ -59,7 +59,8 @@ Third release, Windows x64 only this time. Everything below was verified.
   is still 0.0.1.0.
 - The portable zip is self-contained and about 96 MB, so the target machine no
   longer needs the Windows App SDK runtime. The portable exe is a 7z
-  self-extracting archive that unpacks into a directory you pick before it runs.
+  self-extracting archive that unpacks into a temporary folder, starts the app,
+  and removes that folder when the app exits.
 - No MSIX package, no code signature, no file association; unsigned artifacts
   trigger the SmartScreen warning.
 - Encoding still covers PNG, JPG and BMP only; GIF and the newly added formats
