@@ -99,7 +99,7 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private void ApplyViewTransform()
     {
-        _view.ApplyTo(ImageTransform);
+        _view.ApplyTo(ImageRotation, ImageScale, ImageTranslation);
         UpdateImageFrameStroke();
     }
 }

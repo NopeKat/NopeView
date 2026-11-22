@@ -50,8 +50,17 @@
   <data name="ZoomInButton.Label" xml:space="preserve">
     <value>Zoom in</value>
   </data>
-  <data name="RotateButton.Label" xml:space="preserve">
+  <data name="RotateLeftButton.Label" xml:space="preserve">
+    <value>Rotate counter-clockwise</value>
+  </data>
+  <data name="RotateRightButton.Label" xml:space="preserve">
     <value>Rotate clockwise</value>
+  </data>
+  <data name="FlipHorizontalButton.Label" xml:space="preserve">
+    <value>Flip horizontal</value>
+  </data>
+  <data name="FlipVerticalButton.Label" xml:space="preserve">
+    <value>Flip vertical</value>
   </data>
   <data name="FitButton.Label" xml:space="preserve">
     <value>Fit image</value>

@@ -252,10 +252,15 @@ public sealed partial class MainWindow : Window
             Windows.System.VirtualKeyModifiers.None,
             ZoomOutAccelerator_Invoked);
         AddAccelerator(
-            RotateButton,
+            RotateRightButton,
             (int)Windows.System.VirtualKey.R,
             Windows.System.VirtualKeyModifiers.None,
-            RotateAccelerator_Invoked);
+            RotateRightAccelerator_Invoked);
+        AddAccelerator(
+            RotateLeftButton,
+            (int)Windows.System.VirtualKey.R,
+            Windows.System.VirtualKeyModifiers.Shift,
+            RotateLeftAccelerator_Invoked);
         AddAccelerator(
             FitButton,
             (int)Windows.System.VirtualKey.F,
@@ -433,7 +438,10 @@ public sealed partial class MainWindow : Window
         NextButton.Label = Localization.Get("NextButton.Label");
         ZoomOutButton.Label = Localization.Get("ZoomOutButton.Label");
         ZoomInButton.Label = Localization.Get("ZoomInButton.Label");
-        RotateButton.Label = Localization.Get("RotateButton.Label");
+        RotateLeftButton.Label = Localization.Get("RotateLeftButton.Label");
+        RotateRightButton.Label = Localization.Get("RotateRightButton.Label");
+        FlipHorizontalButton.Label = Localization.Get("FlipHorizontalButton.Label");
+        FlipVerticalButton.Label = Localization.Get("FlipVerticalButton.Label");
         FitButton.Label = Localization.Get("FitButton.Label");
         // The command shows a numeric scale label instead of a glyph, so the
         // accessible name and tooltip carry the localized wording.

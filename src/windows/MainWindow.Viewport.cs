@@ -220,14 +220,42 @@ public sealed partial class MainWindow : Window
         SetZoom(_view.Zoom * ZoomStep);
     }
 
-    private void RotateButton_Click(object sender, RoutedEventArgs e)
+    private void RotateLeftButton_Click(object sender, RoutedEventArgs e)
     {
-        RotateClockwise();
+        RotateBy(-90);
     }
 
-    private void RotateClockwise()
+    private void RotateRightButton_Click(object sender, RoutedEventArgs e)
     {
-        _view.Rotation = (_view.Rotation + 90) % 360;
+        RotateBy(90);
+    }
+
+    /// <summary>
+    /// Turns the view by a quarter turn. The angle stays inside [0, 360) so
+    /// the readout never shows a negative or wrapped value.
+    /// </summary>
+    private void RotateBy(double degrees)
+    {
+        _view.Rotation = (_view.Rotation + degrees) % 360;
+        if (_view.Rotation < 0)
+        {
+            _view.Rotation += 360;
+        }
+
+        ApplyViewTransform();
+        UpdateViewStatus();
+    }
+
+    private void FlipHorizontalButton_Click(object sender, RoutedEventArgs e)
+    {
+        _view.FlipHorizontal = !_view.FlipHorizontal;
+        ApplyViewTransform();
+        UpdateViewStatus();
+    }
+
+    private void FlipVerticalButton_Click(object sender, RoutedEventArgs e)
+    {
+        _view.FlipVertical = !_view.FlipVertical;
         ApplyViewTransform();
         UpdateViewStatus();
     }
@@ -345,7 +373,10 @@ public sealed partial class MainWindow : Window
     {
         ZoomOutButton.IsEnabled = enabled;
         ZoomInButton.IsEnabled = enabled;
-        RotateButton.IsEnabled = enabled;
+        RotateLeftButton.IsEnabled = enabled;
+        RotateRightButton.IsEnabled = enabled;
+        FlipHorizontalButton.IsEnabled = enabled;
+        FlipVerticalButton.IsEnabled = enabled;
         FitButton.IsEnabled = enabled;
         ActualSizeButton.IsEnabled = enabled;
         CopyImageMenuItem.IsEnabled = enabled;
@@ -408,7 +439,7 @@ public sealed partial class MainWindow : Window
         ResetView();
     }
 
-    private void RotateAccelerator_Invoked(
+    private void RotateLeftAccelerator_Invoked(
         KeyboardAccelerator sender,
         KeyboardAcceleratorInvokedEventArgs args)
     {
@@ -417,13 +448,25 @@ public sealed partial class MainWindow : Window
             return;
         }
         args.Handled = true;
-        RotateClockwise();
+        RotateBy(-90);
+    }
+
+    private void RotateRightAccelerator_Invoked(
+        KeyboardAccelerator sender,
+        KeyboardAcceleratorInvokedEventArgs args)
+    {
+        if (_imagePixelWidth == 0)
+        {
+            return;
+        }
+        args.Handled = true;
+        RotateBy(90);
     }
 
     /// <summary>
-    /// Zoom, rotation and pan of the displayed image. Every gesture writes
-    /// here and one ApplyTo call pushes the values into the render transform,
-    /// so the numbers and the transform cannot drift apart.
+    /// Zoom, rotation, flips and pan of the displayed image. Every gesture
+    /// writes here and one ApplyTo call pushes the values into the render
+    /// transform, so the numbers and the transform cannot drift apart.
     /// </summary>
     private sealed class ViewState
     {
@@ -431,6 +474,8 @@ public sealed partial class MainWindow : Window
         internal double Rotation;
         internal double PanX;
         internal double PanY;
+        internal bool FlipHorizontal;
+        internal bool FlipVertical;
 
         internal void Reset()
         {
@@ -438,15 +483,20 @@ public sealed partial class MainWindow : Window
             Rotation = 0;
             PanX = 0;
             PanY = 0;
+            FlipHorizontal = false;
+            FlipVertical = false;
         }
 
-        internal void ApplyTo(CompositeTransform transform)
+        internal void ApplyTo(
+            RotateTransform rotate,
+            ScaleTransform scale,
+            TranslateTransform translate)
         {
-            transform.ScaleX = Zoom;
-            transform.ScaleY = Zoom;
-            transform.Rotation = Rotation;
-            transform.TranslateX = PanX;
-            transform.TranslateY = PanY;
+            rotate.Angle = Rotation;
+            scale.ScaleX = FlipHorizontal ? -Zoom : Zoom;
+            scale.ScaleY = FlipVertical ? -Zoom : Zoom;
+            translate.X = PanX;
+            translate.Y = PanY;
         }
     }
 }

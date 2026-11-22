@@ -50,8 +50,17 @@
   <data name="ZoomInButton.Label" xml:space="preserve">
     <value>放大</value>
   </data>
-  <data name="RotateButton.Label" xml:space="preserve">
+  <data name="RotateLeftButton.Label" xml:space="preserve">
+    <value>逆时针旋转</value>
+  </data>
+  <data name="RotateRightButton.Label" xml:space="preserve">
     <value>顺时针旋转</value>
+  </data>
+  <data name="FlipHorizontalButton.Label" xml:space="preserve">
+    <value>水平翻转</value>
+  </data>
+  <data name="FlipVerticalButton.Label" xml:space="preserve">
+    <value>垂直翻转</value>
   </data>
   <data name="FitButton.Label" xml:space="preserve">
     <value>适应窗口</value>
