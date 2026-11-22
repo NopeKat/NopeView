@@ -13,10 +13,16 @@ find_library(DL_LIB dl)
 find_library(JNIGRAPHICS_LIB jnigraphics)
 
 # The router and JNI facade share one library. Format codecs stay separate so
-# the router can discover them exactly as it does on Windows.
+# the router can discover them exactly as it does on Windows. The router is
+# split into dispatch, loader, io, cache and platform units, and all of them
+# are compiled here.
 add_library(nopeview SHARED
     nopeview_jni.c
     "${SHARED_ROOT}/codec/router/router.c"
+    "${SHARED_ROOT}/codec/router/router_loader.c"
+    "${SHARED_ROOT}/codec/router/router_io.c"
+    "${SHARED_ROOT}/codec/router/router_cache.c"
+    "${SHARED_ROOT}/codec/router/router_platform.c"
 )
 target_include_directories(nopeview PRIVATE "${CODEC_ABI}")
 target_compile_definitions(nopeview PRIVATE NV_ROUTER_MAX_INPUT_BYTES=268435456)
