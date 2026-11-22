@@ -72,6 +72,9 @@
   </data>
 
   <!-- Right-click menu and command bar overflow. -->
+  <data name="ContextCopyFile.Text" xml:space="preserve">
+    <value>Copy file</value>
+  </data>
   <data name="ContextCopyImage.Text" xml:space="preserve">
     <value>Copy image</value>
   </data>
@@ -92,6 +95,9 @@
   </data>
   <data name="ContextSettings.Text" xml:space="preserve">
     <value>Settings</value>
+  </data>
+  <data name="CopyFileCommand.Label" xml:space="preserve">
+    <value>Copy file</value>
   </data>
   <data name="CopyImageCommand.Label" xml:space="preserve">
     <value>Copy image</value>

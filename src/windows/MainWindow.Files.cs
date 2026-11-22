@@ -44,6 +44,33 @@ public sealed partial class MainWindow : Window
         Clipboard.Flush();
     }
 
+    private void CopyFileMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        CopyCurrentFile();
+    }
+
+    /// <summary>
+    /// Puts the open file on the clipboard as a file, not as pixels, so a
+    /// paste into a folder or a mail client copies or attaches the original.
+    /// </summary>
+    private void CopyCurrentFile()
+    {
+        var path = CurrentPath;
+        if (path is null)
+        {
+            return;
+        }
+
+        try
+        {
+            ShellClipboard.SetFile(Handle, path);
+        }
+        catch (Exception ex)
+        {
+            ShowError(Strings.CopyFailed(ex.Message), Strings.CopyTitle);
+        }
+    }
+
     private async void CopyImageMenuItem_Click(object sender, RoutedEventArgs e)
     {
         await RunCommandAsync(CopyCurrentImageAsync, Strings.CopyTitle);

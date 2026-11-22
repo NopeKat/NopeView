@@ -453,6 +453,7 @@ public sealed partial class MainWindow : Window
         LoopButton.Label = Localization.Get(
             _animationLoop ? "Action.LoopOn" : "Action.LoopOff");
 
+        CopyFileMenuItem.Text = Localization.Get("ContextCopyFile.Text");
         CopyImageMenuItem.Text = Localization.Get("ContextCopyImage.Text");
         CopyPathMenuItem.Text = Localization.Get("ContextCopyPath.Text");
         SaveAsMenuItem.Text = Localization.Get("ContextSaveAs.Text");
@@ -465,6 +466,7 @@ public sealed partial class MainWindow : Window
             SettingsCommand,
             Localization.Get("ContextSettings.Text"));
 
+        CopyFileCommand.Label = Localization.Get("CopyFileCommand.Label");
         CopyImageCommand.Label = Localization.Get("CopyImageCommand.Label");
         CopyPathCommand.Label = Localization.Get("CopyPathCommand.Label");
         SaveAsCommand.Label = Localization.Get("SaveAsCommand.Label");

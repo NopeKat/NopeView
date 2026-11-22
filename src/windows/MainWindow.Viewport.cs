@@ -379,12 +379,14 @@ public sealed partial class MainWindow : Window
         FlipVerticalButton.IsEnabled = enabled;
         FitButton.IsEnabled = enabled;
         ActualSizeButton.IsEnabled = enabled;
+        CopyFileMenuItem.IsEnabled = enabled;
         CopyImageMenuItem.IsEnabled = enabled;
         CopyPathMenuItem.IsEnabled = enabled;
         SaveAsMenuItem.IsEnabled = enabled;
         ShowInExplorerMenuItem.IsEnabled = enabled;
         FitMenuItem.IsEnabled = enabled;
         ActualSizeMenuItem.IsEnabled = enabled;
+        CopyFileCommand.IsEnabled = enabled;
         CopyImageCommand.IsEnabled = enabled;
         CopyPathCommand.IsEnabled = enabled;
         SaveAsCommand.IsEnabled = enabled;
