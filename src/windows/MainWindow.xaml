@@ -51,31 +51,36 @@
             <TitleBar.IconSource>
                 <ImageIconSource ImageSource="ms-appx:///assets/nopeview-title.png" />
             </TitleBar.IconSource>
-            <TitleBar.Content>
-                <TextBlock x:Name="FileStatusText"
-                           AutomationProperties.AutomationId="FileStatus"
-                           Style="{StaticResource CaptionTextBlockStyle}"
-                           Margin="12,0,0,0"
-                           Text=""
-                           VerticalAlignment="Center"
-                           TextTrimming="CharacterEllipsis"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-            </TitleBar.Content>
         </TitleBar>
 
-        <!-- The view readout sits outside the title bar. The template reserves
-             the caption buttons by scaling their pixel inset as if it were a
-             DIP value, which leaves the content column a whole button width
-             short of the buttons; this line is pinned to the real inset. -->
-        <TextBlock x:Name="ViewStatusText"
-                   Grid.Row="0"
-                   HorizontalAlignment="Right"
-                   VerticalAlignment="Center"
-                   Margin="0,0,16,0"
-                   Style="{StaticResource CaptionTextBlockStyle}"
-                   AutomationProperties.AutomationId="ViewStatus"
-                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                   Text="" />
+        <!-- The status readouts sit outside the title bar so the pair can be
+             centered in the caption. The template scales the caption button
+             inset from pixels to DIP, so the group is pinned clear of the
+             system buttons from code instead of following the template. -->
+        <StackPanel x:Name="CaptionStatus"
+                    Grid.Row="0"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="24"
+                    Margin="0,-1,0,0"
+                    IsHitTestVisible="False">
+            <TextBlock x:Name="FileStatusText"
+                       AutomationProperties.AutomationId="FileStatus"
+                       Style="{StaticResource CaptionTextBlockStyle}"
+                       VerticalAlignment="Center"
+                       TextWrapping="NoWrap"
+                       TextTrimming="CharacterEllipsis"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       Text="" />
+            <TextBlock x:Name="ViewStatusText"
+                       AutomationProperties.AutomationId="ViewStatus"
+                       Style="{StaticResource CaptionTextBlockStyle}"
+                       VerticalAlignment="Center"
+                       TextWrapping="NoWrap"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       Text="" />
+        </StackPanel>
 
         <!-- The viewer is the only surface in this window: settings and the
              about content live in the settings window, so this window has no

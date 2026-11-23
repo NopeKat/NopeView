@@ -37,6 +37,12 @@ public sealed partial class MainWindow : Window
     private const int PreferredMinimumWidth = 640;
     private const int PreferredMinimumHeight = 480;
 
+    // The caption group is centered between the product name and the system
+    // buttons. The left guard clears the icon and the name; the spacing mirrors
+    // the gap between the file readout and the view readout.
+    private const double CaptionStatusLeftGuard = 150;
+    private const double CaptionStatusSpacing = 24;
+
     private readonly DispatcherTimer _animationTimer = new();
 
     private nint _windowHandle;
@@ -368,18 +374,25 @@ public sealed partial class MainWindow : Window
         ConfigureErrorBar();
         UpdateCaptionButtonInset();
         AppTitleBar.SizeChanged += (_, _) => UpdateCaptionButtonInset();
+        ViewStatusText.SizeChanged += (_, _) => UpdateCaptionButtonInset();
         OpenImageFromCommandLine();
     }
 
     /// <summary>
-    /// Keeps the caption readout just left of the system buttons. The title bar
-    /// template sizes its own caption button padding from the pixel inset, so
-    /// the line is placed outside the template and pinned to the real DIP inset.
+    /// The caption readouts are centered as one group, so the group has to stay
+    /// within the span that runs from the product name to the system buttons.
+    /// The right guard follows the real DIP inset, which the title bar template
+    /// scales wrong; the left guard covers the icon and the product name.
     /// </summary>
     private void UpdateCaptionButtonInset()
     {
         var inset = AppWindow.TitleBar.RightInset / Scale;
-        ViewStatusText.Margin = new Thickness(0, 0, inset + 8, 0);
+        var available = RootGrid.ActualWidth - CaptionStatusLeftGuard - inset - 8;
+
+        CaptionStatus.MaxWidth = System.Math.Max(0, available);
+        FileStatusText.MaxWidth = System.Math.Max(
+            0,
+            available - ViewStatusText.ActualWidth - CaptionStatusSpacing);
     }
 
     /// <summary>
@@ -582,7 +595,7 @@ public sealed partial class MainWindow : Window
         var visibility = visible ? Visibility.Visible : Visibility.Collapsed;
         AppTitleBar.Visibility = visibility;
         ViewerCommandBar.Visibility = visibility;
-        ViewStatusText.Visibility = visibility;
+        CaptionStatus.Visibility = visibility;
     }
 
     /// <summary>
