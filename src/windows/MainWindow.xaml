@@ -287,15 +287,22 @@
                    BasedOn="{StaticResource DefaultAppBarToggleButtonStyle}">
                 <Setter Property="Width" Value="{ThemeResource AppBarThemeCompactHeight}" />
             </Style>
+            <!-- The bar only lifts its fill and draws a 1 px border while the
+                 overflow flyout is open, which reads as a second toolbar
+                 floating over the canvas. Keep the surface flat in both
+                 states so the strip stays part of the chrome. -->
+            <SolidColorBrush x:Key="CommandBarBackgroundOpen" Color="Transparent" />
+            <Thickness x:Key="CommandBarBorderThicknessOpen">0</Thickness>
         </CommandBar.Resources>
-        <CommandBar.PrimaryCommands>
-                <!-- Command icons on the 16 px grid follow the ink rule in
-                     AGENTS.md: a drawing whose ink is 3 px or more longer than
-                     it is wide keeps its long edge at 15 px and scales the
-                     short edge with it, while a near-square drawing takes 14 px.
-                     Bands stay 1 px by pulling inner contours back, eroding, or
-                     rebuilding the chevrons from their center lines. -->
-                <AppBarButton x:Name="OpenButton"
+        <!-- Command icons on the 16 px grid follow the ink rule in
+             AGENTS.md: a drawing whose ink is 3 px or more longer than
+             it is wide keeps its long edge at 15 px and scales the
+             short edge with it, while a near-square drawing takes 14 px.
+             Bands stay 1 px by pulling inner contours back, eroding, or
+             rebuilding the chevrons from their center lines. -->
+        <CommandBar.Content>
+            <StackPanel Orientation="Horizontal">
+                <AppBarButton x:Name="OpenButton" LabelPosition="Collapsed"
                               AutomationProperties.AutomationId="OpenButton"
                               Click="OpenButton_Click">
                     <AppBarButton.Icon>
@@ -308,7 +315,7 @@
 
                 <AppBarSeparator />
 
-                <AppBarButton x:Name="PreviousButton"
+                <AppBarButton x:Name="PreviousButton" LabelPosition="Collapsed"
                               AutomationProperties.AutomationId="PreviousButton"
                               IsEnabled="False"
                               Click="PreviousButton_Click">
@@ -317,7 +324,7 @@
                     </AppBarButton.Icon>
                 </AppBarButton>
 
-                <AppBarButton x:Name="NextButton"
+                <AppBarButton x:Name="NextButton" LabelPosition="Collapsed"
                               AutomationProperties.AutomationId="NextButton"
                               IsEnabled="False"
                               Click="NextButton_Click">
@@ -325,6 +332,9 @@
                         <PathIcon Data="F1 M 3.84 1.24 L 4.56 0.5 L 11.79 7.63 L 12.16 8 L 4.56 15.5 L 3.84 14.76 L 11.07 7.63 L 11.43 8 L 11.07 8.37 L 3.84 1.24" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </AppBarButton.Icon>
                 </AppBarButton>
+            </StackPanel>
+        </CommandBar.Content>
+        <CommandBar.PrimaryCommands>
 
                 <AppBarToggleButton x:Name="PlayPauseButton"
                                     Visibility="Collapsed"
