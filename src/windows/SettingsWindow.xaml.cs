@@ -189,6 +189,13 @@ public sealed partial class SettingsWindow : Window
     {
         SetTitleBar(AppTitleBar);
 
+        // Same treatment as the viewer: the caption keeps its drag, double click
+        // and system buttons, but a right click no longer opens the classic
+        // window menu and hovering a system button no longer grows a tooltip.
+        // The subclass goes on after the title bar registers its own, so this
+        // one sees the messages first.
+        WindowMessages.SuppressCaptionChrome(Handle);
+
         // The early Win32 sizing in the constructor normally lands before the
         // first frame. This pass repeats it through the windowing API and sets
         // the presenter minimums, which need the content to be loaded.

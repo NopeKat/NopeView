@@ -39,6 +39,11 @@ internal static partial class WindowMessages
 
     private static nint _tooltipHook;
 
+    // The hook belongs to the process, so it has to outlive the first window
+    // that asked for it. Every window wearing the subclass is counted, and the
+    // hook only comes off with the last one.
+    private static int _captionWindows;
+
     private delegate nint SubclassProc(
         nint hWnd, uint msg, nint wParam, nint lParam, nuint id, nint refData);
 
@@ -112,6 +117,11 @@ internal static partial class WindowMessages
         }
 
         bool applied = SetWindowSubclass(hWnd, SubclassProcPointer, CaptionSubclassId, 0);
+
+        if (applied)
+        {
+            _captionWindows++;
+        }
 
         if (_tooltipHook == 0)
         {
@@ -198,11 +208,18 @@ internal static partial class WindowMessages
                 break;
 
             // The subclass outlives the message only while the window exists,
-            // so it has to come off before the window goes away.
+            // so it has to come off before the window goes away. The hook is
+            // process wide, so it waits for the last window instead of leaving
+            // with the first one.
             case WM_NCDESTROY:
                 RemoveWindowSubclass(hWnd, SubclassProcPointer, id);
 
-                if (_tooltipHook != 0)
+                if (_captionWindows > 0)
+                {
+                    _captionWindows--;
+                }
+
+                if (_captionWindows == 0 && _tooltipHook != 0)
                 {
                     UnhookWinEvent(_tooltipHook);
                     _tooltipHook = 0;
