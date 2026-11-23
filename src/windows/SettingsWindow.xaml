@@ -11,6 +11,7 @@
          independent. -->
     <Grid x:Name="RootGrid"
           Loaded="RootGrid_Loaded"
+          KeyboardAcceleratorPlacementMode="Hidden"
           Background="{ThemeResource LayerFillColorDefaultBrush}">
         <Grid.KeyboardAccelerators>
             <KeyboardAccelerator Key="Escape" Invoked="EscapeAccelerator_Invoked" />
