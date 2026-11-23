@@ -288,10 +288,6 @@
     <value> | {0}/{1}</value>
     <comment>{0} current frame, {1} frame count of an animation.</comment>
   </data>
-  <data name="Status.PanSuffix" xml:space="preserve">
-    <value> | pan {0}, {1}</value>
-    <comment>{0} and {1} are the pan offsets in pixels.</comment>
-  </data>
 
   <!-- Image automation name, read by screen readers. -->
   <data name="Image.Name" xml:space="preserve">

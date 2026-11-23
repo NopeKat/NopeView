@@ -344,13 +344,7 @@ public sealed partial class MainWindow : Window
         }
 
         var rotation = Math.Round(_view.Rotation);
-        var panX = Math.Round(_view.PanX);
-        var panY = Math.Round(_view.PanY);
         var details = "";
-        if (Math.Abs(panX) >= 1 || Math.Abs(panY) >= 1)
-        {
-            details += Localization.Format("Status.PanSuffix", panX, panY);
-        }
         if (_frameCount > 1)
         {
             details += Localization.Format(
