@@ -151,11 +151,6 @@ public sealed partial class MainWindow : Window
             true);
         _windowHandle = Handle;
 
-        // The caption is non-client, so its right click becomes WM_NCRBUTTONUP
-        // and the shell answers with the classic window menu. Nothing in the
-        // viewer belongs in that menu, so the caption keeps none.
-        WindowMessages.SuppressCaptionContextMenu(_windowHandle);
-
         _animationTimer.Tick += AnimationTimer_Tick;
         _animationTimer.Interval = TimeSpan.FromMilliseconds(100);
         AddOemKeyAccelerators();
@@ -376,6 +371,14 @@ public sealed partial class MainWindow : Window
         // The official TitleBar control owns the drag region, pane toggle and
         // system caption buttons, so it is registered as the title bar directly.
         SetTitleBar(AppTitleBar);
+
+        // The caption is non-client, so its right click becomes WM_NCRBUTTONUP
+        // and the shell answers with the classic window menu, and hovering the
+        // system buttons makes the shell create a tooltip under them. Both are
+        // handled by message subclasses, and the subclasses have to be applied
+        // after the title bar registers its own so ours sees the messages first.
+        WindowMessages.SuppressCaptionChrome(_windowHandle);
+
         ConfigureErrorBar();
         UpdateCaptionButtonInset();
         AppTitleBar.SizeChanged += (_, _) => UpdateCaptionButtonInset();

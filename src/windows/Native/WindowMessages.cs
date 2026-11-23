@@ -18,11 +18,32 @@ internal static partial class WindowMessages
     // The caption icon is its own hit test target, not part of the caption.
     private const int HTSYSMENU = 3;
 
+    private const uint EVENT_OBJECT_CREATE = 0x8000;
+    private const uint EVENT_OBJECT_SHOW = 0x8002;
+    private const uint WINEVENT_OUTOFCONTEXT = 0x0000;
+
+    private const int SW_HIDE = 0;
+    private const int GWL_STYLE = -16;
+    private const int WS_CHILD = unchecked((int)0x40000000);
+
+    // The shell hosts the caption button tooltip in this window class.
+    private const string CaptionTooltipClass = "MicrosoftWindowsTooltip";
+
     // The subclass id only has to be unique on the one window it is applied to.
     private const nuint CaptionSubclassId = 1;
 
+    // The hook keeps its raw function pointer too, so the delegate stays parked.
+    private static readonly WinEventProc WinEventProcReference = HideCaptionTooltip;
+    private static readonly nint WinEventProcPointer =
+        Marshal.GetFunctionPointerForDelegate(WinEventProcReference);
+
+    private static nint _tooltipHook;
+
     private delegate nint SubclassProc(
         nint hWnd, uint msg, nint wParam, nint lParam, nuint id, nint refData);
+
+    private delegate void WinEventProc(
+        nint hook, uint evt, nint hWnd, int idObject, int idChild, uint thread, uint time);
 
     // Native code keeps the raw function pointer, so the delegate behind it
     // has to live for as long as the window does.
@@ -41,23 +62,118 @@ internal static partial class WindowMessages
     [LibraryImport("comctl32.dll", EntryPoint = "DefSubclassProc")]
     private static partial nint DefSubclassProc(nint hWnd, uint msg, nint wParam, nint lParam);
 
+    [LibraryImport("user32.dll", EntryPoint = "SetWinEventHook")]
+    private static partial nint SetWinEventHook(
+        uint eventMin,
+        uint eventMax,
+        nint module,
+        nint proc,
+        uint processId,
+        uint threadId,
+        uint flags);
+
+    [LibraryImport("user32.dll", EntryPoint = "UnhookWinEvent")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool UnhookWinEvent(nint hook);
+
+    [LibraryImport("user32.dll", EntryPoint = "ShowWindow", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool ShowWindow(nint hWnd, int cmd);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetClassNameW")]
+    private static partial int GetClassNameW(nint hWnd, nint name, int max);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetWindowLongW")]
+    private static partial int GetWindowLongW(nint hWnd, int index);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "GetCurrentProcessId")]
+    private static partial uint GetCurrentProcessId();
+
     /// <summary>
-    /// Drops the window menu from the caption. A title bar stays non-client, so
-    /// a right click there arrives as WM_NCRBUTTONUP and the default handling
-    /// answers it with the classic Restore, Move, Size, Minimize, Close menu.
-    /// A left click on the caption icon lands on HTSYSMENU and opens the same
-    /// menu, so the button messages carrying that hit test are dropped too.
-    /// Dragging, double click, the system buttons and the Alt+Space menu are
-    /// untouched.
+    /// Takes the window menu and the caption button tooltips off the caption.
+    /// The title bar stays non-client, so the shell owns both: a right click on
+    /// it arrives as WM_NCRBUTTONUP and opens the classic window menu, a click
+    /// on the caption icon arrives on HTSYSMENU and opens the same menu, and
+    /// hovering one of the three system buttons makes the shell create a
+    /// MicrosoftWindowsTooltip window under it.
+    /// The menu is dropped at the message level. The tooltip cannot be: the
+    /// shell builds the caption button hover state, and both the tip and the
+    /// button highlight come out of it, so dropping the hover messages would
+    /// take the highlight with it. The tip window belongs to this process
+    /// though, so the window events are watched and the tip is hidden instead.
+    /// Dragging, double click, the button highlight, the system buttons
+    /// themselves and the Alt+Space menu are untouched.
     /// </summary>
-    internal static bool SuppressCaptionContextMenu(nint hWnd)
+    internal static bool SuppressCaptionChrome(nint hWnd)
     {
         if (hWnd == 0)
         {
             return false;
         }
 
-        return SetWindowSubclass(hWnd, SubclassProcPointer, CaptionSubclassId, 0);
+        bool applied = SetWindowSubclass(hWnd, SubclassProcPointer, CaptionSubclassId, 0);
+
+        if (_tooltipHook == 0)
+        {
+            _tooltipHook = SetWinEventHook(
+                EVENT_OBJECT_CREATE,
+                EVENT_OBJECT_SHOW,
+                module: 0,
+                proc: WinEventProcPointer,
+                processId: GetCurrentProcessId(),
+                threadId: 0,
+                flags: WINEVENT_OUTOFCONTEXT);
+        }
+
+        return applied;
+    }
+
+    private static void HideCaptionTooltip(
+        nint hook, uint evt, nint hWnd, int idObject, int idChild, uint thread, uint time)
+    {
+        if (hWnd == 0 || idObject != 0)
+        {
+            return;
+        }
+
+        // Only the shell's caption button tip is of interest, and only when it
+        // is a top level window, which keeps any child control out of reach.
+        if ((GetWindowLongW(hWnd, (int)GWL_STYLE) & (int)WS_CHILD) != 0)
+        {
+            return;
+        }
+
+        if (!IsClass(hWnd, CaptionTooltipClass))
+        {
+            return;
+        }
+
+        ShowWindow(hWnd, SW_HIDE);
+    }
+
+    private static bool IsClass(nint hWnd, string name)
+    {
+        const int Capacity = 128;
+
+        nint buffer = Marshal.AllocHGlobal(Capacity * sizeof(char));
+
+        try
+        {
+            int length = GetClassNameW(hWnd, buffer, Capacity);
+
+            if (length <= 0 || length >= Capacity)
+            {
+                return false;
+            }
+
+            string? actual = Marshal.PtrToStringUni(buffer, length);
+
+            return actual is not null && string.Equals(actual, name, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(buffer);
+        }
     }
 
     private static nint SuppressCaptionMenu(
@@ -85,6 +201,13 @@ internal static partial class WindowMessages
             // so it has to come off before the window goes away.
             case WM_NCDESTROY:
                 RemoveWindowSubclass(hWnd, SubclassProcPointer, id);
+
+                if (_tooltipHook != 0)
+                {
+                    UnhookWinEvent(_tooltipHook);
+                    _tooltipHook = 0;
+                }
+
                 break;
         }
 
