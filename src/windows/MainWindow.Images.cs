@@ -161,7 +161,7 @@ public sealed partial class MainWindow : Window
         {
             // Only a full open shows the indicator. Animation frames are short
             // enough that a ring would flicker on every step.
-            ErrorPanel.IsOpen = false;
+            SetErrorBarOpen(false);
             SetLoading(true);
         }
 

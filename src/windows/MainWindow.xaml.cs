@@ -430,7 +430,7 @@ public sealed partial class MainWindow : Window
     {
         // A failure message in the previous language would be stale, so the
         // bar closes on a switch instead of mixing two languages.
-        ErrorPanel.IsOpen = false;
+        SetErrorBarOpen(false);
         ErrorPanel.Title = Localization.Get("ErrorPanel.Title");
 
         EmptyStateTitle.Text = Localization.Get("EmptyStateTitle.Text");
@@ -590,6 +590,16 @@ public sealed partial class MainWindow : Window
     {
         ErrorPanel.Title = title ?? Strings.OpenTitle;
         ErrorPanel.Message = message;
-        ErrorPanel.IsOpen = true;
+        SetErrorBarOpen(true);
+    }
+
+    // A closed InfoBar still reports its margin as desired size, which leaves
+    // an empty strip between the command bar and the canvas and shrinks the
+    // area the fit scale is computed against. Collapsing the control in the
+    // closed state keeps that strip out of the layout.
+    private void SetErrorBarOpen(bool open)
+    {
+        ErrorPanel.IsOpen = open;
+        ErrorPanel.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
     }
 }
