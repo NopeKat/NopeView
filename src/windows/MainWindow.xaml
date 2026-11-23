@@ -109,9 +109,9 @@
           SizeChanged="Viewport_SizeChanged"
           PointerWheelChanged="Viewport_PointerWheelChanged">
         <Grid.ContextFlyout>
-            <!-- The same menu is shown from the toolbar's actions
-                 button, so every command stays reachable without a
-                 right-click. -->
+            <!-- The command bar carries the viewer actions; this menu is the
+                 only place for the document and shell actions, and it is the
+                 only way to reach settings from the viewer. -->
             <MenuFlyout>
                 <MenuFlyoutItem x:Name="CopyFileMenuItem"
                                 AutomationProperties.AutomationId="ContextCopyFile"
