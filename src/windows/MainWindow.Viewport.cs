@@ -380,11 +380,6 @@ public sealed partial class MainWindow : Window
         ShowInExplorerMenuItem.IsEnabled = enabled;
         FitMenuItem.IsEnabled = enabled;
         ActualSizeMenuItem.IsEnabled = enabled;
-        CopyFileCommand.IsEnabled = enabled;
-        CopyImageCommand.IsEnabled = enabled;
-        CopyPathCommand.IsEnabled = enabled;
-        SaveAsCommand.IsEnabled = enabled;
-        ShowInExplorerCommand.IsEnabled = enabled;
     }
 
     private void ZoomInAccelerator_Invoked(

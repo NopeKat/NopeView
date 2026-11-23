@@ -370,7 +370,6 @@ public sealed partial class MainWindow : Window
         // The official TitleBar control owns the drag region, pane toggle and
         // system caption buttons, so it is registered as the title bar directly.
         SetTitleBar(AppTitleBar);
-        ConfigureOverflowButton();
         ConfigureErrorBar();
         UpdateCaptionButtonInset();
         AppTitleBar.SizeChanged += (_, _) => UpdateCaptionButtonInset();
@@ -422,23 +421,6 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void ConfigureOverflowButton()
-    {
-        // CommandBar owns the overflow button but does not expose it as a
-        // named part. Keep the established automation contract by decorating
-        // the official button instead of drawing a second one.
-        ViewerCommandBar.ApplyTemplate();
-        ViewerCommandBar.UpdateLayout();
-        Button? moreButton = FindDescendant<Button>(ViewerCommandBar, "MoreButton");
-        if (moreButton is not null)
-        {
-            var more = Localization.Get("Action.More");
-            AutomationProperties.SetAutomationId(moreButton, "ActionsButton");
-            AutomationProperties.SetName(moreButton, more);
-            ToolTipService.SetToolTip(moreButton, more);
-        }
-    }
-
     /// <summary>
     /// Applies the current language to every string this window owns. The
     /// window carries no hard coded text, so this runs on first load and again
@@ -483,22 +465,11 @@ public sealed partial class MainWindow : Window
         FitMenuItem.Text = Localization.Get("ContextFit.Text");
         ActualSizeMenuItem.Text = Localization.Get("ContextActualSize.Text");
         SettingsMenuItem.Text = Localization.Get("ContextSettings.Text");
-        SettingsCommand.Label = Localization.Get("SettingsCommand.Label");
-        AutomationProperties.SetName(
-            SettingsCommand,
-            Localization.Get("ContextSettings.Text"));
-
-        CopyFileCommand.Label = Localization.Get("CopyFileCommand.Label");
-        CopyImageCommand.Label = Localization.Get("CopyImageCommand.Label");
-        CopyPathCommand.Label = Localization.Get("CopyPathCommand.Label");
-        SaveAsCommand.Label = Localization.Get("SaveAsCommand.Label");
-        ShowInExplorerCommand.Label = Localization.Get("ShowInExplorerCommand.Label");
 
         AutomationProperties.SetName(
             LoadingRing, Localization.Get("Loading.Name"));
 
         ConfigureErrorBar();
-        ConfigureOverflowButton();
         UpdateAnimationControls();
         UpdateViewStatus();
         _settingsWindow?.ApplyLocalization();

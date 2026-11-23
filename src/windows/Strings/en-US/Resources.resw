@@ -96,24 +96,6 @@
   <data name="ContextSettings.Text" xml:space="preserve">
     <value>Settings</value>
   </data>
-  <data name="CopyFileCommand.Label" xml:space="preserve">
-    <value>Copy file</value>
-  </data>
-  <data name="CopyImageCommand.Label" xml:space="preserve">
-    <value>Copy image</value>
-  </data>
-  <data name="CopyPathCommand.Label" xml:space="preserve">
-    <value>Copy path</value>
-  </data>
-  <data name="SaveAsCommand.Label" xml:space="preserve">
-    <value>Save as…</value>
-  </data>
-  <data name="ShowInExplorerCommand.Label" xml:space="preserve">
-    <value>Show in Explorer</value>
-  </data>
-  <data name="SettingsCommand.Label" xml:space="preserve">
-    <value>Settings</value>
-  </data>
 
   <!-- Inline error bar. -->
   <data name="ErrorPanel.Title" xml:space="preserve">
@@ -186,9 +168,6 @@
   </data>
   <data name="Action.Close" xml:space="preserve">
     <value>Close</value>
-  </data>
-  <data name="Action.More" xml:space="preserve">
-    <value>More actions</value>
   </data>
   <data name="Action.Play" xml:space="preserve">
     <value>Play</value>

@@ -96,24 +96,6 @@
   <data name="ContextSettings.Text" xml:space="preserve">
     <value>设置</value>
   </data>
-  <data name="CopyFileCommand.Label" xml:space="preserve">
-    <value>复制文件</value>
-  </data>
-  <data name="CopyImageCommand.Label" xml:space="preserve">
-    <value>复制图像</value>
-  </data>
-  <data name="CopyPathCommand.Label" xml:space="preserve">
-    <value>复制路径</value>
-  </data>
-  <data name="SaveAsCommand.Label" xml:space="preserve">
-    <value>另存为…</value>
-  </data>
-  <data name="ShowInExplorerCommand.Label" xml:space="preserve">
-    <value>在资源管理器中显示</value>
-  </data>
-  <data name="SettingsCommand.Label" xml:space="preserve">
-    <value>设置</value>
-  </data>
 
   <!-- Inline error bar. -->
   <data name="ErrorPanel.Title" xml:space="preserve">
@@ -186,9 +168,6 @@
   </data>
   <data name="Action.Close" xml:space="preserve">
     <value>关闭</value>
-  </data>
-  <data name="Action.More" xml:space="preserve">
-    <value>更多操作</value>
   </data>
   <data name="Action.Play" xml:space="preserve">
     <value>播放</value>
