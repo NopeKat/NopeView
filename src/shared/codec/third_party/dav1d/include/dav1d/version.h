@@ -1,0 +1,20 @@
+#ifndef DAV1D_VERSION_H
+#define DAV1D_VERSION_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define DAV1D_API_VERSION_MAJOR 7
+#define DAV1D_API_VERSION_MINOR 0
+#define DAV1D_API_VERSION_PATCH 0
+
+#define DAV1D_API_MAJOR(v) (((v) >> 16) & 0xFF)
+#define DAV1D_API_MINOR(v) (((v) >>  8) & 0xFF)
+#define DAV1D_API_PATCH(v) (((v) >>  0) & 0xFF)
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
+
+#endif /* DAV1D_VERSION_H */

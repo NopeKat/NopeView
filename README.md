@@ -2,7 +2,7 @@
 
 A fast, lightweight, and extensible cross-platform image viewer.
 
-> **Status: early development.** The Windows viewer is published as a nightly `0.0.2.0` build; Android last shipped with `0.0.1.0`. The Windows app opens 16 image formats through the router, supports three themes and an English/Chinese UI, and ships as self-contained portable packages. MSIX, signing, and file association are not in place yet.
+> **Status: early development.** The Windows viewer is published as a nightly `0.0.2.0` build; Android last shipped with `0.0.1.0`. The Windows app opens 17 image formats through the router, supports three themes and an English/Chinese UI, and ships as self-contained portable packages. MSIX, signing, and file association are not in place yet.
 
 ## Highlights
 
@@ -12,7 +12,7 @@ A fast, lightweight, and extensible cross-platform image viewer.
 
 ## Current progress
 
-- **Codecs.** The router core is split into dispatch, loader, I/O, cache, and platform units. Sixteen format codecs decode images; PNG, JPG, and BMP also encode. PNG (APNG), GIF, and WebP report the animated capability. The last file read is cached per context, so animation frames do not re-read the file.
+- **Codecs.** The router core is split into dispatch, loader, I/O, cache, and platform units. Seventeen format codecs decode images; PNG, JPG, and BMP also encode. PNG (APNG), GIF, and WebP report the animated capability. The last file read is cached per context, so animation frames do not re-read the file.
 - **Windows app**: WinUI 3 viewer MVP. The app uses the official WinUI 3 `TitleBar` and `CommandBar`, with the content extended into the title bar, PerMonitorV2 declared, and the NopeView brand logo shown at the left. The app icon is set both in the executable and on the running window for Explorer, taskbar, Alt-Tab and Start. The content area renders decoded images, with file picker and drag-and-drop opening, previous/next navigation within the same directory, Fit and 1:1 modes, mouse-wheel zoom, drag pan, rotation, and a view status line. Animated GIFs play through per-frame decoding with the frame delay from the codec; playback can be paused, resumed, and looped. Interface text ships in American English and Simplified Chinese, follows the Windows display language by default, and can be switched from Settings without restarting. Settings opens as a separate modal window with its own official title bar, remembers its position and size, and is reachable from the command bar and the caption. The navigation shell hosts the viewer and settings; the about information lives in settings. Open failures surface in an `InfoBar`. Interface icons use Fluent UI System Icons rendered as inline `PathIcon` geometry at 16, 20, and 48 grid sizes.
 - **ABI boundaries.** router (`nv_router_abi.h`) `0.0.0.5`, format (`nv_format_abi.h`) `0.0.0.2`, application plugin (`nv_plugin_abi.h`) `0.0.0.0`, and file list (`nv_files_abi.h`) `0.0.0.0`, in `x.y.z.n` form.
 - **Shared assets**: the base logo SVG lives in `shared/resource/`; platform builds derive their own icon and title-bar files from it.
@@ -39,6 +39,7 @@ A fast, lightweight, and extensible cross-platform image viewer.
 | BMP | `bmp`, `dib` | Yes | Yes | `DECODE`, `ENCODE` |
 | WebP | `webp` | Yes | No | `DECODE`, `ANIMATED` |
 | HEIC / HEIF | `heic`, `heif` | Yes | No | `DECODE` |
+| AVIF | `avif` | Yes | No | `DECODE` |
 | TIFF | `tif`, `tiff` | Yes | No | `DECODE` |
 | TGA | `tga`, `icb`, `vda`, `vst` | Yes | No | `DECODE` |
 | ICO | `ico`, `cur` | Yes | No | `DECODE` |
@@ -50,7 +51,7 @@ A fast, lightweight, and extensible cross-platform image viewer.
 | DNG | `dng` | Yes | No | `DECODE` |
 | SVG | `svg`, `svgz` | Yes | No | `DECODE` |
 
-Codecs live in separate libraries under `src/shared/codec/formats/` and are discovered by the router at runtime. Vendored dependencies live in `src/shared/codec/third_party/` (bcdec, libde265, libheif, libwebp, miniz, nanosvg, openjpeg, stb, tinyexr). The HEIC/HEIF codec uses libheif for the container and libde265 for the HEVC pixels; AVIF and JPEG XL are deferred.
+Codecs live in separate libraries under `src/shared/codec/formats/` and are discovered by the router at runtime. Vendored dependencies live in `src/shared/codec/third_party/` (bcdec, dav1d, libde265, libheif, libwebp, miniz, nanosvg, openjpeg, stb, tinyexr). The HEIC/HEIF codec uses libheif for the container and libde265 for the HEVC pixels; the AVIF codec uses the same container reader with dav1d for the AV1 pixels. JPEG XL is deferred.
 
 ## Planned capabilities
 
@@ -119,10 +120,10 @@ src/
     └── codec/                  codec core
         ├── abi/                router ABI and format ABI
         ├── router/             dispatch, loader, I/O, cache, platform
-        ├── formats/            one library per format (16 formats)
+        ├── formats/            one library per format (17 formats)
         ├── tests/              format smoke tests
-        └── third_party/        bcdec, libwebp, miniz, nanosvg, openjpeg,
-                                stb, tinyexr
+        └── third_party/        bcdec, dav1d, libde265, libheif, libwebp,
+                                miniz, nanosvg, openjpeg, stb, tinyexr
 ```
 
 ## License

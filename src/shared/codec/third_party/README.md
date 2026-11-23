@@ -25,21 +25,30 @@ next to its sources and is only partially imported, as noted below.
   `opj_config_private.h` are written by hand because CMake normally generates
   them. BSD-2-Clause licence in `LICENSE`.
 - `libheif` (1.17.6) — the HEIF container reader, colour conversion pipeline
-  and plugin registry, plus the `decoder_libde265` and `encoder_mask` plugins.
-  `heif_version.h` is written by hand because CMake normally generates it.
-  Unix, Windows-plugin and uncompressed-image sources are left out because
-  plugin loading and that codec are disabled. LGPL-3.0-or-later in `COPYING`.
+  and plugin registry, plus the `decoder_libde265`, `decoder_dav1d` and
+  `encoder_mask` plugins. `heif_version.h` is written by hand because CMake
+  normally generates it. Unix, Windows-plugin and uncompressed-image sources
+  are left out because plugin loading and that codec are disabled.
+  LGPL-3.0-or-later in `COPYING`.
 - `libde265` (1.0.15) — the HEVC decoder behind libheif, with the encoder,
   SIMD and tool sources left out; pure C fallback paths are used. Threads use
   the Win32 condition variable shim in `extra/`. `de265-version.h` is written
   by hand because autoconf normally generates it. LGPL-3.0-or-later in
   `COPYING`.
+- `dav1d` (1.4.3) — the AV1 decoder behind the `avif` codec, built from the
+  portable C paths only: assembly, the per-architecture CPU files, tools,
+  tests and examples are left out. `config.h`, `include/dav1d/version.h` and
+  `src/vcs_version.h` are written by hand because Meson normally generates
+  them. The bitdepth template sources are compiled twice, once with
+  `BITDEPTH=8` and once with `BITDEPTH=16`. BSD-2-Clause licence in `COPYING`.
 
-Both HEIF libraries are built into `heic_codec.dll` as static C++ code with
-`LIBHEIF_STATIC_BUILD` and `LIBDE265_STATIC_BUILD`; only `HAVE_LIBDE265` is
-enabled, so AVIF, AOM, JPEG, JPEG 2000 and VVC backends stay compiled out.
+`heic_codec.dll` statically links libheif with libde265 under `HAVE_LIBDE265`;
+`avif_codec.dll` statically links libheif with dav1d under `HAVE_DAV1D`. Each
+DLL enables only its own backend, so HEIC cannot decode AV1 and AVIF cannot
+decode HEVC; AOM, JPEG, JPEG 2000 and VVC stay compiled out of both.
 
 Only files that a codec actually links are kept; encoder-side sources are not
-vendored, so the DLLs cannot write WebP, SVG, EXR, TIFF, DDS, PSD, JPEG 2000 or
-HEIC. Libraries that ship encode and decode in the same translation units
-bring their encoder along, but the codecs still only claim decode capability.
+vendored, so the DLLs cannot write WebP, SVG, EXR, TIFF, DDS, PSD, JPEG 2000,
+HEIC or AVIF. Libraries that ship encode and decode in the same translation
+units bring their encoder along, but the codecs still only claim decode
+capability.
