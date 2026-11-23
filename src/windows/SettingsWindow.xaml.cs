@@ -37,6 +37,7 @@ public sealed partial class SettingsWindow : Window
     private bool _sized;
     private bool _maximized;
     private bool _openMaximized;
+    private bool _maximizeOnLoad;
 
     internal SettingsWindow(
         SettingsService settings,
@@ -50,34 +51,62 @@ public sealed partial class SettingsWindow : Window
         _applyThemeToApp = applyTheme;
         _anchorWorkArea = anchorWorkArea;
 
-        // WinAppSDK hands a new window over in a maximized state and drops an
-        // AppWindow resize until the content has loaded, so the first open used
-        // to flash a nearly full screen window before snapping to the settings
-        // size. The state is cleared through both the presenter and Win32, and
-        // the rectangle is applied through Win32, all before the first frame.
-        // Clearing it through the presenter is what also turns the caption back
-        // into a maximize button instead of a restore one.
+        // WinAppSDK creates the window at a default rectangle and drops an
+        // AppWindow resize until the content has loaded, so the rectangle goes
+        // in through Win32 while the window is still hidden. Restoring a window
+        // that was handed over maximized shows it, so the rectangle has to be
+        // in place first; otherwise a default sized window flashes before the
+        // settings size lands. Clearing the state through the presenter is what
+        // also turns the caption back into a maximize button instead of a
+        // restore one.
+        // A window that is meant to open maximized keeps the state it was
+        // handed, and one that has to start maximized gets that state while it
+        // is still hidden.
         var initialHandle = Handle;
-        if (AppWindow.Presenter is OverlappedPresenter initialPresenter)
-        {
-            initialPresenter.Restore();
-        }
+        bool initialMaximized = AppWindow.Presenter is OverlappedPresenter firstPresenter &&
+            firstPresenter.State == OverlappedPresenterState.Maximized;
 
-        Win32Window.Restore(initialHandle);
+        // A window that was left maximized opens maximized again, and so does
+        // every window while the desktop asks applications to open that way.
+        // The rectangle below stays the size to restore to.
+        bool openMaximized = settings.SettingsWindowBounds is { Maximized: true } ||
+            SystemPreferences.MaximizeWindowsByDefault();
+
+        _maximized = openMaximized;
+        _openMaximized = openMaximized;
+        _maximizeOnLoad = openMaximized && !initialMaximized;
+
         var initialScale = Win32Window.GetScaleFactor(initialHandle);
         var initialBounds = ComputeBounds(initialScale);
+
+        // The window is still hidden here, and it has to stay hidden until the
+        // rectangle is in place: restoring a window shows it, and a show before
+        // the rectangle lands flashes a default sized window first. The restore
+        // is only needed for a window that was handed over maximized and is not
+        // meant to stay that way.
+        Win32Window.Hide(initialHandle);
+
+        if (initialMaximized && !openMaximized)
+        {
+            if (AppWindow.Presenter is OverlappedPresenter initialPresenter)
+            {
+                initialPresenter.Restore();
+            }
+
+            Win32Window.Hide(initialHandle);
+        }
+
         Win32Window.SetBounds(
             initialHandle, initialBounds.X, initialBounds.Y, initialBounds.Width, initialBounds.Height);
         _lastBounds = initialBounds;
 
-        // A window that was left maximized opens maximized again, on top of the
-        // normal rectangle above, so un-maximizing returns to that size. The
-        // maximize itself waits for the content, like every other window
-        // operation on a window that is not shown yet.
-        if (settings.SettingsWindowBounds is { Maximized: true })
+        // Maximizing through Win32 applies right away, so the window shows maximized
+        // on its first frame. The presenter request waits for the content and would
+        // let the normal rectangle appear first. The loaded pass repeats the request
+        // in case the window state was dropped on the way.
+        if (_maximizeOnLoad)
         {
-            _maximized = true;
-            _openMaximized = true;
+            Win32Window.Maximize(initialHandle);
         }
 
         SystemBackdrop = new MicaBackdrop();
@@ -177,12 +206,12 @@ public sealed partial class SettingsWindow : Window
 
             ApplyMinimumSize(scale);
 
-            if (_openMaximized &&
+            if (_maximizeOnLoad &&
                 AppWindow.Presenter is OverlappedPresenter presenter)
             {
-                // The constructor already cleared the state the window was
-                // created with, so this maximizes a normal window and keeps
-                // the rectangle above as the one to restore to.
+                // The constructor already asked for this while the window was
+                // hidden; the request is repeated here in case the state did
+                // not survive the content load.
                 presenter.Maximize();
             }
         }

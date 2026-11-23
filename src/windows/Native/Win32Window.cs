@@ -26,6 +26,21 @@ internal static partial class Win32Window
     private const uint SWP_NOZORDER = 0x0004;
     private const uint SWP_NOACTIVATE = 0x0010;
     private const int SW_RESTORE = 9;
+    private const int SW_HIDE = 0;
+    private const int SW_MAXIMIZE = 3;
+
+    /// <summary>
+    /// Takes the window to its maximized state. The presenter request is
+    /// deferred until the content is loaded, which lets the window show at its
+    /// normal rectangle first; this one is applied immediately.
+    /// </summary>
+    internal static void Maximize(nint hWnd)
+    {
+        if (hWnd != 0)
+        {
+            ShowWindow(hWnd, SW_MAXIMIZE);
+        }
+    }
 
     /// <summary>
     /// Puts the window back into its normal state. A window that WinAppSDK
@@ -37,6 +52,19 @@ internal static partial class Win32Window
         if (hWnd != 0)
         {
             ShowWindow(hWnd, SW_RESTORE);
+        }
+    }
+
+    /// <summary>
+    /// Keeps the window off the screen. Restoring a window shows it, so a
+    /// window that is still being prepared has to go back into hiding until
+    /// its rectangle and content are both in place.
+    /// </summary>
+    internal static void Hide(nint hWnd)
+    {
+        if (hWnd != 0)
+        {
+            ShowWindow(hWnd, SW_HIDE);
         }
     }
 
