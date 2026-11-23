@@ -24,8 +24,22 @@ next to its sources and is only partially imported, as noted below.
   JP2 containers and bare JPEG 2000 codestreams. `opj_config.h` and
   `opj_config_private.h` are written by hand because CMake normally generates
   them. BSD-2-Clause licence in `LICENSE`.
+- `libheif` (1.17.6) — the HEIF container reader, colour conversion pipeline
+  and plugin registry, plus the `decoder_libde265` and `encoder_mask` plugins.
+  `heif_version.h` is written by hand because CMake normally generates it.
+  Unix, Windows-plugin and uncompressed-image sources are left out because
+  plugin loading and that codec are disabled. LGPL-3.0-or-later in `COPYING`.
+- `libde265` (1.0.15) — the HEVC decoder behind libheif, with the encoder,
+  SIMD and tool sources left out; pure C fallback paths are used. Threads use
+  the Win32 condition variable shim in `extra/`. `de265-version.h` is written
+  by hand because autoconf normally generates it. LGPL-3.0-or-later in
+  `COPYING`.
+
+Both HEIF libraries are built into `heic_codec.dll` as static C++ code with
+`LIBHEIF_STATIC_BUILD` and `LIBDE265_STATIC_BUILD`; only `HAVE_LIBDE265` is
+enabled, so AVIF, AOM, JPEG, JPEG 2000 and VVC backends stay compiled out.
 
 Only files that a codec actually links are kept; encoder-side sources are not
-vendored, so the DLLs cannot write WebP, SVG, EXR, TIFF, DDS, PSD or JPEG 2000.
-OpenJPEG ships encode and decode in the same translation units, so its encoder
-comes along, but the `jp2` codec still only claims the decode capability.
+vendored, so the DLLs cannot write WebP, SVG, EXR, TIFF, DDS, PSD, JPEG 2000 or
+HEIC. Libraries that ship encode and decode in the same translation units
+bring their encoder along, but the codecs still only claim decode capability.
