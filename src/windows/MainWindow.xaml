@@ -85,8 +85,7 @@
         <!-- The viewer is the only surface in this window: settings and the
              about content live in the settings window, so this window has no
              navigation pane. -->
-        <Grid x:Name="ContentRoot"
-              Grid.Row="1"
+        <Grid Grid.Row="1"
               Background="{ThemeResource LayerFillColorDefaultBrush}">
     <Grid.RowDefinitions>
         <RowDefinition Height="Auto" />

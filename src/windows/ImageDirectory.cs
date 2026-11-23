@@ -48,8 +48,6 @@ internal sealed class ImageDirectory
         return new ImageDirectory(paths, index);
     }
 
-    internal int Position => _index + 1;
-
     internal string CurrentPath => _paths[_index];
 
     internal bool HasPrevious => _index > 0;

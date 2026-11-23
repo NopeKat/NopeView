@@ -25,7 +25,6 @@ internal static partial class Win32Window
 
     private const uint SWP_NOZORDER = 0x0004;
     private const uint SWP_NOACTIVATE = 0x0010;
-    private const int SW_RESTORE = 9;
     private const int SW_HIDE = 0;
     private const int SW_MAXIMIZE = 3;
 
@@ -39,19 +38,6 @@ internal static partial class Win32Window
         if (hWnd != 0)
         {
             ShowWindow(hWnd, SW_MAXIMIZE);
-        }
-    }
-
-    /// <summary>
-    /// Puts the window back into its normal state. A window that WinAppSDK
-    /// handed over already maximized cannot be resized through SetWindowPos,
-    /// which only moves its restore rectangle.
-    /// </summary>
-    internal static void Restore(nint hWnd)
-    {
-        if (hWnd != 0)
-        {
-            ShowWindow(hWnd, SW_RESTORE);
         }
     }
 

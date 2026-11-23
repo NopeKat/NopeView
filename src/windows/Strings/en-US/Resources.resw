@@ -163,9 +163,6 @@
   </data>
 
   <!-- Actions whose text changes with state. -->
-  <data name="Action.Back" xml:space="preserve">
-    <value>Back</value>
-  </data>
   <data name="Action.Close" xml:space="preserve">
     <value>Close</value>
   </data>

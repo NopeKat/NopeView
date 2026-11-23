@@ -21,13 +21,6 @@ internal static class Localization
     private static string _language = FallbackLanguage;
 
     /// <summary>
-    /// Language the app is currently showing, as a BCP-47 tag. Framework
-    /// strings use the same tag through PrimaryLanguageOverride, so the whole
-    /// window speaks one language.
-    /// </summary>
-    internal static string Language => _language;
-
-    /// <summary>
     /// Applies a stored preference. An empty preference means "follow Windows";
     /// anything unsupported also falls back to Windows, then to English.
     /// </summary>
