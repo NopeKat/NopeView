@@ -13,9 +13,9 @@ using WinRT.Interop;
 namespace NopeView.App;
 
 /// <summary>
-/// Settings in a window of its own. The main window does not own this window,
-/// so it keeps its own taskbar button and activates, minimizes and closes
-/// independently; only the settings values and the theme callbacks are shared.
+/// Settings in a modal window. The viewer owns it, so it stays above the viewer
+/// and has no taskbar button of its own, and the viewer is blocked while it is
+/// open. Only the settings values and the theme callbacks are shared.
 /// </summary>
 public sealed partial class SettingsWindow : Window
 {
@@ -204,7 +204,7 @@ public sealed partial class SettingsWindow : Window
                 AppWindow.MoveAndResize(bounds);
             }
 
-            ApplyMinimumSize(scale);
+            ApplyPresenterLimits(scale);
 
             if (_maximizeOnLoad &&
                 AppWindow.Presenter is OverlappedPresenter presenter)
@@ -261,12 +261,17 @@ public sealed partial class SettingsWindow : Window
         return new RectInt32(x, y, width, height);
     }
 
-    private void ApplyMinimumSize(double scale)
+    private void ApplyPresenterLimits(double scale)
     {
         if (AppWindow.Presenter is OverlappedPresenter presenter)
         {
             presenter.PreferredMinimumWidth = (int)Math.Round(PreferredMinimumWidth * scale);
             presenter.PreferredMinimumHeight = (int)Math.Round(PreferredMinimumHeight * scale);
+
+            // The window is modal and has no taskbar button, so minimizing it
+            // would leave the viewer blocked with nothing on screen to return
+            // to. It stays maximizable, because the system can ask for that.
+            presenter.IsMinimizable = false;
         }
     }
 
@@ -332,5 +337,5 @@ public sealed partial class SettingsWindow : Window
             _lastBounds.X, _lastBounds.Y, _lastBounds.Width, _lastBounds.Height, _maximized));
     }
 
-    private nint Handle => WindowNative.GetWindowHandle(this);
+    internal nint Handle => WindowNative.GetWindowHandle(this);
 }

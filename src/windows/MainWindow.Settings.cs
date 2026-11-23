@@ -1,14 +1,15 @@
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
+using NopeView.App.Native;
 using System;
 using Windows.Graphics;
 
 namespace NopeView.App;
 
-// Settings plumbing. Settings and the about content live in a window of their
-// own, so this window only ever shows the viewer; the command bar, the context
-// menu and Ctrl+, all open that window.
+// Settings plumbing. Settings and the about content live in a modal window of
+// their own, so this window only ever shows the viewer; the command bar, the
+// context menu and Ctrl+, all open that window.
 public sealed partial class MainWindow : Window
 {
     private SettingsWindow? _settingsWindow;
@@ -22,9 +23,9 @@ public sealed partial class MainWindow : Window
         OpenSettingsWindow();
     }
 
-    // Ctrl+, and Ctrl+2 both bring the settings window forward. It is a
-    // separate window now, so the keys cannot toggle a surface: they open the
-    // window on the first press and focus it on every later one.
+    // Ctrl+, and Ctrl+2 both bring the settings window forward. It is a modal
+    // window, so the keys cannot toggle a surface: they open the window on the
+    // first press and focus it on every later one.
     private void SettingsAccelerator_Invoked(
         KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
@@ -34,8 +35,8 @@ public sealed partial class MainWindow : Window
 
     /// <summary>
     /// Opens the settings window, or brings the open one forward. The window is
-    /// not owned by this window, so it keeps its own taskbar button and closes on
-    /// its own; only the stored values and the theme callbacks are shared.
+    /// owned by the viewer and the viewer is blocked while it is up, so only the
+    /// stored values and the theme callbacks are shared between the two.
     /// </summary>
     private void OpenSettingsWindow()
     {
@@ -45,24 +46,38 @@ public sealed partial class MainWindow : Window
             var workArea = DisplayArea
                 .GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary)
                 .WorkArea;
-            _settingsWindow = new SettingsWindow(
+            var settingsWindow = new SettingsWindow(
                 _settings, ApplyTheme, ApplyLanguage, ApplyImageFrame, workArea);
-            _settingsWindow.Closed += SettingsWindow_Closed;
+
+            // Settings is modal: the viewer owns it, which keeps it above the
+            // viewer and out of the taskbar, and keeps the viewer blocked while
+            // the options are being changed. The owner has to be set before the
+            // window is shown, because Windows reads it when the window is
+            // first registered.
+            Win32Window.SetOwner(settingsWindow.Handle, Handle);
+            settingsWindow.Closed += SettingsWindow_Closed;
+
+            _settingsWindow = settingsWindow;
         }
 
+        // The viewer ignores mouse and keyboard until the settings window
+        // closes, the way the owner of a dialog does.
+        Win32Window.SetEnabled(Handle, false);
         _settingsWindow.ShowAndFocus();
     }
 
-    // The settings window is not owned by the viewer, so it is closed explicitly
-    // when the viewer exits; otherwise the process would stay alive with a window
-    // that has nothing left to configure.
+    // A modal window has to hand input back, and an owned window is closed
+    // explicitly anyway when the viewer exits, so the process does not stay
+    // alive with a window that has nothing left to configure.
     private void SettingsWindow_Closed(object sender, WindowEventArgs args)
     {
         _settingsWindow = null;
 
         if (!_closing)
         {
-            // Focus returns to the viewer, the way a dialog hands focus back.
+            // Focus and input return to the viewer, the way a dialog hands
+            // both back when it closes.
+            Win32Window.SetEnabled(Handle, true);
             Activate();
         }
     }
