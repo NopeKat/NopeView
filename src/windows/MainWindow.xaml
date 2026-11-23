@@ -318,8 +318,6 @@
                     </AppBarButton.KeyboardAccelerators>
                 </AppBarButton>
 
-                <AppBarSeparator />
-
                 <AppBarButton x:Name="PreviousButton" LabelPosition="Collapsed"
                               AutomationProperties.AutomationId="PreviousButton"
                               IsEnabled="False"
@@ -359,8 +357,6 @@
                     </AppBarToggleButton.Icon>
                 </AppBarToggleButton>
 
-                <AppBarSeparator />
-
                 <AppBarButton x:Name="ZoomOutButton"
                               AutomationProperties.AutomationId="ZoomOutButton"
                               IsEnabled="False"
@@ -378,8 +374,6 @@
                         <PathIcon Data="F1 M 6.92 4.13 C 7.23 4.13 7.49 4.38 7.49 4.68 L 7.53 6.32 L 9.17 6.36 C 9.46 6.37 9.71 6.62 9.71 6.92 C 9.71 7.23 9.46 7.49 9.17 7.49 L 7.53 7.53 L 7.49 9.17 C 7.49 9.46 7.23 9.71 6.92 9.71 C 6.62 9.71 6.37 9.46 6.36 9.17 L 6.32 7.53 L 4.68 7.49 C 4.38 7.49 4.13 7.23 4.13 6.92 C 4.13 6.62 4.38 6.37 4.68 6.36 L 6.32 6.32 L 6.36 4.68 C 6.37 4.38 6.62 4.13 6.92 4.13 M 6.92 1 C 10.2 1 12.85 3.65 12.85 6.92 C 12.85 8.37 12.33 9.69 11.47 10.71 L 14.84 14.08 C 15.05 14.29 15.05 14.64 14.84 14.84 C 14.64 15.05 14.29 15.05 14.08 14.84 L 10.71 11.47 C 9.69 12.33 8.37 12.85 6.92 12.85 C 3.65 12.85 1 10.2 1 6.92 C 1 3.65 3.65 1 6.92 1 M 6.92 1.98 C 4.2 1.99 1.99 4.2 1.98 6.92 C 1.99 9.64 4.2 11.86 6.92 11.87 C 9.64 11.86 11.86 9.64 11.87 6.92 C 11.86 4.2 9.64 1.99 6.92 1.98" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </AppBarButton.Icon>
                 </AppBarButton>
-
-                <AppBarSeparator />
 
                 <AppBarButton x:Name="RotateLeftButton"
                               AutomationProperties.AutomationId="RotateLeftButton"
