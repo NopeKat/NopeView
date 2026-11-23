@@ -150,6 +150,12 @@ public sealed partial class MainWindow : Window
             new PointerEventHandler(Viewport_PointerReleased),
             true);
         _windowHandle = Handle;
+
+        // The caption is non-client, so its right click becomes WM_NCRBUTTONUP
+        // and the shell answers with the classic window menu. Nothing in the
+        // viewer belongs in that menu, so the caption keeps none.
+        WindowMessages.SuppressCaptionContextMenu(_windowHandle);
+
         _animationTimer.Tick += AnimationTimer_Tick;
         _animationTimer.Interval = TimeSpan.FromMilliseconds(100);
         AddOemKeyAccelerators();
