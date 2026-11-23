@@ -17,6 +17,15 @@ internal static class WindowChrome
     private const uint SpiGetHighContrast = 0x0042;
     private const uint HcfHighContrastOn = 0x0001;
 
+    // The desktop paints the window frame and the caption it still owns before
+    // the content registers a title bar, and it picks the palette from this
+    // attribute. Left unset, a dark app flashes a light caption until the frame
+    // and the custom title bar cover it.
+    private const int DwmaUseImmersiveDarkMode = 20;
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(nint hWnd, int attribute, ref int value, int size);
+
     [StructLayout(LayoutKind.Sequential)]
     private struct HighContrastInfo
     {
@@ -94,5 +103,25 @@ internal static class WindowChrome
         titleBar.ButtonInactiveForegroundColor = isDark
             ? Color.FromArgb(0xFF, 0xA0, 0xA0, 0xA0)
             : Color.FromArgb(0xFF, 0x60, 0x60, 0x60);
+
+        ApplyFrameTheme(window, isDark);
+    }
+
+    /// <summary>
+    /// Pins the frame palette the desktop uses for the window frame and for the
+    /// caption it still draws until a custom title bar takes over. Without it a
+    /// dark window flashes a light caption, because the frame does not follow
+    /// the content theme on its own.
+    /// </summary>
+    private static void ApplyFrameTheme(Window window, bool isDark)
+    {
+        var handle = WinRT.Interop.WindowNative.GetWindowHandle(window);
+        if (handle == 0)
+        {
+            return;
+        }
+
+        int dark = isDark ? 1 : 0;
+        DwmSetWindowAttribute(handle, DwmaUseImmersiveDarkMode, ref dark, sizeof(int));
     }
 }
