@@ -266,7 +266,8 @@
     <value>The image could not be saved (status {0}).</value>
   </data>
 
-  <!-- Status line. {0} and {1} are numbers, never whole phrases. -->
+  <!-- Status in the caption row. The caption carries the product name, so
+       the status starts with the document and adds the size and the format. -->
   <data name="Status.FileWithFormat" xml:space="preserve">
     <value>{0} | {1} | {2}</value>
     <comment>{0} file name, {1} pixel size, {2} format name.</comment>
@@ -306,11 +307,6 @@
   </data>
   <data name="Loading.Name" xml:space="preserve">
     <value>Loading image</value>
-  </data>
-
-  <data name="Window.DocumentTitle" xml:space="preserve">
-    <value>{0} - NopeView</value>
-    <comment>{0} is the open file name; NopeView is the product name.</comment>
   </data>
 
   <!-- Pickers. -->

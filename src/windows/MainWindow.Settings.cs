@@ -74,23 +74,6 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    /// <summary>
-    /// The caption names the open document. There is no page to take it over any
-    /// more: settings has its own caption, and about sits inside that window.
-    /// </summary>
-    private void RefreshWindowTitle()
-    {
-        if (string.IsNullOrEmpty(_documentName))
-        {
-            AppTitleBar.Title = "NopeView";
-        }
-        else
-        {
-            AppTitleBar.Title = Localization.Format(
-                "Window.DocumentTitle", _documentName);
-        }
-    }
-
     private void ApplyLanguage(string language)
     {
         Localization.Apply(language);

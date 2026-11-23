@@ -614,17 +614,14 @@ public sealed partial class MainWindow : Window
 
     private void UpdateFileStatus(string path)
     {
+        // The caption carries the product name alone, so the status next to
+        // it starts with the document and adds the size and the format.
         var name = Path.GetFileName(path);
         var format = Path.GetExtension(path).TrimStart('.').ToUpperInvariant();
-        var dimensions = $"{_imagePixelWidth} x {_imagePixelHeight}";
+        var size = $"{_imagePixelWidth} x {_imagePixelHeight}";
         FileStatusText.Text = string.IsNullOrEmpty(format)
-            ? Localization.Format("Status.File", name, dimensions)
-            : Localization.Format("Status.FileWithFormat", name, dimensions, format);
-
-        // The caption identifies the open document, the way a document window
-        // does; the title bar trims it with an ellipsis when it does not fit.
-        _documentName = name;
-        RefreshWindowTitle();
+            ? Localization.Format("Status.File", name, size)
+            : Localization.Format("Status.FileWithFormat", name, size, format);
 
         // The empty state is only for a viewer that has never shown an image.
         EmptyState.Visibility = Visibility.Collapsed;

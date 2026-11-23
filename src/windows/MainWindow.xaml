@@ -27,8 +27,9 @@
         </Grid.RowDefinitions>
 
         <!-- The official TitleBar owns the caption, drag region and system
-             buttons. There is no pane to toggle, so the caption carries the
-             title alone. -->
+             buttons. The caption carries the product name; the content area
+             next to it carries the document status. Both are plain text, so
+             the row still drags the window. -->
         <TitleBar x:Name="AppTitleBar"
                   Grid.Row="0"
                   Title="NopeView"
@@ -36,10 +37,45 @@
                   IsPaneToggleButtonVisible="False"
                   IsBackButtonVisible="False"
                   AutomationProperties.AutomationId="AppTitleBar">
+            <TitleBar.Resources>
+                <!-- The template centers content it can measure, which would
+                     leave the status at its natural width. Stretching gives it
+                     the whole row, so a long name trims with an ellipsis. -->
+                <HorizontalAlignment x:Key="TitleBarContentHorizontalAlignment">Stretch</HorizontalAlignment>
+                <!-- Content promotes the bar from the 32 px caption the
+                     system draws to the 48 px expanded height, which
+                     pushes the icon and title below the caption row. The
+                     status is one 16 px line, so the row stays compact. -->
+                <x:Double x:Key="TitleBarExpandedHeight">32</x:Double>
+            </TitleBar.Resources>
             <TitleBar.IconSource>
                 <ImageIconSource ImageSource="ms-appx:///assets/nopeview-title.png" />
             </TitleBar.IconSource>
+            <TitleBar.Content>
+                <TextBlock x:Name="FileStatusText"
+                           AutomationProperties.AutomationId="FileStatus"
+                           Style="{StaticResource CaptionTextBlockStyle}"
+                           Margin="12,0,0,0"
+                           Text=""
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </TitleBar.Content>
         </TitleBar>
+
+        <!-- The view readout sits outside the title bar. The template reserves
+             the caption buttons by scaling their pixel inset as if it were a
+             DIP value, which leaves the content column a whole button width
+             short of the buttons; this line is pinned to the real inset. -->
+        <TextBlock x:Name="ViewStatusText"
+                   Grid.Row="0"
+                   HorizontalAlignment="Right"
+                   VerticalAlignment="Center"
+                   Margin="0,0,16,0"
+                   Style="{StaticResource CaptionTextBlockStyle}"
+                   AutomationProperties.AutomationId="ViewStatus"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                   Text="" />
 
         <!-- The viewer is the only surface in this window: settings and the
              about content live in the settings window, so this window has no
@@ -252,36 +288,6 @@
                 <Setter Property="Width" Value="{ThemeResource AppBarThemeCompactHeight}" />
             </Style>
         </CommandBar.Resources>
-        <CommandBar.Content>
-            <!-- Status belongs to the command layer. The filename and
-                 view state sit in the command bar content area instead
-                 of a second bar along the bottom edge. The bar sizes
-                 its content to the text, so this row takes the bar's
-                 own height and centers both lines in it. -->
-            <Grid Padding="12,0"
-                  ColumnSpacing="16"
-                  VerticalAlignment="Center"
-                  MinHeight="{Binding ActualHeight, ElementName=ViewerCommandBar}">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <TextBlock x:Name="FileStatusText"
-                           AutomationProperties.AutomationId="FileStatus"
-                           Style="{StaticResource BodyTextBlockStyle}"
-                           Text=""
-                           VerticalAlignment="Center"
-                           TextTrimming="CharacterEllipsis"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                <TextBlock x:Name="ViewStatusText"
-                           Grid.Column="1"
-                           AutomationProperties.AutomationId="ViewStatus"
-                           Style="{StaticResource BodyTextBlockStyle}"
-                           VerticalAlignment="Center"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                           Text="" />
-            </Grid>
-        </CommandBar.Content>
         <CommandBar.PrimaryCommands>
                 <!-- Command icons on the 16 px grid follow the ink rule in
                      AGENTS.md: a drawing whose ink is 3 px or more longer than

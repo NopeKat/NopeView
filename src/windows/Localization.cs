@@ -54,8 +54,9 @@ internal static class Localization
         try
         {
             // The resource index stores a dotted key as nested subtrees, so
-            // "Status.File" is reached as "Resources/Status/File". The dotted
-            // form is tried first for file-level keys that have no dot split.
+            // "Status.ViewFit" is reached as "Resources/Status/ViewFit". The
+            // dotted form is tried first for file-level keys that have no dot
+            // split.
             var map = Resources.MainResourceMap;
             var value = map.TryGetValue("Resources/" + key, Context);
             if (value is null && key.Contains('.'))

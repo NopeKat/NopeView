@@ -113,10 +113,6 @@ public sealed partial class MainWindow : Window
     // ThemeDictionaries in App.xaml switch without touching system brushes.
     private readonly SettingsService _settings = new();
 
-    // Name of the open document. The caption shows it, and the settings page
-    // temporarily takes the caption over.
-    private string? _documentName;
-
     public MainWindow()
     {
         InitializeComponent();
@@ -370,7 +366,20 @@ public sealed partial class MainWindow : Window
         SetTitleBar(AppTitleBar);
         ConfigureOverflowButton();
         ConfigureErrorBar();
+        UpdateCaptionButtonInset();
+        AppTitleBar.SizeChanged += (_, _) => UpdateCaptionButtonInset();
         OpenImageFromCommandLine();
+    }
+
+    /// <summary>
+    /// Keeps the caption readout just left of the system buttons. The title bar
+    /// template sizes its own caption button padding from the pixel inset, so
+    /// the line is placed outside the template and pinned to the real DIP inset.
+    /// </summary>
+    private void UpdateCaptionButtonInset()
+    {
+        var inset = AppWindow.TitleBar.RightInset / Scale;
+        ViewStatusText.Margin = new Thickness(0, 0, inset + 8, 0);
     }
 
     /// <summary>
@@ -487,8 +496,6 @@ public sealed partial class MainWindow : Window
             UpdateFileStatus(path);
             UpdateImageAutomationName(path);
         }
-
-        RefreshWindowTitle();
     }
 
     private static T? FindDescendant<T>(DependencyObject root, string name)
@@ -575,6 +582,7 @@ public sealed partial class MainWindow : Window
         var visibility = visible ? Visibility.Visible : Visibility.Collapsed;
         AppTitleBar.Visibility = visibility;
         ViewerCommandBar.Visibility = visibility;
+        ViewStatusText.Visibility = visibility;
     }
 
     /// <summary>
