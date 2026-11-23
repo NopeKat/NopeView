@@ -18,7 +18,7 @@
             <KeyboardAccelerator Key="C" Modifiers="Control" Invoked="CopyImageAccelerator_Invoked" />
             <KeyboardAccelerator Key="C" Modifiers="Control,Shift" Invoked="CopyPathAccelerator_Invoked" />
             <KeyboardAccelerator Key="S" Modifiers="Control" Invoked="SaveAsAccelerator_Invoked" />
-            <KeyboardAccelerator Key="Number2" Modifiers="Control" Invoked="SettingsSectionAccelerator_Invoked" />
+            <KeyboardAccelerator Key="Number2" Modifiers="Control" Invoked="SettingsAccelerator_Invoked" />
         </Grid.KeyboardAccelerators>
 
         <Grid.RowDefinitions>

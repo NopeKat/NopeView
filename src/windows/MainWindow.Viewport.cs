@@ -111,8 +111,9 @@ public sealed partial class MainWindow : Window
 
         _view.PanX += deltaX;
         _view.PanY += deltaY;
+        // The status line covers zoom, rotation and the frame number, none of
+        // which a pan changes, so rewriting it on every move was pure work.
         ApplyViewTransform();
-        UpdateViewStatus();
         _lastPanPoint = point.Position;
         e.Handled = true;
     }

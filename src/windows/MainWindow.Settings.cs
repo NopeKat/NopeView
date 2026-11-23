@@ -22,17 +22,10 @@ public sealed partial class MainWindow : Window
         OpenSettingsWindow();
     }
 
-    // Ctrl+, brings the settings window forward. It is a separate window now, so
-    // the key cannot toggle a surface: it opens the window on the first press and
-    // focuses it on every later one.
+    // Ctrl+, and Ctrl+2 both bring the settings window forward. It is a
+    // separate window now, so the keys cannot toggle a surface: they open the
+    // window on the first press and focus it on every later one.
     private void SettingsAccelerator_Invoked(
-        KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
-    {
-        OpenSettingsWindow();
-        args.Handled = true;
-    }
-
-    private void SettingsSectionAccelerator_Invoked(
         KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         OpenSettingsWindow();

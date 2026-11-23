@@ -499,6 +499,13 @@ public sealed partial class MainWindow : Window
     private void UpdateAnimationControls()
     {
         var animated = _frameCount > 1;
+        var state = (Animated: animated, Playing: _isAnimationPlaying, Loop: _animationLoop);
+        if (_animationControlsState == state)
+        {
+            return;
+        }
+
+        _animationControlsState = state;
         var visibility = animated ? Visibility.Visible : Visibility.Collapsed;
         PlayPauseButton.Visibility = visibility;
         LoopButton.Visibility = visibility;

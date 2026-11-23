@@ -95,6 +95,11 @@ public sealed partial class MainWindow : Window
     private readonly Stopwatch _animationClock = new();
     private TimeSpan _animationDeadline;
 
+    // The state the animation commands already show. Frames of one animation
+    // share it, so the icon and labels are only rebuilt when it changes
+    // instead of on every step.
+    private (bool Animated, bool Playing, bool Loop)? _animationControlsState;
+
     private bool _isFullScreen;
     private bool _wasMaximizedBeforeFullScreen;
 
@@ -461,10 +466,6 @@ public sealed partial class MainWindow : Window
         string actualSizeLabel = Localization.Get("ActualSizeButton.Label");
         AutomationProperties.SetName(ActualSizeButton, actualSizeLabel);
         ToolTipService.SetToolTip(ActualSizeButton, actualSizeLabel);
-        PlayPauseButton.Label = Localization.Get(
-            _isAnimationPlaying ? "Action.Pause" : "Action.Play");
-        LoopButton.Label = Localization.Get(
-            _animationLoop ? "Action.LoopOn" : "Action.LoopOff");
 
         CopyFileMenuItem.Text = Localization.Get("ContextCopyFile.Text");
         CopyImageMenuItem.Text = Localization.Get("ContextCopyImage.Text");
@@ -479,6 +480,9 @@ public sealed partial class MainWindow : Window
             LoadingRing, Localization.Get("Loading.Name"));
 
         ConfigureErrorBar();
+        // The state cache keeps the commands from rebuilding, which would
+        // leave the previous language in place after a language switch.
+        _animationControlsState = null;
         UpdateAnimationControls();
         UpdateViewStatus();
         _settingsWindow?.ApplyLocalization();
