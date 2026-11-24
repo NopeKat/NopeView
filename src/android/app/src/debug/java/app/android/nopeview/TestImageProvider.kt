@@ -29,6 +29,7 @@ class TestImageProvider : ContentProvider() {
         "dng" -> "image/x-adobe-dng"
         "tif", "tiff" -> "image/tiff"
         "psd", "psb" -> "image/vnd.adobe.photoshop"
+        "webp" -> "image/webp"
         else -> "application/octet-stream"
     }
 

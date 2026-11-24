@@ -5,6 +5,8 @@ set(SHARED_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../shared")
 set(CODEC_ABI "${SHARED_ROOT}/codec/abi")
 set(STB_ROOT "${SHARED_ROOT}/codec/third_party/stb")
 set(MINIZ_ROOT "${SHARED_ROOT}/codec/third_party/miniz")
+set(LIBWEBP_ROOT "${SHARED_ROOT}/codec/third_party/libwebp")
+set(WEBP_CONFIG_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/webp_config")
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -62,3 +64,32 @@ foreach(FORMAT tiff psd)
         target_link_libraries(${FORMAT}_codec PRIVATE "${M_LIB}")
     endif()
 endforeach()
+
+# WebP vendors the generic libwebp decoder and demux sources. The x86 SIMD
+# sources are excluded because Android only builds arm64 and the vendored tree
+# has no NEON implementations; the C fallback is selected by webp_config.
+file(GLOB WEBP_SOURCES
+    "${LIBWEBP_ROOT}/src/dec/*.c"
+    "${LIBWEBP_ROOT}/src/demux/*.c"
+    "${LIBWEBP_ROOT}/src/dsp/*.c"
+    "${LIBWEBP_ROOT}/src/utils/*.c"
+)
+list(FILTER WEBP_SOURCES EXCLUDE REGEX ".*_(sse2|sse41)\\.c$")
+set_source_files_properties(${WEBP_SOURCES} PROPERTIES COMPILE_OPTIONS "-w")
+add_library(webp_codec SHARED
+    "${SHARED_ROOT}/codec/formats/webp/webp_codec.c"
+    ${WEBP_SOURCES}
+)
+target_include_directories(webp_codec PRIVATE
+    "${CODEC_ABI}"
+    "${LIBWEBP_ROOT}/src"
+    "${LIBWEBP_ROOT}"
+    "${WEBP_CONFIG_ROOT}"
+)
+target_compile_definitions(webp_codec PRIVATE
+    NV_CODEC_MEMORY_BUDGET=268435456
+    HAVE_CONFIG_H
+    NDEBUG
+)
+target_compile_options(webp_codec PRIVATE -Wall -Wextra)
+target_link_libraries(webp_codec PRIVATE "${LOG_LIB}")
