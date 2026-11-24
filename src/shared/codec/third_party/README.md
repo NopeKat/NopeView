@@ -41,14 +41,27 @@ next to its sources and is only partially imported, as noted below.
   `src/vcs_version.h` are written by hand because Meson normally generates
   them. The bitdepth template sources are compiled twice, once with
   `BITDEPTH=8` and once with `BITDEPTH=16`. BSD-2-Clause licence in `COPYING`.
+- `libjxl` (0.11.1) — the decoder translation units from
+  `JPEGXL_INTERNAL_DEC_SOURCES`, the public `jxl` headers, and the C decoder
+  API. Encoder, tools, tests and the JPEG reconstruction path are left out;
+  the box-content path is compiled out too, so Brotli and the colour
+  management libraries are not needed. `include/jxl/version.h` and the two
+  export headers are written by hand because CMake normally generates them. BSD-3-Clause
+  licence in `LICENSE`.
+- `highway` (1.1.0) — the six core `hwy` sources and the headers they include,
+  used by libjxl for its vector paths. The library is linked statically, so no
+  per-target dispatch DLL is involved. Apache-2.0 licence in `LICENSE`, with
+  the BSD-3-Clause alternative in `LICENSE-BSD3`.
 
 `heic_codec.dll` statically links libheif with libde265 under `HAVE_LIBDE265`;
-`avif_codec.dll` statically links libheif with dav1d under `HAVE_DAV1D`. Each
-DLL enables only its own backend, so HEIC cannot decode AV1 and AVIF cannot
-decode HEVC; AOM, JPEG, JPEG 2000 and VVC stay compiled out of both.
+`avif_codec.dll` statically links libheif with dav1d under `HAVE_DAV1D`; and
+`jxl_codec.dll` statically links libjxl with highway. Each DLL enables only its
+own backend, so HEIC cannot decode AV1 or JPEG XL, AVIF cannot decode HEVC or
+JPEG XL, and JXL cannot decode HEIF or AV1. AOM, JPEG, JPEG 2000, VVC and the
+libjxl encoder stay compiled out of all three.
 
 Only files that a codec actually links are kept; encoder-side sources are not
 vendored, so the DLLs cannot write WebP, SVG, EXR, TIFF, DDS, PSD, JPEG 2000,
-HEIC or AVIF. Libraries that ship encode and decode in the same translation
-units bring their encoder along, but the codecs still only claim decode
-capability.
+JPEG XL, HEIC or AVIF. Libraries that ship encode and decode in the same
+translation units bring their encoder along, but the codecs still only claim
+decode capability.
