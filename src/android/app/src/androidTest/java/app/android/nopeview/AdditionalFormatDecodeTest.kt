@@ -16,10 +16,10 @@ import org.junit.Rule
 import org.junit.Test
 
 /**
- * Covers the stb-backed codecs added to the Android CMake target: PNG-in-ICO,
- * uncompressed TGA, flat Radiance HDR and a CFA DNG with a JPEG-free preview
- * path. Each fixture is copied into the app cache and opened through the same
- * content URI path used by the system file picker.
+ * Covers the codecs added to the Android CMake target: PNG-in-ICO, uncompressed
+ * TGA, flat Radiance HDR, a CFA DNG, uncompressed RGB TIFF and a raw RGB PSD.
+ * Each fixture is copied into the app cache and opened through the same content
+ * URI path used by the system file picker.
  */
 class AdditionalFormatDecodeTest {
     @get:Rule
@@ -58,6 +58,16 @@ class AdditionalFormatDecodeTest {
     @Test
     fun cfaDngOpens() {
         openAndCheck("sample.dng", "image/x-adobe-dng", "sample.dng", 8, 6)
+    }
+
+    @Test
+    fun uncompressedTiffOpens() {
+        openAndCheck("sample.tiff", "image/tiff", "sample.tiff", 8, 6)
+    }
+
+    @Test
+    fun rawRgbPsdOpens() {
+        openAndCheck("sample.psd", "image/vnd.adobe.photoshop", "sample.psd", 8, 6)
     }
 
     private fun openAndCheck(

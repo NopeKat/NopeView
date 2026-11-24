@@ -4,6 +4,7 @@ project(nopeview_codec C)
 set(SHARED_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../shared")
 set(CODEC_ABI "${SHARED_ROOT}/codec/abi")
 set(STB_ROOT "${SHARED_ROOT}/codec/third_party/stb")
+set(MINIZ_ROOT "${SHARED_ROOT}/codec/third_party/miniz")
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -41,6 +42,23 @@ foreach(FORMAT png jpg gif bmp ico tga hdr dng)
     target_compile_options(${FORMAT}_codec PRIVATE -Wall -Wextra)
     target_link_libraries(${FORMAT}_codec PRIVATE "${LOG_LIB}")
     if(FORMAT STREQUAL "hdr" OR FORMAT STREQUAL "dng")
+        target_link_libraries(${FORMAT}_codec PRIVATE "${M_LIB}")
+    endif()
+endforeach()
+
+# TIFF and PSD vendor miniz per shared library, matching the Windows build.
+# miniz keeps its upstream warning baseline instead of the codec warning set.
+set_source_files_properties("${MINIZ_ROOT}/miniz.c" PROPERTIES COMPILE_OPTIONS "-w")
+foreach(FORMAT tiff psd)
+    add_library(${FORMAT}_codec SHARED
+        "${SHARED_ROOT}/codec/formats/${FORMAT}/${FORMAT}_codec.c"
+        "${MINIZ_ROOT}/miniz.c"
+    )
+    target_include_directories(${FORMAT}_codec PRIVATE "${CODEC_ABI}" "${MINIZ_ROOT}")
+    target_compile_definitions(${FORMAT}_codec PRIVATE NV_CODEC_MEMORY_BUDGET=268435456)
+    target_compile_options(${FORMAT}_codec PRIVATE -Wall -Wextra)
+    target_link_libraries(${FORMAT}_codec PRIVATE "${LOG_LIB}")
+    if(FORMAT STREQUAL "psd")
         target_link_libraries(${FORMAT}_codec PRIVATE "${M_LIB}")
     endif()
 endforeach()

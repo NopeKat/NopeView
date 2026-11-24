@@ -27,6 +27,8 @@ class TestImageProvider : ContentProvider() {
         "tga" -> "image/x-tga"
         "hdr" -> "image/vnd.radiance"
         "dng" -> "image/x-adobe-dng"
+        "tif", "tiff" -> "image/tiff"
+        "psd", "psb" -> "image/vnd.adobe.photoshop"
         else -> "application/octet-stream"
     }
 
