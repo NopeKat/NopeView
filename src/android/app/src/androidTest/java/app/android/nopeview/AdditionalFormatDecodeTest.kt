@@ -17,9 +17,9 @@ import org.junit.Test
 
 /**
  * Covers the codecs added to the Android CMake target: PNG-in-ICO, uncompressed
- * TGA, flat Radiance HDR, a CFA DNG, uncompressed RGB TIFF, a raw RGB PSD and
- * a lossy WebP. The WebP fixture is the upstream libwebp-test-data vector
- * small_31x13.webp. Each fixture is copied into the app cache and opened
+ * TGA, flat Radiance HDR, a CFA DNG, uncompressed RGB TIFF, a raw RGB PSD,
+ * a lossy WebP and a BC1 DDS. The WebP fixture is the upstream libwebp-test-data
+ * vector small_31x13.webp. Each fixture is copied into the app cache and opened
  * through the same content URI path used by the system file picker.
  */
 class AdditionalFormatDecodeTest {
@@ -74,6 +74,11 @@ class AdditionalFormatDecodeTest {
     @Test
     fun lossyWebpOpens() {
         openAndCheck("sample.webp", "image/webp", "sample.webp", 31, 13)
+    }
+
+    @Test
+    fun bc1DdsOpens() {
+        openAndCheck("sample.dds", "image/vnd-ms.dds", "sample.dds", 8, 8)
     }
 
     private fun openAndCheck(

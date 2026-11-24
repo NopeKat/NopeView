@@ -30,6 +30,7 @@ class TestImageProvider : ContentProvider() {
         "tif", "tiff" -> "image/tiff"
         "psd", "psb" -> "image/vnd.adobe.photoshop"
         "webp" -> "image/webp"
+        "dds" -> "image/vnd-ms.dds"
         else -> "application/octet-stream"
     }
 

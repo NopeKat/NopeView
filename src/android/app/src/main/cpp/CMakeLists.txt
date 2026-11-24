@@ -7,6 +7,7 @@ set(STB_ROOT "${SHARED_ROOT}/codec/third_party/stb")
 set(MINIZ_ROOT "${SHARED_ROOT}/codec/third_party/miniz")
 set(LIBWEBP_ROOT "${SHARED_ROOT}/codec/third_party/libwebp")
 set(WEBP_CONFIG_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/webp_config")
+set(BCDEC_ROOT "${SHARED_ROOT}/codec/third_party/bcdec")
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -93,3 +94,13 @@ target_compile_definitions(webp_codec PRIVATE
 )
 target_compile_options(webp_codec PRIVATE -Wall -Wextra)
 target_link_libraries(webp_codec PRIVATE "${LOG_LIB}")
+
+# DDS uses the header-only bcdec implementation included by its codec source.
+add_library(dds_codec SHARED
+    "${SHARED_ROOT}/codec/formats/dds/dds_codec.c"
+)
+target_include_directories(dds_codec PRIVATE "${CODEC_ABI}" "${BCDEC_ROOT}")
+target_compile_definitions(dds_codec PRIVATE NV_CODEC_MEMORY_BUDGET=268435456)
+target_compile_options(dds_codec PRIVATE -Wall -Wextra)
+target_link_libraries(dds_codec PRIVATE "${LOG_LIB}" "${M_LIB}")
+
