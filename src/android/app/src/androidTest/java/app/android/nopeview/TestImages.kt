@@ -86,7 +86,7 @@ object TestImages {
         return uri(name)
     }
 
-    fun copyGif(context: Context, name: String, assetName: String): Uri {
+    fun copyAsset(context: Context, name: String, assetName: String): Uri {
         val file = file(context, name)
         InstrumentationRegistry.getInstrumentation().context.assets
             .open(assetName)
@@ -95,6 +95,9 @@ object TestImages {
             }
         return uri(name)
     }
+
+    fun copyGif(context: Context, name: String, assetName: String): Uri =
+        copyAsset(context, name, assetName)
 
     fun delete(context: Context, name: String) {
         file(context, name).delete()

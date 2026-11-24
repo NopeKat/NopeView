@@ -23,6 +23,10 @@ class TestImageProvider : ContentProvider() {
         "jpg", "jpeg" -> "image/jpeg"
         "gif" -> "image/gif"
         "bmp" -> "image/bmp"
+        "ico" -> "image/x-icon"
+        "tga" -> "image/x-tga"
+        "hdr" -> "image/vnd.radiance"
+        "dng" -> "image/x-adobe-dng"
         else -> "application/octet-stream"
     }
 
