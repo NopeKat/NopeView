@@ -16,6 +16,12 @@ namespace NopeView.App;
 // Image pipeline: open, decode, animation, and navigation.
 public sealed partial class MainWindow : Window
 {
+    // Animation frames do not need the full open-image UI pass. The frame
+    // readout and the automation name still need to catch up eventually, so
+    // they are refreshed on this interval instead of on every frame.
+    private const int AnimationUiUpdateIntervalMs = 300;
+    private long _lastFrameUiUpdate;
+
     private void OpenImageFromCommandLine()
     {
         var args = Environment.GetCommandLineArgs();
@@ -220,21 +226,33 @@ public sealed partial class MainWindow : Window
                 ImageView.Source = _frameSource;
             }
 
+            var sourceSizeChanged =
+                _imagePixelWidth != frame.SourceWidth ||
+                _imagePixelHeight != frame.SourceHeight;
+            var previewChanged =
+                _previewActive != (frame.SourceWidth > frame.BitmapWidth);
+            var frameCountChanged = _frameCount != Math.Max(1u, frame.FrameCount);
+
             _imagePixelWidth = frame.SourceWidth;
             _imagePixelHeight = frame.SourceHeight;
-            UpdateImageFrameSize();
             _previewActive = frame.SourceWidth > frame.BitmapWidth;
             _frameIndex = frameIndex;
             _frameCount = Math.Max(1u, frame.FrameCount);
             _frameDelayMs = frame.FrameDelayMs;
-            SetViewControlsEnabled(true);
-            UpdateFileStatus(path);
-            UpdateViewStatus();
-            UpdateAnimationControls();
-            UpdateImageAutomationName(path);
 
             if (resetView)
             {
+                // A new image owns the whole UI state: frame size, commands,
+                // file readout and automation name all change together.
+                UpdateImageFrameSize();
+                SetViewControlsEnabled(true);
+                UpdateFileStatus(path);
+                UpdateAnimationControls();
+                UpdateImageAutomationName(path);
+                _lastFrameUiUpdate = Environment.TickCount64;
+
+                // ResetView publishes the view status once the state above is
+                // in place, so the open path does not update it separately.
                 ResetView();
                 if (_frameCount > 1)
                 {
@@ -245,6 +263,30 @@ public sealed partial class MainWindow : Window
                 else
                 {
                     StopAnimation();
+                }
+            }
+            else
+            {
+                // A frame update only owns what actually changed. The file
+                // readout, command availability and frame size stay untouched
+                // unless the source itself changed.
+                if (sourceSizeChanged)
+                {
+                    UpdateImageFrameSize();
+                    UpdateFileStatus(path);
+                }
+                if (frameCountChanged)
+                {
+                    UpdateAnimationControls();
+                }
+                if (fullResolution || previewChanged || frameCountChanged)
+                {
+                    UpdateImageAutomationName(path);
+                    _lastFrameUiUpdate = Environment.TickCount64;
+                }
+                else
+                {
+                    UpdateAnimationFrameUi(path);
                 }
             }
         }
@@ -393,6 +435,24 @@ public sealed partial class MainWindow : Window
             : Visibility.Visible;
     }
 
+    /// <summary>
+    /// Refreshes the frame readout and the automation name on a slow cadence.
+    /// Animation frames switch much faster than a caption can usefully update,
+    /// and every text change reaches the title bar through SizeChanged.
+    /// </summary>
+    private void UpdateAnimationFrameUi(string path)
+    {
+        var now = Environment.TickCount64;
+        if (now - _lastFrameUiUpdate < AnimationUiUpdateIntervalMs)
+        {
+            return;
+        }
+
+        _lastFrameUiUpdate = now;
+        UpdateViewStatus();
+        UpdateImageAutomationName(path);
+    }
+
     private void UpdateImageAutomationName(string path)
     {
         var name = Localization.Format("Image.Name", Path.GetFileName(path));
@@ -489,11 +549,22 @@ public sealed partial class MainWindow : Window
 
     private void StopAnimation()
     {
+        var wasPlaying = _isAnimationPlaying;
+
         _animationTimer.Stop();
         _animationClock.Reset();
         _isAnimationPlaying = false;
         _animationBusy = false;
         UpdateAnimationControls();
+
+        // The throttled frame readout can be behind while playback runs. Pause
+        // and stop are the points where the final frame has to be exact.
+        if (wasPlaying && _imagePixelWidth > 0 && _directory is not null)
+        {
+            UpdateViewStatus();
+            UpdateImageAutomationName(_directory.CurrentPath);
+            _lastFrameUiUpdate = Environment.TickCount64;
+        }
     }
 
     private void UpdateAnimationControls()
