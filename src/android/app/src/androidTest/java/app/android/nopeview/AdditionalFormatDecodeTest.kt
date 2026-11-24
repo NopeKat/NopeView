@@ -19,9 +19,10 @@ import org.junit.Test
  * Covers the codecs added to the Android CMake target: PNG-in-ICO, uncompressed
  * TGA, flat Radiance HDR, a CFA DNG, uncompressed RGB TIFF, a raw RGB PSD,
  * a lossy WebP, a BC1 DDS, an SVG, an uncompressed EXR and a JP2. The WebP
- * fixture is the upstream libwebp-test-data vector small_31x13.webp; the JP2
- * fixture is openjpeg-data Cevennes2.jp2. Each fixture is copied into the app
- * cache and opened through the same content URI path as a system file picker.
+ * fixture comes from the MIT-licensed sample-files collection; the JP2 fixture
+ * is the openly licensed jpylyzer reference.jp2 derived from a public-domain
+ * source. Each fixture is copied into the app cache and opened through the same
+ * content URI path as a system file picker.
  */
 class AdditionalFormatDecodeTest {
     @get:Rule
@@ -74,7 +75,7 @@ class AdditionalFormatDecodeTest {
 
     @Test
     fun lossyWebpOpens() {
-        openAndCheck("sample.webp", "image/webp", "sample.webp", 31, 13)
+        openAndCheck("sample.webp", "image/webp", "sample.webp", 32, 88)
     }
 
     @Test
@@ -94,7 +95,7 @@ class AdditionalFormatDecodeTest {
 
     @Test
     fun jp2Opens() {
-        openAndCheck("sample.jp2", "image/jp2", "sample.jp2", 7, 128)
+        openAndCheck("sample.jp2", "image/jp2", "sample.jp2", 7, 157)
     }
 
     private fun openAndCheck(
