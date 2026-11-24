@@ -1,61 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace NopeView.App;
-
-/// <summary>
-/// Theme choice stored in the user settings file.
-/// </summary>
-internal enum AppTheme
-{
-    System,
-    Light,
-    Dark
-}
-
-/// <summary>
-/// How the image edge is separated from the viewer background.
-/// </summary>
-internal enum ImageFrameStyle
-{
-    None,
-    Stroke,
-    Shadow
-}
-
-/// <summary>
-/// The on-disk shape of the settings file. Keeping it a plain record makes
-/// the source-generated serializer able to write it without reflection.
-/// </summary>
-internal sealed record SettingsDocument(
-    [property: JsonPropertyName("theme")] string Theme,
-    [property: JsonPropertyName("language")] string? Language,
-    [property: JsonPropertyName("imageFrame")] string? ImageFrame,
-    [property: JsonPropertyName("settingsWindow")] WindowBounds? SettingsWindow);
-
-/// <summary>
-/// Pixel rectangle of the settings window, in the same units the windowing
-/// APIs report. The values are stored as they were measured so the window
-/// reopens at the size and place the user left it. The flags say whether the
-/// window was maximized on top of that rectangle, because a maximized window
-/// has no rectangle of its own worth remembering.
-/// </summary>
-internal sealed record WindowBounds(
-    [property: JsonPropertyName("x")] int X,
-    [property: JsonPropertyName("y")] int Y,
-    [property: JsonPropertyName("width")] int Width,
-    [property: JsonPropertyName("height")] int Height,
-    [property: JsonPropertyName("maximized")] bool Maximized = false);
-
-
-[JsonSourceGenerationOptions(
-    WriteIndented = true,
-    PropertyNameCaseInsensitive = true)]
-[JsonSerializable(typeof(SettingsDocument))]
-internal sealed partial class SettingsJsonContext : JsonSerializerContext
-{
-}
 
 /// <summary>
 /// Persists user preferences as JSON under the local app data folder.
@@ -67,6 +13,11 @@ internal sealed class SettingsService
 {
     private const string FolderName = "NopeView";
     private const string FileName = "settings.json";
+
+    // A zero or absurd rectangle is treated like no stored value, so a
+    // hand-edited or truncated file cannot open a window nothing can show.
+    private const int MinWindowEdge = 200;
+    private const int MaxWindowEdge = 4000;
 
     private readonly string _path;
 
@@ -91,8 +42,8 @@ internal sealed class SettingsService
 
     /// <summary>
     /// Last size and position of the settings window, or null before the window
-    /// has been closed once. The settings window is its own top level window, so
-    /// it remembers where the user left it instead of always opening centred.
+    /// has been closed once. The settings window is its own top level window,
+    /// so it remembers where the user left it instead of always opening centred.
     /// </summary>
     internal WindowBounds? SettingsWindowBounds { get; private set; }
 
@@ -129,11 +80,9 @@ internal sealed class SettingsService
                 ImageFrame = frame;
             }
 
-            // A zero or absurd rectangle is treated like no stored value, so a
-            // hand-edited or truncated file cannot open a window nothing can show.
             if (document?.SettingsWindow is { } bounds &&
-                bounds.Width >= 200 && bounds.Height >= 200 &&
-                bounds.Width <= 4000 && bounds.Height <= 4000)
+                bounds.Width >= MinWindowEdge && bounds.Height >= MinWindowEdge &&
+                bounds.Width <= MaxWindowEdge && bounds.Height <= MaxWindowEdge)
             {
                 SettingsWindowBounds = bounds;
             }
@@ -148,25 +97,27 @@ internal sealed class SettingsService
 
     internal void SetTheme(AppTheme theme)
     {
-        Theme = theme;
-        Save();
+        Update(() => Theme = theme);
     }
 
     internal void SetLanguage(string language)
     {
-        Language = language;
-        Save();
+        Update(() => Language = language);
     }
 
     internal void SetImageFrame(ImageFrameStyle frame)
     {
-        ImageFrame = frame;
-        Save();
+        Update(() => ImageFrame = frame);
     }
 
     internal void SetSettingsWindowBounds(WindowBounds bounds)
     {
-        SettingsWindowBounds = bounds;
+        Update(() => SettingsWindowBounds = bounds);
+    }
+
+    private void Update(Action update)
+    {
+        update();
         Save();
     }
 

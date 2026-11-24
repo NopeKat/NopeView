@@ -5,7 +5,7 @@ namespace NopeView.App.Native;
 /// <summary>
 /// Window message plumbing that the WinAppSDK window APIs do not expose.
 /// </summary>
-internal static partial class WindowMessages
+internal static class WindowMessages
 {
     private const uint WM_NCDESTROY = 0x0002;
     private const uint WM_NCLBUTTONDOWN = 0x00A1;
@@ -56,44 +56,6 @@ internal static partial class WindowMessages
     private static readonly nint SubclassProcPointer =
         Marshal.GetFunctionPointerForDelegate(SubclassProcReference);
 
-    [LibraryImport("comctl32.dll", EntryPoint = "SetWindowSubclass")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool SetWindowSubclass(nint hWnd, nint proc, nuint id, nint refData);
-
-    [LibraryImport("comctl32.dll", EntryPoint = "RemoveWindowSubclass")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool RemoveWindowSubclass(nint hWnd, nint proc, nuint id);
-
-    [LibraryImport("comctl32.dll", EntryPoint = "DefSubclassProc")]
-    private static partial nint DefSubclassProc(nint hWnd, uint msg, nint wParam, nint lParam);
-
-    [LibraryImport("user32.dll", EntryPoint = "SetWinEventHook")]
-    private static partial nint SetWinEventHook(
-        uint eventMin,
-        uint eventMax,
-        nint module,
-        nint proc,
-        uint processId,
-        uint threadId,
-        uint flags);
-
-    [LibraryImport("user32.dll", EntryPoint = "UnhookWinEvent")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool UnhookWinEvent(nint hook);
-
-    [LibraryImport("user32.dll", EntryPoint = "ShowWindow", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool ShowWindow(nint hWnd, int cmd);
-
-    [LibraryImport("user32.dll", EntryPoint = "GetClassNameW")]
-    private static partial int GetClassNameW(nint hWnd, nint name, int max);
-
-    [LibraryImport("user32.dll", EntryPoint = "GetWindowLongW")]
-    private static partial int GetWindowLongW(nint hWnd, int index);
-
-    [LibraryImport("kernel32.dll", EntryPoint = "GetCurrentProcessId")]
-    private static partial uint GetCurrentProcessId();
-
     /// <summary>
     /// Takes the window menu and the caption button tooltips off the caption.
     /// The title bar stays non-client, so the shell owns both: a right click on
@@ -116,7 +78,8 @@ internal static partial class WindowMessages
             return false;
         }
 
-        bool applied = SetWindowSubclass(hWnd, SubclassProcPointer, CaptionSubclassId, 0);
+        bool applied = NativeMethods.SetWindowSubclass(
+            hWnd, SubclassProcPointer, CaptionSubclassId, 0);
 
         if (applied)
         {
@@ -125,12 +88,12 @@ internal static partial class WindowMessages
 
         if (_tooltipHook == 0)
         {
-            _tooltipHook = SetWinEventHook(
+            _tooltipHook = NativeMethods.SetWinEventHook(
                 EVENT_OBJECT_CREATE,
                 EVENT_OBJECT_SHOW,
                 module: 0,
                 proc: WinEventProcPointer,
-                processId: GetCurrentProcessId(),
+                processId: NativeMethods.GetCurrentProcessId(),
                 threadId: 0,
                 flags: WINEVENT_OUTOFCONTEXT);
         }
@@ -148,7 +111,7 @@ internal static partial class WindowMessages
 
         // Only the shell's caption button tip is of interest, and only when it
         // is a top level window, which keeps any child control out of reach.
-        if ((GetWindowLongW(hWnd, (int)GWL_STYLE) & (int)WS_CHILD) != 0)
+        if ((NativeMethods.GetWindowLongW(hWnd, GWL_STYLE) & WS_CHILD) != 0)
         {
             return;
         }
@@ -158,7 +121,7 @@ internal static partial class WindowMessages
             return;
         }
 
-        ShowWindow(hWnd, SW_HIDE);
+        NativeMethods.ShowWindow(hWnd, SW_HIDE);
     }
 
     private static bool IsClass(nint hWnd, string name)
@@ -169,7 +132,7 @@ internal static partial class WindowMessages
 
         try
         {
-            int length = GetClassNameW(hWnd, buffer, Capacity);
+            int length = NativeMethods.GetClassNameW(hWnd, buffer, Capacity);
 
             if (length <= 0 || length >= Capacity)
             {
@@ -212,7 +175,7 @@ internal static partial class WindowMessages
             // process wide, so it waits for the last window instead of leaving
             // with the first one.
             case WM_NCDESTROY:
-                RemoveWindowSubclass(hWnd, SubclassProcPointer, id);
+                NativeMethods.RemoveWindowSubclass(hWnd, SubclassProcPointer, id);
 
                 if (_captionWindows > 0)
                 {
@@ -221,13 +184,13 @@ internal static partial class WindowMessages
 
                 if (_captionWindows == 0 && _tooltipHook != 0)
                 {
-                    UnhookWinEvent(_tooltipHook);
+                    NativeMethods.UnhookWinEvent(_tooltipHook);
                     _tooltipHook = 0;
                 }
 
                 break;
         }
 
-        return DefSubclassProc(hWnd, msg, wParam, lParam);
+        return NativeMethods.DefSubclassProc(hWnd, msg, wParam, lParam);
     }
 }

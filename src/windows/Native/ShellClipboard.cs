@@ -8,7 +8,7 @@ namespace NopeView.App.Native;
 /// writes when it copies a file, so pasting elsewhere copies the file itself
 /// instead of its pixels.
 /// </summary>
-internal static partial class ShellClipboard
+internal static class ShellClipboard
 {
     private const uint CF_HDROP = 15;
     private const uint GMEM_MOVEABLE = 0x0002;
@@ -27,45 +27,13 @@ internal static partial class ShellClipboard
         internal int Wide;
     }
 
-    [LibraryImport("user32.dll", EntryPoint = "OpenClipboard", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool OpenClipboard(nint hWnd);
-
-    [LibraryImport("user32.dll", EntryPoint = "EmptyClipboard", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool EmptyClipboard();
-
-    [LibraryImport("user32.dll", EntryPoint = "CloseClipboard", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool CloseClipboard();
-
-    [LibraryImport("user32.dll", EntryPoint = "SetClipboardData", SetLastError = true)]
-    private static partial nint SetClipboardData(uint format, nint memory);
-
-    [LibraryImport("user32.dll", EntryPoint = "RegisterClipboardFormatW",
-        StringMarshalling = StringMarshalling.Utf16)]
-    private static partial uint RegisterClipboardFormat(string format);
-
-    [LibraryImport("kernel32.dll", EntryPoint = "GlobalAlloc", SetLastError = true)]
-    private static partial nint GlobalAlloc(uint flags, nuint bytes);
-
-    [LibraryImport("kernel32.dll", EntryPoint = "GlobalLock", SetLastError = true)]
-    private static partial nint GlobalLock(nint memory);
-
-    [LibraryImport("kernel32.dll", EntryPoint = "GlobalUnlock", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool GlobalUnlock(nint memory);
-
-    [LibraryImport("kernel32.dll", EntryPoint = "GlobalFree", SetLastError = true)]
-    private static partial nint GlobalFree(nint memory);
-
     /// <summary>
     /// Replaces the clipboard with a single file. The window handle only
     /// names the clipboard owner.
     /// </summary>
     internal static void SetFile(nint hWnd, string path)
     {
-        var effectFormat = RegisterClipboardFormat("Preferred DropEffect");
+        var effectFormat = NativeMethods.RegisterClipboardFormat("Preferred DropEffect");
         if (effectFormat == 0)
         {
             throw new InvalidOperationException(
@@ -75,17 +43,17 @@ internal static partial class ShellClipboard
         var fileList = AllocateFileDrop(path);
         var copyEffect = AllocateCopyEffect();
 
-        if (!OpenClipboard(hWnd))
+        if (!NativeMethods.OpenClipboard(hWnd))
         {
-            GlobalFree(fileList);
-            GlobalFree(copyEffect);
+            NativeMethods.GlobalFree(fileList);
+            NativeMethods.GlobalFree(copyEffect);
             throw new InvalidOperationException(
                 $"The clipboard could not be opened (error {Marshal.GetLastPInvokeError()}).");
         }
 
         try
         {
-            if (!EmptyClipboard())
+            if (!NativeMethods.EmptyClipboard())
             {
                 throw new InvalidOperationException(
                     $"The clipboard could not be cleared (error {Marshal.GetLastPInvokeError()}).");
@@ -93,14 +61,14 @@ internal static partial class ShellClipboard
 
             // Memory that the clipboard accepts belongs to the system from
             // here on and must not be freed by this process any more.
-            if (SetClipboardData(CF_HDROP, fileList) == 0)
+            if (NativeMethods.SetClipboardData(CF_HDROP, fileList) == 0)
             {
                 throw new InvalidOperationException(
                     $"The clipboard rejected the file list (error {Marshal.GetLastPInvokeError()}).");
             }
             fileList = 0;
 
-            if (SetClipboardData(effectFormat, copyEffect) == 0)
+            if (NativeMethods.SetClipboardData(effectFormat, copyEffect) == 0)
             {
                 throw new InvalidOperationException(
                     $"The clipboard rejected the drop effect (error {Marshal.GetLastPInvokeError()}).");
@@ -111,15 +79,15 @@ internal static partial class ShellClipboard
         {
             if (fileList != 0)
             {
-                GlobalFree(fileList);
+                NativeMethods.GlobalFree(fileList);
             }
 
             if (copyEffect != 0)
             {
-                GlobalFree(copyEffect);
+                NativeMethods.GlobalFree(copyEffect);
             }
 
-            CloseClipboard();
+            NativeMethods.CloseClipboard();
         }
     }
 
@@ -139,7 +107,7 @@ internal static partial class ShellClipboard
         var block = new DropFiles { Offset = (uint)header, Wide = 1 };
         Marshal.StructureToPtr(block, locked, false);
         Marshal.Copy(characters, 0, locked + header, characters.Length);
-        GlobalUnlock(memory);
+        NativeMethods.GlobalUnlock(memory);
         return memory;
     }
 
@@ -151,13 +119,13 @@ internal static partial class ShellClipboard
         var memory = Allocate(sizeof(int), "drop effect");
         var locked = Lock(memory, "drop effect");
         Marshal.WriteInt32(locked, DROPEFFECT_COPY);
-        GlobalUnlock(memory);
+        NativeMethods.GlobalUnlock(memory);
         return memory;
     }
 
     private static nint Allocate(int bytes, string name)
     {
-        var memory = GlobalAlloc(GMEM_MOVEABLE, (nuint)bytes);
+        var memory = NativeMethods.GlobalAlloc(GMEM_MOVEABLE, (nuint)bytes);
         if (memory == 0)
         {
             throw new InvalidOperationException(
@@ -169,10 +137,10 @@ internal static partial class ShellClipboard
 
     private static nint Lock(nint memory, string name)
     {
-        var locked = GlobalLock(memory);
+        var locked = NativeMethods.GlobalLock(memory);
         if (locked == 0)
         {
-            GlobalFree(memory);
+            NativeMethods.GlobalFree(memory);
             throw new InvalidOperationException(
                 $"Clipboard memory for the {name} could not be locked (error {Marshal.GetLastPInvokeError()}).");
         }

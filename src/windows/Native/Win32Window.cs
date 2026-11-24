@@ -1,36 +1,10 @@
-using System.Runtime.InteropServices;
-
 namespace NopeView.App.Native;
 
 /// <summary>
 /// Win32 window helpers that the WinAppSDK windowing APIs do not cover.
 /// </summary>
-internal static partial class Win32Window
+internal static class Win32Window
 {
-    [LibraryImport("user32.dll", EntryPoint = "GetDpiForWindow")]
-    private static partial uint GetDpiForWindow(nint hWnd);
-
-    [LibraryImport("user32.dll", EntryPoint = "IsIconic")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool IsIconic(nint hWnd);
-
-    [LibraryImport("user32.dll", EntryPoint = "SetWindowPos")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool SetWindowPos(
-        nint hWnd, nint insertAfter, int x, int y, int width, int height, uint flags);
-
-    [LibraryImport("user32.dll", EntryPoint = "ShowWindow")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool ShowWindow(nint hWnd, int command);
-
-    [LibraryImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
-    private static partial nint SetWindowLongPtrW(nint hWnd, int index, nint value);
-
-    [LibraryImport("user32.dll", EntryPoint = "EnableWindow")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool EnableWindow(
-        nint hWnd, [MarshalAs(UnmanagedType.Bool)] bool enable);
-
     private const uint SWP_NOZORDER = 0x0004;
     private const uint SWP_NOACTIVATE = 0x0010;
     private const int SW_HIDE = 0;
@@ -47,33 +21,33 @@ internal static partial class Win32Window
     {
         if (hWnd != 0 && owner != 0)
         {
-            SetWindowLongPtrW(hWnd, GWLP_HWNDPARENT, owner);
+            NativeMethods.SetWindowLongPtrW(hWnd, GWLP_HWNDPARENT, owner);
         }
     }
 
     /// <summary>
-    /// Turns input for a window on or off. A disabled window still paints, it
-    /// just stops accepting mouse and keyboard, which is what holds the owner
-    /// of a modal window still while the modal window is open.
+    /// Turns input for a window on or off. A disabled window still paints,
+    /// it just stops accepting mouse and keyboard, which is what holds the
+    /// owner of a modal window still while the modal window is open.
     /// </summary>
     internal static void SetEnabled(nint hWnd, bool enabled)
     {
         if (hWnd != 0)
         {
-            EnableWindow(hWnd, enabled);
+            NativeMethods.EnableWindow(hWnd, enabled);
         }
     }
 
     /// <summary>
     /// Takes the window to its maximized state. The presenter request is
-    /// deferred until the content is loaded, which lets the window show at its
-    /// normal rectangle first; this one is applied immediately.
+    /// deferred until the content is loaded, which lets the window show at
+    /// its normal rectangle first; this one is applied immediately.
     /// </summary>
     internal static void Maximize(nint hWnd)
     {
         if (hWnd != 0)
         {
-            ShowWindow(hWnd, SW_MAXIMIZE);
+            NativeMethods.ShowWindow(hWnd, SW_MAXIMIZE);
         }
     }
 
@@ -86,7 +60,7 @@ internal static partial class Win32Window
     {
         if (hWnd != 0)
         {
-            ShowWindow(hWnd, SW_HIDE);
+            NativeMethods.ShowWindow(hWnd, SW_HIDE);
         }
     }
 
@@ -103,7 +77,7 @@ internal static partial class Win32Window
             return false;
         }
 
-        return SetWindowPos(
+        return NativeMethods.SetWindowPos(
             hWnd, 0, x, y, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
     }
 
@@ -112,7 +86,7 @@ internal static partial class Win32Window
     /// </summary>
     internal static bool IsMinimized(nint hWnd)
     {
-        return hWnd != 0 && IsIconic(hWnd);
+        return hWnd != 0 && NativeMethods.IsIconic(hWnd);
     }
 
     /// <summary>
@@ -122,7 +96,7 @@ internal static partial class Win32Window
     /// </summary>
     internal static double GetScaleFactor(nint hWnd)
     {
-        var dpi = GetDpiForWindow(hWnd);
+        var dpi = NativeMethods.GetDpiForWindow(hWnd);
         return dpi > 0 ? dpi / 96.0 : 1.0;
     }
 }
