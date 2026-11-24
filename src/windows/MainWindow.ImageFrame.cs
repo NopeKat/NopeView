@@ -39,9 +39,18 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        ImageFrame.Width = _imagePixelWidth * fit;
-        ImageFrame.Height = _imagePixelHeight * fit;
-        ImageFrame.Visibility = Visibility.Visible;
+        var width = _imagePixelWidth * fit;
+        var height = _imagePixelHeight * fit;
+        if (ImageFrame.Width != width || ImageFrame.Height != height)
+        {
+            ImageFrame.Width = width;
+            ImageFrame.Height = height;
+        }
+
+        if (ImageFrame.Visibility != Visibility.Visible)
+        {
+            ImageFrame.Visibility = Visibility.Visible;
+        }
     }
 
     /// <summary>

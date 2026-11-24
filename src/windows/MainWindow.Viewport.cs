@@ -10,17 +10,54 @@ namespace NopeView.App;
 // Viewport: zoom, pan, rotate, pinch, and view status.
 public sealed partial class MainWindow : Window
 {
+    // The clip is reused across resizes. Replacing it on every SizeChanged
+    // allocates a new geometry while the window is being dragged.
+    private RectangleGeometry? _viewportClip;
+    private bool _viewStatusPending;
+
     private void Viewport_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        Viewport.Clip = new RectangleGeometry
+        var bounds = new Rect(0, 0, e.NewSize.Width, e.NewSize.Height);
+        if (_viewportClip is null)
         {
-            Rect = new Rect(0, 0, e.NewSize.Width, e.NewSize.Height)
-        };
+            _viewportClip = new RectangleGeometry { Rect = bounds };
+            Viewport.Clip = _viewportClip;
+        }
+        else if (_viewportClip.Rect.Width != bounds.Width ||
+                 _viewportClip.Rect.Height != bounds.Height)
+        {
+            // The clip itself must stay current: the image is only allowed to
+            // paint inside this rectangle, so a delayed clip would show up as
+            // a wrong edge during a live resize.
+            _viewportClip.Rect = bounds;
+        }
 
-        // The frame follows the fitted bitmap, so both its size and the zoom
-        // percentage need to be rebuilt once the new layout lands.
+        // The frame size is layout state and has to follow this event. Only
+        // the caption readout is safe to coalesce, because several resize
+        // events can arrive before the dispatcher gets to the first one.
         UpdateImageFrameSize();
-        DispatcherQueue.TryEnqueue(UpdateViewStatus);
+        QueueViewStatusUpdate();
+    }
+
+    private void QueueViewStatusUpdate()
+    {
+        if (_viewStatusPending)
+        {
+            return;
+        }
+
+        _viewStatusPending = true;
+        if (!DispatcherQueue.TryEnqueue(() =>
+            {
+                _viewStatusPending = false;
+                if (!_closing)
+                {
+                    UpdateViewStatus();
+                }
+            }))
+        {
+            _viewStatusPending = false;
+        }
     }
 
     private void Viewport_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
