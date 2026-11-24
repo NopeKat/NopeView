@@ -1,5 +1,43 @@
 # NopeView changelog
 
+## [Unreleased] - Android codec expansion
+
+No release yet; this section records the Android codec work now on main.
+
+### Added
+
+- Android decoding grew from four formats to fifteen: ICO, TGA, HDR, DNG, TIFF,
+  PSD / PSB, WebP, DDS, SVG, EXR, and JPEG 2000 are wired through the Android
+  CMake build.
+- The first batch added the stb-backed ICO, TGA, HDR, and DNG codecs.
+- The second batch added TIFF and PSD / PSB with vendored miniz.
+- WebP decoding uses vendored libwebp sources with a minimal config header that
+  keeps arm64 on the C fallback because the vendored tree has no NEON sources.
+- DDS decoding uses the header-only bcdec implementation.
+- SVG, EXR, and JPEG 2000 decoding are wired in; SVG and EXR use C++ codecs, and
+  JPEG 2000 vendors OpenJPEG.
+- Deterministic fixtures, debug MIME entries, and `AdditionalFormatDecodeTest`
+  cover the new formats.
+- `NOTICE.md` documents the provenance and MIT license for the replacement WebP
+  and JP2 fixtures.
+
+### Changed
+
+- Android CMake enables C++ so the SVG and EXR codecs can be built.
+- HDR, DNG, PSD / PSB, EXR, SVG, JPEG 2000, and DDS link libm where they use it.
+- Android debug and release build scripts clean `src/android/app/.cxx/`
+  alongside `build/android/` and `app/build/`.
+
+### Known limitations
+
+- Android still has no aligned `versionName` / `versionCode` and has not shipped
+  a new release.
+- The Android release build still produces an unsigned APK until a keystore is
+  configured.
+- HEIC / HEIF, AVIF, and JPEG XL are not ported to Android yet.
+- Android instrumented tests compile today but have not run on a device or
+  emulator yet.
+
 ## [0.0.2.0] - nightly
 
 Third release, Windows x64 only this time. Everything below was verified.
@@ -56,7 +94,7 @@ Third release, Windows x64 only this time. Everything below was verified.
 ### Known limitations
 
 - Windows x64 only for this release; Android did not ship and its `versionName`
-  is still 0.0.1.0.
+  is still 0.0.1.0. Android codec progress is tracked under Unreleased above.
 - The portable zip is self-contained and about 96 MB, so the target machine no
   longer needs the Windows App SDK runtime. The portable exe is a 7z
   self-extracting archive that unpacks into a temporary folder, starts the app,
