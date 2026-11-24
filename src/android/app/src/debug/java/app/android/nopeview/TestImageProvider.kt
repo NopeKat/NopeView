@@ -31,6 +31,9 @@ class TestImageProvider : ContentProvider() {
         "psd", "psb" -> "image/vnd.adobe.photoshop"
         "webp" -> "image/webp"
         "dds" -> "image/vnd-ms.dds"
+        "svg" -> "image/svg+xml"
+        "exr" -> "image/x-exr"
+        "jp2", "j2k" -> "image/jp2"
         else -> "application/octet-stream"
     }
 

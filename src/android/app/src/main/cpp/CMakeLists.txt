@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22.1)
-project(nopeview_codec C)
+project(nopeview_codec C CXX)
 
 set(SHARED_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../shared")
 set(CODEC_ABI "${SHARED_ROOT}/codec/abi")
@@ -8,9 +8,14 @@ set(MINIZ_ROOT "${SHARED_ROOT}/codec/third_party/miniz")
 set(LIBWEBP_ROOT "${SHARED_ROOT}/codec/third_party/libwebp")
 set(WEBP_CONFIG_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/webp_config")
 set(BCDEC_ROOT "${SHARED_ROOT}/codec/third_party/bcdec")
+set(NANOSVG_ROOT "${SHARED_ROOT}/codec/third_party/nanosvg")
+set(TINYEXR_ROOT "${SHARED_ROOT}/codec/third_party/tinyexr")
+set(OPENJPEG_ROOT "${SHARED_ROOT}/codec/third_party/openjpeg")
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_library(LOG_LIB log)
 find_library(DL_LIB dl)
@@ -104,3 +109,41 @@ target_compile_definitions(dds_codec PRIVATE NV_CODEC_MEMORY_BUDGET=268435456)
 target_compile_options(dds_codec PRIVATE -Wall -Wextra)
 target_link_libraries(dds_codec PRIVATE "${LOG_LIB}" "${M_LIB}")
 
+# SVG and EXR are single C++ translation units that embed their vendor
+# implementations. miniz is shared with the TIFF and PSD targets above.
+add_library(svg_codec SHARED
+    "${SHARED_ROOT}/codec/formats/svg/svg_codec.cpp"
+    "${MINIZ_ROOT}/miniz.c"
+)
+target_include_directories(svg_codec PRIVATE "${CODEC_ABI}" "${NANOSVG_ROOT}" "${MINIZ_ROOT}")
+target_compile_definitions(svg_codec PRIVATE NV_CODEC_MEMORY_BUDGET=268435456)
+# nanosvg compares a size_t with -1L in one upstream line.
+target_compile_options(svg_codec PRIVATE -Wall -Wextra -Wno-sign-compare)
+target_link_libraries(svg_codec PRIVATE "${LOG_LIB}" "${M_LIB}")
+
+add_library(exr_codec SHARED
+    "${SHARED_ROOT}/codec/formats/exr/exr_codec.cpp"
+    "${MINIZ_ROOT}/miniz.c"
+)
+target_include_directories(exr_codec PRIVATE "${CODEC_ABI}" "${TINYEXR_ROOT}" "${MINIZ_ROOT}")
+target_compile_definitions(exr_codec PRIVATE NV_CODEC_MEMORY_BUDGET=268435456)
+target_compile_options(exr_codec PRIVATE -Wall -Wextra)
+target_link_libraries(exr_codec PRIVATE "${LOG_LIB}" "${M_LIB}")
+
+# OpenJPEG is vendored as a set of C files and keeps its upstream warning
+# baseline. OPJ_STATIC matches the Windows build.
+file(GLOB OPENJPEG_SOURCES "${OPENJPEG_ROOT}/*.c")
+set_source_files_properties(${OPENJPEG_SOURCES} PROPERTIES COMPILE_OPTIONS "-w")
+add_library(jp2_codec SHARED
+    "${SHARED_ROOT}/codec/formats/jp2/jp2_codec.c"
+    ${OPENJPEG_SOURCES}
+)
+target_include_directories(jp2_codec PRIVATE "${CODEC_ABI}" "${OPENJPEG_ROOT}")
+# The vendored opj_config_private.h is MSVC-only; Android uses posix_memalign.
+target_compile_definitions(jp2_codec PRIVATE
+    NV_CODEC_MEMORY_BUDGET=268435456
+    OPJ_STATIC
+    OPJ_HAVE_POSIX_MEMALIGN=1
+)
+target_compile_options(jp2_codec PRIVATE -Wall -Wextra)
+target_link_libraries(jp2_codec PRIVATE "${LOG_LIB}" "${M_LIB}")
