@@ -1,8 +1,42 @@
 # NopeView changelog
 
+## [0.0.3.0] - nightly
+
+Windows x64 nightly. Everything below landed after 0.0.2.0; the Android codec
+work stays in Unreleased because it did not ship.
+
+### Added
+
+- HEIC / HEIF decoding joins the router on top of libheif, which reads the ISO
+  BMFF container and drives libde265 for the HEVC pixels. heic and heif are
+  claimed as extensions, and auxiliary alpha plus the embedded color profile
+  are applied.
+- AVIF decoding reuses the same libheif container layer with dav1d for the AV1
+  pixels, claims the avif extension, and applies alpha and the embedded color
+  profile.
+- JPEG XL decoding runs on libjxl's decoder-only C API and claims the jxl
+  extension. The vendored build drops the JPEG reconstruction and box paths,
+  which keeps Brotli out of the dependency set.
+
+### Changed
+
+- The about card's repository link icon is the official octicon circle mark,
+  redrawn on the 20 px grid at an 18.75 px long edge as a single even-odd
+  contour.
+- The about expander keeps a 36 epx bottom inset, so the expanded last card
+  stays clear of the page edge once the content scrolls.
+
+### Known limitations
+
+- JPEG XL cannot rebuild the original JPEG bitstream, because the decoder-only
+  build drops the reconstruction path.
+- HEIC / HEIF and AVIF were verified on still images only; animation and depth
+  maps are untested.
+
 ## [Unreleased] - Android codec expansion
 
-No release yet; this section records the Android codec work now on main.
+No release yet; this section records the Android codec work now on main, which
+is not part of 0.0.3.0.
 
 ### Added
 
