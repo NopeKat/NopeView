@@ -102,8 +102,7 @@ public sealed partial class MainWindow : Window
             _animationDeadline = TimeSpan.Zero;
         }
 
-        var delay = TimeSpan.FromMilliseconds(
-            Math.Clamp((double)_frameDelayMs, 20.0, 10000.0));
+        var delay = QuantizeToRefresh(_frameDelayMs);
         var now = _animationClock.Elapsed;
 
         // Add the delay to the previous deadline rather than to the moment the
@@ -118,6 +117,39 @@ public sealed partial class MainWindow : Window
 
         _animationTimer.Interval = _animationDeadline - now;
         _animationTimer.Start();
+    }
+
+    /// <summary>
+    /// Rounds a declared frame delay to a whole number of refresh periods, so
+    /// the step lands on a presented frame instead of sliding to the next one.
+    /// A delay shorter than a period keeps a single period: faster than the
+    /// display cannot be shown, and a zero interval would spin the timer.
+    /// </summary>
+    private TimeSpan QuantizeToRefresh(uint delayMs)
+    {
+        var period = Math.Clamp(_refreshPeriodMs, 2.0, 40.0);
+        var requested = Math.Clamp((double)delayMs, 5.0, 10000.0);
+        var periods = Math.Max(1.0, Math.Round(requested / period));
+        return TimeSpan.FromMilliseconds(periods * period);
+    }
+
+    // Every presented frame reports here. The interval between them is the
+    // display's refresh period, which is measured rather than assumed to be
+    // 60 Hz: a delay that falls between two ticks makes the previous frame stay
+    // one tick longer, and that reads as a stutter.
+    private void CompositionTarget_Rendering(object? sender, object e)
+    {
+        var now = _renderingClock.Elapsed.TotalMilliseconds;
+        var delta = now - _lastRenderingMs;
+        _lastRenderingMs = now;
+
+        // Idle gaps between unrelated renders and stalls are not refresh ticks.
+        if (delta < 2.0 || delta > 40.0)
+        {
+            return;
+        }
+
+        _refreshPeriodMs = _refreshPeriodMs * 0.7 + delta * 0.3;
     }
 
     private void StopAnimation()

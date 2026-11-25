@@ -54,6 +54,11 @@ public sealed partial class MainWindow : Window
     private const int PreviewMinEdge = 1024;
     private const int PreviewMaxEdge = 4096;
 
+    // Animated frames are decoded again for every step, so their preview is
+    // capped tighter than a still image: past a certain size each frame costs
+    // more than the display can absorb, and the extra pixels are invisible.
+    private const int AnimationPreviewMaxEdge = 2048;
+
     // The router loads every format library it finds, which is disk and loader
     // work. It runs on a worker thread from construction on, and the first
     // open awaits the result instead of loading it while the window is shown.
@@ -95,6 +100,14 @@ public sealed partial class MainWindow : Window
     // long animation visibly slower than its declared delays.
     private readonly Stopwatch _animationClock = new();
     private TimeSpan _animationDeadline;
+
+    // Frames are scheduled on the display's refresh grid. The compositor reports
+    // every presented frame, so its interval is measured instead of assumed to
+    // be 60 Hz; without that, a delay that falls between two refresh ticks holds
+    // the previous frame for an extra tick and shows as a stutter.
+    private double _refreshPeriodMs = 1000.0 / 60.0;
+    private double _lastRenderingMs;
+    private readonly Stopwatch _renderingClock = new();
 
     // The state the animation commands already show. Frames of one animation
     // share it, so the icon and labels are only rebuilt when it changes
@@ -169,6 +182,11 @@ public sealed partial class MainWindow : Window
         _animationTimer.Interval = TimeSpan.FromMilliseconds(100);
         _upgradeTimer.Tick += UpgradeTimer_Tick;
         _upgradeTimer.Interval = TimeSpan.FromMilliseconds(300);
+
+        // The presented-frame interval only has to be known while something
+        // animates, but the handler is cheap and keeps the estimate warm.
+        _renderingClock.Start();
+        CompositionTarget.Rendering += CompositionTarget_Rendering;
         AddOemKeyAccelerators();
         AddCommandAccelerators();
 
@@ -203,6 +221,7 @@ public sealed partial class MainWindow : Window
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
         _closing = true;
+        CompositionTarget.Rendering -= CompositionTarget_Rendering;
         if (_settingsWindow is { } settingsWindow)
         {
             // The window hides on its own close requests, so it needs the

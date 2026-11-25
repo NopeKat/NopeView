@@ -45,7 +45,16 @@ public sealed partial class MainWindow : Window
             // worker thread. Leaving them on the UI thread froze the window for
             // the whole decode and prevented a loading state from rendering.
             var context = session.Context;
-            var maxDimension = fullResolution ? 0 : PreviewEdge();
+
+            // An animation decodes every step again, so it keeps a tighter
+            // preview bound than a still image. The frame count only becomes
+            // known from the first decode, which is why both signals count.
+            var animated = frameIndex > 0 || _frameCount > 1;
+            var maxDimension = fullResolution
+                ? 0
+                : animated
+                    ? Math.Min(PreviewEdge(), AnimationPreviewMaxEdge)
+                    : PreviewEdge();
             var frame = await Task.Run(
                 () => DecodeFrame(context, path, frameIndex, maxDimension), token);
 

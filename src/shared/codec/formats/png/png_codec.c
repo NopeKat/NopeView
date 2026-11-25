@@ -31,8 +31,17 @@
 #include "nv_format_abi.h"
 #include "nv_format_common.h"
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+
+#if defined(_WIN32)
+#include <intrin.h>
+#include <windows.h>
+#else
+#include <stdatomic.h>
+#endif
 
 /* A file that announces more frames than this is treated as malformed. */
 #define NV_PNG_MAX_FRAMES 4096u
@@ -71,6 +80,175 @@ typedef struct nv_png_header {
     const unsigned char *transparency;
     size_t transparency_size;
 } nv_png_header;
+
+/* Decoded animation frames are kept per file. Playback asks for one frame after
+ * another, and without the cache every request walks the run from the first
+ * frame again, so the last frame of a long animation costs the whole run. One
+ * animation is cached at a time, bounded by a byte budget. */
+#define NV_PNG_CACHE_SLOTS 1
+#define NV_PNG_CACHE_BUDGET_BYTES ((size_t)64u * 1024u * 1024u)
+
+typedef struct nv_png_cache {
+    char *path;
+    int64_t size;
+    int64_t mtime;
+    uint32_t width;
+    uint32_t height;
+    uint32_t frames;
+    uint32_t *delays;
+    unsigned char *pixels;
+    size_t frame_bytes;
+    uint64_t last_used;
+} nv_png_cache;
+
+static nv_png_cache g_cache[NV_PNG_CACHE_SLOTS];
+static uint64_t g_cache_tick;
+
+#if defined(_WIN32)
+static volatile long g_cache_lock = 0;
+
+static void cache_lock(void)
+{
+    while (_InterlockedExchange(&g_cache_lock, 1L) != 0L) {
+    }
+}
+
+static void cache_unlock(void)
+{
+    _InterlockedExchange(&g_cache_lock, 0L);
+}
+#else
+static atomic_flag g_cache_lock = ATOMIC_FLAG_INIT;
+
+static void cache_lock(void)
+{
+    while (atomic_flag_test_and_set_explicit(&g_cache_lock, memory_order_acquire)) {
+    }
+}
+
+static void cache_unlock(void)
+{
+    atomic_flag_clear_explicit(&g_cache_lock, memory_order_release);
+}
+#endif
+
+#if defined(_WIN32)
+extern __declspec(dllimport) int __stdcall MultiByteToWideChar(
+    unsigned int code_page, unsigned long flags, const char *multi_byte,
+    int multi_byte_count, wchar_t *wide, int wide_count);
+
+#define NV_PNG_UTF8_CODE_PAGE 65001u
+
+static wchar_t *png_utf8_to_wide(const char *path)
+{
+    int count = MultiByteToWideChar(NV_PNG_UTF8_CODE_PAGE, 0u, path, -1, NULL, 0);
+    wchar_t *wide;
+
+    if (count <= 0) {
+        return NULL;
+    }
+    wide = (wchar_t *)malloc((size_t)count * sizeof(wchar_t));
+    if (wide == NULL) {
+        return NULL;
+    }
+    if (MultiByteToWideChar(NV_PNG_UTF8_CODE_PAGE, 0u, path, -1, wide, count) <= 0) {
+        free(wide);
+        return NULL;
+    }
+    return wide;
+}
+#endif
+
+/* The slot is only reused when the file on disk is still the one that was
+ * decoded, so an edited animation is never served from stale pixels. */
+static int png_file_stamp(const char *path, int64_t *out_size, int64_t *out_mtime)
+{
+#if defined(_WIN32)
+    wchar_t *wide = png_utf8_to_wide(path);
+    struct __stat64 info;
+    int ok = 0;
+
+    if (wide == NULL) {
+        return 0;
+    }
+    if (_wstat64(wide, &info) == 0) {
+        *out_size = (int64_t)info.st_size;
+        *out_mtime = (int64_t)info.st_mtime;
+        ok = 1;
+    }
+    free(wide);
+    return ok;
+#else
+    struct stat info;
+
+    if (path == NULL || stat(path, &info) != 0) {
+        return 0;
+    }
+    *out_size = (int64_t)info.st_size;
+    *out_mtime = (int64_t)info.st_mtime;
+    return 1;
+#endif
+}
+
+static void cache_clear(nv_png_cache *slot)
+{
+    free(slot->path);
+    free(slot->delays);
+    free(slot->pixels);
+    memset(slot, 0, sizeof(*slot));
+}
+
+/* Caller holds the cache lock. */
+static nv_png_cache *cache_find(const char *path, int64_t size, int64_t mtime)
+{
+    int index;
+
+    for (index = 0; index < NV_PNG_CACHE_SLOTS; index++) {
+        nv_png_cache *slot = &g_cache[index];
+
+        if (slot->path != NULL && strcmp(slot->path, path) == 0 &&
+            slot->size == size && slot->mtime == mtime) {
+            slot->last_used = ++g_cache_tick;
+            return slot;
+        }
+    }
+    return NULL;
+}
+
+/* Caller holds the cache lock and hands over pixels and delays; on success the
+ * slot owns them and the caller must not free them again. */
+static int cache_store(const char *path, int64_t size, int64_t mtime,
+    uint32_t width, uint32_t height, uint32_t frames,
+    unsigned char *pixels, uint32_t *delays)
+{
+    size_t path_bytes = strlen(path) + 1u;
+    char *path_copy = (char *)malloc(path_bytes);
+    nv_png_cache *slot;
+
+    if (path_copy == NULL) {
+        return 0;
+    }
+    memcpy(path_copy, path, path_bytes);
+
+    /* The least recently used slot goes first, which with one slot means the
+     * previous animation. */
+    slot = &g_cache[0];
+    if (slot->path != NULL) {
+        cache_clear(slot);
+    }
+
+    slot->path = path_copy;
+    slot->size = size;
+    slot->mtime = mtime;
+    slot->width = width;
+    slot->height = height;
+    slot->frames = frames;
+    slot->delays = delays;
+    slot->pixels = pixels;
+    slot->frame_bytes = (size_t)width * (size_t)height * 4u;
+    slot->last_used = ++g_cache_tick;
+    return 1;
+}
 
 static uint32_t nv_png_crc_table[256];
 static int nv_png_crc_ready = 0;
@@ -366,8 +544,8 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     nv_png_frame *current = NULL;
     nv_png_frame still;
     uint32_t frame_count = 0;
-    uint32_t canvas_width;
-    uint32_t canvas_height;
+    uint32_t canvas_width = 0;
+    uint32_t canvas_height = 0;
     uint32_t target;
     uint32_t index;
     unsigned char *canvas = NULL;
@@ -392,6 +570,14 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     int idat_to_frame = -1;
     size_t pixel_count;
     size_t canvas_bytes;
+    size_t frame_bytes = 0u;
+    uint32_t last = 0u;
+    int cache_all = 0;
+    int64_t file_size = 0;
+    int64_t file_mtime = 0;
+    nv_png_cache *slot = NULL;
+    unsigned char *cache_pixels = NULL;
+    uint32_t *cache_delays = NULL;
     nv_format_status status = NV_FORMAT_OK;
 
     if (request == NULL || out_image == NULL) {
@@ -418,6 +604,39 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
 
     components = nv_components_for(request->desired_pixel_format);
     output_format = nv_output_format(request->desired_pixel_format);
+
+    /* A cached animation answers a frame without walking the run again. The
+     * pixels are copied out while the lock is held, so the slot cannot be
+     * replaced under the copy. */
+    if (request->path != NULL && request->path[0] != '\0' &&
+        png_file_stamp(request->path, &file_size, &file_mtime)) {
+        cache_lock();
+        slot = cache_find(request->path, file_size, file_mtime);
+        if (slot != NULL) {
+            if (request->frame_index >= slot->frames) {
+                status = NV_FORMAT_ERR_UNSUPPORTED;
+                cache_unlock();
+                goto cleanup;
+            }
+            frame_bytes = slot->frame_bytes;
+            result = (unsigned char *)malloc(frame_bytes);
+            if (result != NULL) {
+                memcpy(result, slot->pixels +
+                    (size_t)request->frame_index * frame_bytes, frame_bytes);
+                canvas_width = slot->width;
+                canvas_height = slot->height;
+                frame_count = slot->frames;
+                frame_delay_ms = slot->delays[request->frame_index];
+            }
+            cache_unlock();
+            if (result == NULL) {
+                status = NV_FORMAT_ERR_OUT_OF_MEMORY;
+                goto cleanup;
+            }
+            goto have_frame;
+        }
+        cache_unlock();
+    }
 
     reader.data = request->data;
     reader.size = request->data_size;
@@ -549,7 +768,24 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
         goto cleanup;
     }
 
-    for (index = 0u; index <= target; index++) {
+    /* Caching needs every frame, so the first request for an animation inside
+     * the budget walks once to the end, keeps the result, and every later
+     * request is a copy. An animation over the budget keeps the old path. */
+    cache_all = request->path != NULL && request->path[0] != '\0' &&
+        frame_count > 1u && file_size != 0 &&
+        canvas_bytes <= NV_PNG_CACHE_BUDGET_BYTES / (size_t)frame_count;
+    if (cache_all) {
+        cache_pixels = (unsigned char *)calloc(canvas_bytes, (size_t)frame_count);
+        cache_delays = (uint32_t *)calloc((size_t)frame_count, sizeof(uint32_t));
+        if (cache_pixels == NULL || cache_delays == NULL) {
+            /* The cache is an optimization only; fall back to the walk. */
+            cache_all = 0;
+        }
+    }
+
+    last = cache_all ? frame_count - 1u : target;
+
+    for (index = 0u; index <= last; index++) {
         nv_png_frame *frame = frame_count == 1u && frames == NULL ? &still : &frames[index];
 
         if (frame->width == 0u || frame->height == 0u ||
@@ -595,6 +831,10 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
         free(frame_pixels);
         frame_pixels = NULL;
 
+        if (cache_all) {
+            memcpy(cache_pixels + (size_t)index * canvas_bytes, canvas, canvas_bytes);
+            cache_delays[index] = nv_png_frame_delay(frame);
+        }
         if (index == target) {
             result = (unsigned char *)malloc(canvas_bytes);
             if (result == NULL) {
@@ -604,19 +844,35 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
             memcpy(result, canvas, canvas_bytes);
             frame_delay_ms = nv_png_frame_delay(frame);
         }
-        else if (frame->dispose_op == 1u) {
-            nv_png_clear_region(canvas, canvas_width, frame);
-        }
-        else if (frame->dispose_op == 2u && snapshot != NULL) {
-            nv_png_restore_region(canvas, canvas_width, frame, snapshot);
+        /* The last frame needs no cleanup: nothing is drawn after it. */
+        if (index != last) {
+            if (frame->dispose_op == 1u) {
+                nv_png_clear_region(canvas, canvas_width, frame);
+            }
+            else if (frame->dispose_op == 2u && snapshot != NULL) {
+                nv_png_restore_region(canvas, canvas_width, frame, snapshot);
+            }
         }
         free(snapshot);
         snapshot = NULL;
     }
 
+    if (cache_all) {
+        cache_lock();
+        if (cache_store(request->path, file_size, file_mtime,
+                canvas_width, canvas_height, frame_count,
+                cache_pixels, cache_delays)) {
+            cache_pixels = NULL;
+            cache_delays = NULL;
+        }
+        cache_unlock();
+        cache_all = 0;
+    }
+
     free(canvas);
     canvas = NULL;
 
+have_frame:
     pixels = result;
     result = NULL;
     width = (int)canvas_width;
@@ -664,6 +920,8 @@ cleanup:
     free(snapshot);
     free(canvas);
     free(result);
+    free(cache_pixels);
+    free(cache_delays);
     free(still.data);
     if (frames != NULL) {
         nv_png_free_frames(frames, frame_count);
