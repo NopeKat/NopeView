@@ -44,6 +44,7 @@ public sealed partial class MainWindow : Window
 
     private void AnimationTimer_Tick(object? sender, object e)
     {
+        MarkInteraction("anim");
         _ = RunCommandAsync(AdvanceAnimationAsync, Strings.AnimationTitle);
     }
 
@@ -133,29 +134,78 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private TimeSpan QuantizeToRefresh(uint delayMs)
     {
-        var period = Math.Clamp(_refreshPeriodMs, 2.0, 40.0);
+        var period = Math.Clamp(
+            _refreshPeriodMs, MinRefreshPeriodMs, MaxRefreshPeriodMs);
         var requested = Math.Clamp((double)delayMs, 5.0, 10000.0);
         var periods = Math.Max(1.0, Math.Round(requested / period));
         return TimeSpan.FromMilliseconds(periods * period);
     }
 
-    // Every presented frame reports here. The interval between them is the
-    // display's refresh period, which is measured rather than assumed to be
-    // 60 Hz: a delay that falls between two ticks makes the previous frame stay
-    // one tick longer, and that reads as a stutter.
+    // A plausible refresh period runs from 120 Hz down to 24 Hz. Anything
+    // outside that is a measurement artifact, not a display property.
+    private const double MinRefreshPeriodMs = 1000.0 / 120.0;
+    private const double MaxRefreshPeriodMs = 1000.0 / 24.0;
+
     private void CompositionTarget_Rendering(object? sender, object e)
     {
+        // Every presented frame reports here. The interval between them is the
+        // display's refresh period, which is measured rather than assumed to be
+        // 60 Hz: a delay that falls between two ticks makes the previous frame
+        // stay one tick longer, and that reads as a stutter.
+        //
+        // Values outside the plausible range are not refresh ticks: a very fast
+        // interval means several callbacks landed between two presented frames,
+        // not that the display runs that fast. Learning from those would shrink
+        // the period until every declared delay rounds to the wrong length.
         var now = _renderingClock.Elapsed.TotalMilliseconds;
         var delta = now - _lastRenderingMs;
         _lastRenderingMs = now;
 
+        if (UiPerf.IsEnabled && delta > 0.0 && delta < 1000.0)
+        {
+            // Two periods or more means at least one frame never reached the
+            // screen. The tag says which interaction it happened under.
+            var threshold = Math.Max(20.0, _refreshPeriodMs * 2.0);
+            if (delta > threshold)
+            {
+                UiPerf.RecordFrameGap(
+                    delta, CurrentInteractionTag(), _refreshPeriodMs);
+            }
+        }
+
         // Idle gaps between unrelated renders and stalls are not refresh ticks.
-        if (delta < 2.0 || delta > 40.0)
+        if (delta < MinRefreshPeriodMs || delta > 40.0)
         {
             return;
         }
 
         _refreshPeriodMs = _refreshPeriodMs * 0.7 + delta * 0.3;
+    }
+
+    /// <summary>
+    /// Names the interaction that is driving the view right now. The tag lapses
+    /// back to idle after a short pause so hover and menu animation gaps, which
+    /// no code of ours runs, are not counted against wheel, pan or resize.
+    /// </summary>
+    private string CurrentInteractionTag()
+    {
+        if (_interactionTag != "idle" &&
+            Environment.TickCount64 > _interactionUntil)
+        {
+            _interactionTag = "idle";
+        }
+        return _interactionTag;
+    }
+
+    private void MarkInteraction(string tag)
+    {
+        if (!UiPerf.IsEnabled)
+        {
+            return;
+        }
+
+        _interactionTag = tag;
+        _interactionUntil = Environment.TickCount64 + InteractionTagHoldMs;
     }
 
     private void StopAnimation()

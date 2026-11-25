@@ -11,9 +11,11 @@ public sealed partial class MainWindow : Window
     // allocates a new geometry while the window is being dragged.
     private RectangleGeometry? _viewportClip;
     private bool _viewStatusPending;
+    private readonly DispatcherTimer _frameSizeTimer = new();
 
     private void Viewport_SizeChanged(object sender, SizeChangedEventArgs e)
     {
+        MarkInteraction("resize");
         var bounds = new Rect(0, 0, e.NewSize.Width, e.NewSize.Height);
         if (_viewportClip is null)
         {
@@ -29,11 +31,56 @@ public sealed partial class MainWindow : Window
             _viewportClip.Rect = bounds;
         }
 
-        // The frame size is layout state and has to follow this event. Only
-        // the caption readout is safe to coalesce, because several resize
-        // events can arrive before the dispatcher gets to the first one.
-        UpdateImageFrameSize();
+        // A live resize only rewrites the scale that carries the fit factor.
+        // Re-sizing the frame here would relay out and repaint the bitmap on
+        // every size event, which is what makes a snapped window stutter.
+        // The local size is baked once the resize settles, and only early when
+        // the live scale would stretch the bitmap past a softness the eye can
+        // catch or hold a surface far larger than the screen needs.
+        ApplyViewTransform();
         QueueViewStatusUpdate();
+
+        var fit = GetFitScale(_imageFrameStyle);
+        if (_frameFit > 0 && fit > 0 &&
+            (fit > _frameFit * FrameSizeMaxStretch ||
+             fit < _frameFit * FrameSizeMaxShrink))
+        {
+            UpdateImageFrameSize();
+            return;
+        }
+
+        ScheduleFrameSizeBake();
+    }
+
+    // A live scale may stretch the baked bitmap this far before it looks soft.
+    private const double FrameSizeMaxStretch = 1.25;
+
+    // ... and may shrink it this far before the frame holds more pixels than
+    // the screen can use.
+    private const double FrameSizeMaxShrink = 0.6;
+
+    // Settling time after the last size event before the frame is re-sized.
+    private const double FrameSizeBakeDelayMs = 200;
+
+    private void ScheduleFrameSizeBake()
+    {
+        if (_imagePixelWidth == 0)
+        {
+            return;
+        }
+
+        _frameSizeTimer.Stop();
+        _frameSizeTimer.Start();
+    }
+
+    private void FrameSizeTimer_Tick(object? sender, object e)
+    {
+        _frameSizeTimer.Stop();
+        if (!_closing)
+        {
+            UpdateImageFrameSize();
+            UpdateViewStatus();
+        }
     }
 
     private void QueueViewStatusUpdate()
@@ -179,11 +226,13 @@ public sealed partial class MainWindow : Window
         internal void ApplyTo(
             RotateTransform rotate,
             ScaleTransform scale,
-            TranslateTransform translate)
+            TranslateTransform translate,
+            double compensation)
         {
             rotate.Angle = Rotation;
-            scale.ScaleX = FlipHorizontal ? -Zoom : Zoom;
-            scale.ScaleY = FlipVertical ? -Zoom : Zoom;
+            var factor = Zoom * compensation;
+            scale.ScaleX = FlipHorizontal ? -factor : factor;
+            scale.ScaleY = FlipVertical ? -factor : factor;
             translate.X = PanX;
             translate.Y = PanY;
         }

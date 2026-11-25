@@ -63,6 +63,35 @@ internal static class UiPerf
     }
 
     /// <summary>
+    /// True while sampling runs, so callers can skip work that only exists to
+    /// produce a sample.
+    /// </summary>
+    internal static bool IsEnabled => Enabled;
+
+    /// <summary>
+    /// Records a gap between two presented frames: the compositor reported a
+    /// frame later than the refresh period, which means at least one frame was
+    /// dropped. The tag names the interaction that was running at the time.
+    /// </summary>
+    internal static void RecordFrameGap(
+        double gapMs, string tag, double refreshPeriodMs)
+    {
+        if (!Enabled)
+        {
+            return;
+        }
+
+        Record(
+            "frame-gap",
+            TimeSpan.FromMilliseconds(gapMs),
+            string.Format(
+                CultureInfo.InvariantCulture,
+                "{0} period={1:0.0}",
+                tag,
+                refreshPeriodMs));
+    }
+
+    /// <summary>
     /// Starts a measurement, or returns null when sampling is off so a handler
     /// on the input path pays nothing in a normal run.
     /// </summary>

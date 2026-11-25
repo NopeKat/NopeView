@@ -11,6 +11,7 @@ public sealed partial class MainWindow : Window
     private void Viewport_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
     {
         var clock = UiPerf.Start();
+        MarkInteraction("wheel");
         if (_imagePixelWidth == 0)
         {
             return;
@@ -75,6 +76,7 @@ public sealed partial class MainWindow : Window
                 return;
             }
 
+            MarkInteraction("pinch");
             _view.PanX += center.X - _pinchCenter.X;
             _view.PanY += center.Y - _pinchCenter.Y;
             ApplyViewTransform();
@@ -98,6 +100,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        MarkInteraction("pan");
         _view.PanX += deltaX;
         _view.PanY += deltaY;
         // The status line covers zoom, rotation and the frame number, none of

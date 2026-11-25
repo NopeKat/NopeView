@@ -16,6 +16,12 @@ public sealed partial class MainWindow : Window
     private readonly ThemeShadow _imageShadow = new();
     private ImageFrameStyle _imageFrameStyle;
 
+    // The fit factor already baked into the frame's local size. A live resize
+    // changes the scale against this value instead of relaying out the bitmap,
+    // because a size change here repaints a full-resolution image on every
+    // size event.
+    private double _frameFit;
+
     /// <summary>
     /// Sizes the frame to the fitted bitmap. The transform still runs on top
     /// of this size, so zoom, pan and rotation apply to the visible image
@@ -51,6 +57,9 @@ public sealed partial class MainWindow : Window
         {
             ImageFrame.Visibility = Visibility.Visible;
         }
+
+        _frameFit = fit;
+        ApplyViewTransform();
     }
 
     /// <summary>
@@ -90,27 +99,31 @@ public sealed partial class MainWindow : Window
             _imageFrameStyle == ImageFrameStyle.Stroke
                 ? Visibility.Visible
                 : Visibility.Collapsed;
-        UpdateImageFrameStroke();
+        ApplyViewTransform();
     }
 
     /// <summary>
     /// A stroke lives in the image's local space and would grow with zoom.
     /// Scaling it by the inverse keeps its on-screen weight constant.
     /// </summary>
-    private void UpdateImageFrameStroke()
+    private void UpdateImageFrameStroke(double scale)
     {
-        ImageFrameStroke.StrokeThickness = 1.0 / Math.Max(0.1, _view.Zoom);
+        ImageFrameStroke.StrokeThickness = 1.0 / Math.Max(0.1, scale);
     }
 
     /// <summary>
     /// Pushes the current view into the frame and refreshes metrics that
-    /// depend on the resulting scale.
+    /// depend on the resulting scale. The fit factor that the frame's local
+    /// size does not carry yet is folded into the scale, so a viewport resize
+    /// only rewrites transform values.
     /// </summary>
     private void ApplyViewTransform()
     {
         var clock = UiPerf.Start();
-        _view.ApplyTo(ImageRotation, ImageScale, ImageTranslation);
-        UpdateImageFrameStroke();
+        var fit = GetFitScale(_imageFrameStyle);
+        var compensation = _frameFit > 0 && fit > 0 ? fit / _frameFit : 1.0;
+        _view.ApplyTo(ImageRotation, ImageScale, ImageTranslation, compensation);
+        UpdateImageFrameStroke(_view.Zoom * compensation);
         UiPerf.Stop(clock, "apply-transform", UiPerf.Number(_view.Zoom));
     }
 }

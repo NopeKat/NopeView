@@ -118,6 +118,13 @@ public sealed partial class MainWindow : Window
     private double _lastRenderingMs;
     private readonly Stopwatch _renderingClock = new();
 
+    // The interaction last seen, so a dropped frame can be attributed to the
+    // action that was running. The tag lapses to idle when nothing drives the
+    // view, which keeps hover and menu animation gaps out of the same bucket.
+    private const long InteractionTagHoldMs = 400;
+    private string _interactionTag = "idle";
+    private long _interactionUntil;
+
     // The state the animation commands already show. Frames of one animation
     // share it, so the icon and labels are only rebuilt when it changes
     // instead of on every step.
@@ -191,6 +198,8 @@ public sealed partial class MainWindow : Window
         _animationTimer.Interval = TimeSpan.FromMilliseconds(100);
         _upgradeTimer.Tick += UpgradeTimer_Tick;
         _upgradeTimer.Interval = TimeSpan.FromMilliseconds(300);
+        _frameSizeTimer.Tick += FrameSizeTimer_Tick;
+        _frameSizeTimer.Interval = TimeSpan.FromMilliseconds(FrameSizeBakeDelayMs);
 
         // The presented-frame interval only has to be known while something
         // animates, but the handler is cheap and keeps the estimate warm.
@@ -240,6 +249,7 @@ public sealed partial class MainWindow : Window
         }
         _animationTimer.Stop();
         _upgradeTimer.Stop();
+        _frameSizeTimer.Stop();
         _decodeCancellation?.Cancel();
         DiscardPrefetch();
         UiPerf.Flush();
