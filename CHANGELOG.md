@@ -2,10 +2,12 @@
 
 ## [0.0.3.0] - nightly
 
-Windows x64 nightly. Everything below landed after 0.0.2.0; the Android codec
-work stays in Unreleased because it did not ship.
+Windows x64 nightly. The Android codec work that did not ship in this release
+is recorded here as well, under its own heading.
 
-### Added
+### Windows
+
+#### Added
 
 - HEIC / HEIF decoding joins the router on top of libheif, which reads the ISO
   BMFF container and drives libde265 for the HEVC pixels. heic and heif are
@@ -18,7 +20,7 @@ work stays in Unreleased because it did not ship.
   extension. The vendored build drops the JPEG reconstruction and box paths,
   which keeps Brotli out of the dependency set.
 
-### Changed
+#### Changed
 
 - The about card's repository link icon is the official octicon circle mark,
   redrawn on the 20 px grid at an 18.75 px long edge as a single even-odd
@@ -26,19 +28,16 @@ work stays in Unreleased because it did not ship.
 - The about expander keeps a 36 epx bottom inset, so the expanded last card
   stays clear of the page edge once the content scrolls.
 
-### Known limitations
+#### Known limitations
 
 - JPEG XL cannot rebuild the original JPEG bitstream, because the decoder-only
   build drops the reconstruction path.
 - HEIC / HEIF and AVIF were verified on still images only; animation and depth
   maps are untested.
 
-## [Unreleased] - Android codec expansion
+### Android
 
-No release yet; this section records the Android codec work now on main, which
-is not part of 0.0.3.0.
-
-### Added
+#### Added
 
 - Android decoding grew from four formats to fifteen: ICO, TGA, HDR, DNG, TIFF,
   PSD / PSB, WebP, DDS, SVG, EXR, and JPEG 2000 are wired through the Android
@@ -55,14 +54,14 @@ is not part of 0.0.3.0.
 - `NOTICE.md` documents the provenance and MIT license for the replacement WebP
   and JP2 fixtures.
 
-### Changed
+#### Changed
 
 - Android CMake enables C++ so the SVG and EXR codecs can be built.
 - HDR, DNG, PSD / PSB, EXR, SVG, JPEG 2000, and DDS link libm where they use it.
 - Android debug and release build scripts clean `src/android/app/.cxx/`
   alongside `build/android/` and `app/build/`.
 
-### Known limitations
+#### Known limitations
 
 - Android still has no aligned `versionName` / `versionCode` and has not shipped
   a new release.
@@ -128,7 +127,7 @@ Third release, Windows x64 only this time. Everything below was verified.
 ### Known limitations
 
 - Windows x64 only for this release; Android did not ship and its `versionName`
-  is still 0.0.1.0. Android codec progress is tracked under Unreleased above.
+  is still 0.0.1.0. Android codec progress is tracked under 0.0.3.0 above.
 - The portable zip is self-contained and about 96 MB, so the target machine no
   longer needs the Windows App SDK runtime. The portable exe is a 7z
   self-extracting archive that unpacks into a temporary folder, starts the app,
