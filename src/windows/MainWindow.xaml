@@ -111,7 +111,10 @@
             <!-- The command bar carries the viewer actions; this menu is the
                  only place for the document and shell actions, and it is the
                  only way to reach settings from the viewer. -->
-            <MenuFlyout>
+            <!-- The viewer's context menu opens and closes without a
+                 transition: it sits on top of a full-screen canvas and the
+                 scale-and-fade made a right click feel slower than it is. -->
+            <MenuFlyout AreOpenCloseAnimationsEnabled="False">
                 <MenuFlyoutItem x:Name="CopyFileMenuItem"
                                 AutomationProperties.AutomationId="ContextCopyFile"
                                 IsEnabled="False"
