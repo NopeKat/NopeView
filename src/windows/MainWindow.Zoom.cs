@@ -105,7 +105,7 @@ public sealed partial class MainWindow : Window
         _view.PanY = 0;
         ApplyViewTransform();
         UpdateViewStatus();
-        _ = UpgradeToFullResolutionAsync();
+        ScheduleFullResolutionUpgrade();
     }
 
     private void SetZoom(double zoom)
@@ -116,10 +116,37 @@ public sealed partial class MainWindow : Window
 
         if (_view.Zoom > 1.001)
         {
-            // Zooming past fit magnifies a preview bitmap, so upgrade to the
-            // real pixels once. The call is a no-op for full-resolution images.
-            _ = UpgradeToFullResolutionAsync();
+            // Zooming past fit magnifies a preview bitmap, so the real pixels
+            // replace it once the input stops.
+            ScheduleFullResolutionUpgrade();
         }
+    }
+
+    /// <summary>
+    /// Queues the full-resolution replacement for a magnified preview. The
+    /// decode ends with one large bitmap upload, so it waits for the zoom input
+    /// to stop instead of landing between two wheel ticks.
+    /// </summary>
+    private void ScheduleFullResolutionUpgrade()
+    {
+        if (!_previewActive || _frameCount > 1 || _directory is null)
+        {
+            return;
+        }
+
+        _upgradeTimer.Stop();
+        _upgradeTimer.Start();
+    }
+
+    private void UpgradeTimer_Tick(object? sender, object e)
+    {
+        _upgradeTimer.Stop();
+        if (_view.Zoom <= 1.001)
+        {
+            return;
+        }
+
+        _ = UpgradeToFullResolutionAsync();
     }
 
     private void ZoomInAccelerator_Invoked(

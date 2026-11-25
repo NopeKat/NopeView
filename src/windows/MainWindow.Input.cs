@@ -10,6 +10,7 @@ public sealed partial class MainWindow : Window
 {
     private void Viewport_PointerWheelChanged(object sender, PointerRoutedEventArgs e)
     {
+        var clock = UiPerf.Start();
         if (_imagePixelWidth == 0)
         {
             return;
@@ -26,10 +27,12 @@ public sealed partial class MainWindow : Window
         // wheel zoom at the pointer makes pinch feel centered on the fingers.
         ZoomAtPoint(delta > 0 ? _view.Zoom * 1.1 : _view.Zoom / 1.1, point.Position);
         e.Handled = true;
+        UiPerf.Stop(clock, "zoom-wheel", $"{_view.Zoom:0.00}");
     }
 
     private void Viewport_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
+        var clock = UiPerf.Start();
         var point = e.GetCurrentPoint(Viewport);
         if (point.Properties.IsLeftButtonPressed ||
             e.Pointer.PointerDeviceType == PointerDeviceType.Touch)
@@ -45,10 +48,13 @@ public sealed partial class MainWindow : Window
             _touchPoints[e.Pointer.PointerId] = point.Position;
             UpdatePinchState();
         }
+
+        UiPerf.Stop(clock, "pointer-press", point.Properties.IsLeftButtonPressed ? "left" : "other");
     }
 
     private void Viewport_PointerMoved(object sender, PointerRoutedEventArgs e)
     {
+        var clock = UiPerf.Start();
         var point = e.GetCurrentPoint(Viewport);
         if (e.Pointer.PointerDeviceType == PointerDeviceType.Touch &&
             _touchPoints.ContainsKey(e.Pointer.PointerId))
@@ -78,6 +84,7 @@ public sealed partial class MainWindow : Window
             ZoomAtPoint(_view.Zoom * (distance / _pinchDistance), center);
             _pinchCenter = center;
             _pinchDistance = distance;
+            UiPerf.Stop(clock, "pinch-move", $"{_view.Zoom:0.00}");
             return;
         }
 
@@ -101,6 +108,7 @@ public sealed partial class MainWindow : Window
         ApplyViewTransform();
         _lastPanPoint = point.Position;
         e.Handled = true;
+        UiPerf.Stop(clock, "pan-move", $"{_view.Zoom:0.00}");
     }
 
     private void Viewport_PointerReleased(object sender, PointerRoutedEventArgs e)

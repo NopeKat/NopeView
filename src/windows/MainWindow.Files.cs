@@ -102,12 +102,18 @@ public sealed partial class MainWindow : Window
 
             // The clipboard accepts a bitmap stream, so the decoded frame is
             // encoded to PNG in memory. Encoding keeps the alpha channel and
-            // avoids depending on the source format.
-            var stream = new InMemoryRandomAccessStream();
-            var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, stream);
-            encoder.SetSoftwareBitmap(bitmap);
-            await encoder.FlushAsync();
-            stream.Seek(0);
+            // avoids depending on the source format. The encoder copies the
+            // whole frame, so it runs on a worker thread; the clipboard calls
+            // stay on the UI thread, which owns the OLE clipboard.
+            var stream = await Task.Run(async () =>
+            {
+                var buffer = new InMemoryRandomAccessStream();
+                var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, buffer);
+                encoder.SetSoftwareBitmap(bitmap);
+                await encoder.FlushAsync();
+                buffer.Seek(0);
+                return buffer;
+            });
 
             var data = new DataPackage();
             data.SetBitmap(RandomAccessStreamReference.CreateFromStream(stream));

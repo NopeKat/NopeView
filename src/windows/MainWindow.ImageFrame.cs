@@ -108,7 +108,9 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private void ApplyViewTransform()
     {
+        var clock = UiPerf.Start();
         _view.ApplyTo(ImageRotation, ImageScale, ImageTranslation);
         UpdateImageFrameStroke();
+        UiPerf.Stop(clock, "apply-transform", $"{_view.Zoom:0.00}");
     }
 }

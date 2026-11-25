@@ -8,6 +8,7 @@ internal static class Win32Window
     private const uint SWP_NOZORDER = 0x0004;
     private const uint SWP_NOACTIVATE = 0x0010;
     private const int SW_HIDE = 0;
+    private const int SW_SHOW = 5;
     private const int SW_MAXIMIZE = 3;
     private const int GWLP_HWNDPARENT = -8;
 
@@ -61,6 +62,18 @@ internal static class Win32Window
         if (hWnd != 0)
         {
             NativeMethods.ShowWindow(hWnd, SW_HIDE);
+        }
+    }
+
+    /// <summary>
+    /// Shows a window that was hidden instead of closed. It keeps its
+    /// rectangle and its content, so bringing it back costs no rebuild.
+    /// </summary>
+    internal static void Show(nint hWnd)
+    {
+        if (hWnd != 0)
+        {
+            NativeMethods.ShowWindow(hWnd, SW_SHOW);
         }
     }
 

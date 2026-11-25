@@ -48,6 +48,26 @@ internal static class UiPerf
         }
     }
 
+    /// <summary>
+    /// Starts a measurement, or returns null when sampling is off so a handler
+    /// on the input path pays nothing in a normal run.
+    /// </summary>
+    internal static Stopwatch? Start()
+    {
+        return Enabled ? Stopwatch.StartNew() : null;
+    }
+
+    internal static void Stop(Stopwatch? clock, string name, string detail)
+    {
+        if (clock is null)
+        {
+            return;
+        }
+
+        clock.Stop();
+        Record(name, clock.Elapsed, detail);
+    }
+
     internal static void Flush()
     {
         if (!Enabled)

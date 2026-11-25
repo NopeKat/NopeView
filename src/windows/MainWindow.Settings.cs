@@ -56,6 +56,7 @@ public sealed partial class MainWindow : Window
             // first registered.
             Win32Window.SetOwner(settingsWindow.Handle, Handle);
             settingsWindow.Closed += SettingsWindow_Closed;
+            settingsWindow.Hidden += SettingsWindow_Hidden;
 
             _settingsWindow = settingsWindow;
         }
@@ -77,6 +78,17 @@ public sealed partial class MainWindow : Window
         {
             // Focus and input return to the viewer, the way a dialog hands
             // both back when it closes.
+            Win32Window.SetEnabled(Handle, true);
+            Activate();
+        }
+    }
+
+    // The settings window is hidden rather than closed, so input comes back
+    // through the same path a close would take, just without a destroyed page.
+    private void SettingsWindow_Hidden()
+    {
+        if (!_closing)
+        {
             Win32Window.SetEnabled(Handle, true);
             Activate();
         }

@@ -108,6 +108,7 @@ public sealed partial class MainWindow : Window
     private async Task OpenImageAsync(string path)
     {
         StopAnimation();
+        _upgradeTimer.Stop();
         _frameCount = 1;
         _frameIndex = 0;
         UpdateAnimationControls();

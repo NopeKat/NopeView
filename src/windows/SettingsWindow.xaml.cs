@@ -39,6 +39,18 @@ public sealed partial class SettingsWindow : Window
     private bool _openMaximized;
     private bool _maximizeOnLoad;
 
+    // Closing the window at the user's request only hides it, so the page and
+    // its controls survive until the viewer exits; a real close is only
+    // allowed when the app itself is going away.
+    private bool _allowClose;
+    private bool _hidden;
+
+    /// <summary>
+    /// Raised after the window has been hidden instead of closed. The viewer
+    /// uses it to take its input back.
+    /// </summary>
+    internal event Action? Hidden;
+
     internal SettingsWindow(
         SettingsService settings,
         Action<AppTheme> applyTheme,
@@ -138,6 +150,7 @@ public sealed partial class SettingsWindow : Window
         // separate window is expected to, so every move is remembered and the
         // last one is written when the window closes.
         AppWindow.Changed += AppWindow_Changed;
+        AppWindow.Closing += SettingsWindow_Closing;
         Closed += SettingsWindow_BoundsClosing;
     }
 
@@ -159,6 +172,14 @@ public sealed partial class SettingsWindow : Window
     /// </summary>
     internal void ShowAndFocus()
     {
+        if (_hidden)
+        {
+            // The window was hidden instead of closed, so it comes back with the
+            // page it already built.
+            _hidden = false;
+            Win32Window.Show(Handle);
+        }
+
         // Restoring from the taskbar drops a maximized window back to normal, so
         // a window that is supposed to be maximized is maximized again.
         if (Win32Window.IsMinimized(Handle) &&
@@ -225,12 +246,13 @@ public sealed partial class SettingsWindow : Window
     }
 
     // Settings has no back stack, so Escape closes the window the way it closes
-    // a settings dialog.
+    // a settings dialog. The window is hidden rather than destroyed, so the page
+    // it built comes back on the next open.
     private void EscapeAccelerator_Invoked(
         KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
-        Close();
+        HideWindow();
     }
 
     private RectInt32 ComputeBounds(double scale)
@@ -331,6 +353,49 @@ public sealed partial class SettingsWindow : Window
     {
         _boundsTimer?.Stop();
         SaveBounds();
+    }
+
+    /// <summary>
+    /// Lets the window actually close. Called by the viewer while it shuts down.
+    /// </summary>
+    internal void AllowClose()
+    {
+        _allowClose = true;
+    }
+
+    /// <summary>
+    /// A close request hides the window and keeps the page alive, because
+    /// building the settings page is the single most expensive part of opening
+    /// it. The rectangle is written here, so the next show keeps the place the
+    /// user left it at.
+    /// </summary>
+    private void SettingsWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
+    {
+        if (_allowClose)
+        {
+            return;
+        }
+
+        args.Cancel = true;
+        HideWindow();
+    }
+
+    /// <summary>
+    /// Takes the window off the screen and hands input back to the viewer.
+    /// Everything that the user reads as "closed" goes through here.
+    /// </summary>
+    internal void HideWindow()
+    {
+        if (_hidden)
+        {
+            return;
+        }
+
+        _boundsTimer?.Stop();
+        SaveBounds();
+        _hidden = true;
+        Win32Window.Hide(Handle);
+        Hidden?.Invoke();
     }
 
     private void SaveBounds()

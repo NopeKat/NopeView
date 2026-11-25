@@ -39,6 +39,10 @@ public sealed partial class MainWindow : Window
 
     private readonly DispatcherTimer _animationTimer = new();
 
+    // The full-resolution decode ends with one large bitmap upload, so it is
+    // scheduled to run once the zoom input stops instead of inside the gesture.
+    private readonly DispatcherTimer _upgradeTimer = new();
+
     private nint _windowHandle;
     private const double MinZoom = 0.1;
     private const double MaxZoom = 8.0;
@@ -163,6 +167,8 @@ public sealed partial class MainWindow : Window
 
         _animationTimer.Tick += AnimationTimer_Tick;
         _animationTimer.Interval = TimeSpan.FromMilliseconds(100);
+        _upgradeTimer.Tick += UpgradeTimer_Tick;
+        _upgradeTimer.Interval = TimeSpan.FromMilliseconds(300);
         AddOemKeyAccelerators();
         AddCommandAccelerators();
 
@@ -197,8 +203,15 @@ public sealed partial class MainWindow : Window
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
         _closing = true;
-        _settingsWindow?.Close();
+        if (_settingsWindow is { } settingsWindow)
+        {
+            // The window hides on its own close requests, so it needs the
+            // permission here before the viewer can go away.
+            settingsWindow.AllowClose();
+            settingsWindow.Close();
+        }
         _animationTimer.Stop();
+        _upgradeTimer.Stop();
         _decodeCancellation?.Cancel();
         UiPerf.Flush();
         _settings.Flush(300);
