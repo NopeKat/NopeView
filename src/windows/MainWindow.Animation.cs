@@ -76,7 +76,9 @@ public sealed partial class MainWindow : Window
         _animationBusy = true;
         try
         {
-            await DecodeAndShowAsync(path, next, resetView: false);
+            // A prefetch running ahead of playback makes this step a handoff.
+            await DecodeAndShowAsync(
+                path, next, resetView: false, readyFrame: TakePrefetch(path, next));
         }
         finally
         {
@@ -85,9 +87,13 @@ public sealed partial class MainWindow : Window
 
         if (_isAnimationPlaying)
         {
+            StartPrefetch(path, FollowingFrame(next));
             ScheduleNextFrame();
         }
     }
+
+    private uint FollowingFrame(uint index) =>
+        index + 1 < _frameCount ? index + 1 : 0u;
 
     private void ScheduleNextFrame()
     {
@@ -156,6 +162,8 @@ public sealed partial class MainWindow : Window
     {
         var wasPlaying = _isAnimationPlaying;
 
+        // Playback is over, so a frame decoded ahead of it is no longer wanted.
+        DiscardPrefetch();
         _animationTimer.Stop();
         _animationClock.Reset();
         _isAnimationPlaying = false;

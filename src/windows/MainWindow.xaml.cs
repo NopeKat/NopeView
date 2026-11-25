@@ -101,6 +101,15 @@ public sealed partial class MainWindow : Window
     private readonly Stopwatch _animationClock = new();
     private TimeSpan _animationDeadline;
 
+    // One frame is decoded ahead while the current frame is on screen, so a
+    // step only hands pixels to the display. The token drops a decode that
+    // playback no longer wants, which keeps at most one extra bitmap alive.
+    private DecodedFrame? _prefetchedFrame;
+    private string? _prefetchedPath;
+    private uint _prefetchedIndex;
+    private int _prefetchedEdge;
+    private int _prefetchToken;
+
     // Frames are scheduled on the display's refresh grid. The compositor reports
     // every presented frame, so its interval is measured instead of assumed to
     // be 60 Hz; without that, a delay that falls between two refresh ticks holds
@@ -232,6 +241,7 @@ public sealed partial class MainWindow : Window
         _animationTimer.Stop();
         _upgradeTimer.Stop();
         _decodeCancellation?.Cancel();
+        DiscardPrefetch();
         UiPerf.Flush();
         _settings.Flush(300);
 

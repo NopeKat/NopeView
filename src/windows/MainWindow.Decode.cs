@@ -11,7 +11,8 @@ public sealed partial class MainWindow : Window
         string path,
         uint frameIndex = 0u,
         bool resetView = true,
-        bool fullResolution = false)
+        bool fullResolution = false,
+        DecodedFrame? readyFrame = null)
     {
         var session = await RouterAsync();
         if (session.Context == IntPtr.Zero)
@@ -28,6 +29,10 @@ public sealed partial class MainWindow : Window
 
         if (resetView)
         {
+            // A new image owns the view, and a frame prefetched for the old one
+            // must not survive into it.
+            DiscardPrefetch();
+
             // Only a full open shows the indicator. Animation frames are short
             // enough that a ring would flicker on every step.
             SetErrorBarOpen(false);
@@ -53,9 +58,12 @@ public sealed partial class MainWindow : Window
             var maxDimension = fullResolution
                 ? 0
                 : animated
-                    ? Math.Min(PreviewEdge(), AnimationPreviewMaxEdge)
+                    ? AnimatedPreviewEdge()
                     : PreviewEdge();
-            var frame = await Task.Run(
+
+            // A frame decoded while the previous one was on screen skips the
+            // worker step entirely, and only the handoff is left to do.
+            var frame = readyFrame ?? await Task.Run(
                 () => DecodeFrame(context, path, frameIndex, maxDimension), token);
 
             if (generation != _decodeGeneration)
@@ -265,6 +273,111 @@ public sealed partial class MainWindow : Window
         internal uint FrameCount;
         internal uint FrameDelayMs;
         internal string? Error;
+    }
+
+    /// <summary>
+    /// Longest viewport edge for an animated frame. Animation steps decode
+    /// again for every frame, so they stop at a smaller edge than a still image.
+    /// </summary>
+    private int AnimatedPreviewEdge() =>
+        Math.Min(PreviewEdge(), AnimationPreviewMaxEdge);
+
+    /// <summary>
+    /// Decodes the frame playback is about to need while the current frame is
+    /// still on screen, so the step itself only has to hand pixels over.
+    /// </summary>
+    private void StartPrefetch(string path, uint frameIndex)
+    {
+        DiscardPrefetch();
+        if (!_isAnimationPlaying || _frameCount <= 1 || _closing)
+        {
+            return;
+        }
+
+        var token = ++_prefetchToken;
+        var edge = AnimatedPreviewEdge();
+        _ = PrefetchFrameAsync(path, frameIndex, edge, token);
+    }
+
+    private async Task PrefetchFrameAsync(string path, uint frameIndex, int edge, int token)
+    {
+        try
+        {
+            var session = await RouterAsync();
+            if (session.Context == IntPtr.Zero)
+            {
+                return;
+            }
+
+            DecodedFrame frame;
+            await _decodeGate.WaitAsync();
+            try
+            {
+                if (token != _prefetchToken)
+                {
+                    return;
+                }
+                frame = await Task.Run(() => DecodeFrame(session.Context, path, frameIndex, edge));
+            }
+            finally
+            {
+                _decodeGate.Release();
+            }
+
+            var bitmap = frame.Bitmap;
+            if (bitmap is null || frame.Error is not null)
+            {
+                return;
+            }
+
+            // The result belongs to playback only while the token is current;
+            // a paused or replaced animation drops it instead of leaking it.
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (_closing || token != _prefetchToken || !_isAnimationPlaying)
+                {
+                    bitmap.Dispose();
+                    return;
+                }
+                _prefetchedFrame = frame;
+                _prefetchedPath = path;
+                _prefetchedIndex = frameIndex;
+                _prefetchedEdge = edge;
+            });
+        }
+        catch (Exception)
+        {
+            // A prefetch is an optimization: playback falls back to decoding the
+            // frame on demand, so a failure needs no user-visible state.
+        }
+    }
+
+    /// <summary>
+    /// Hands the prefetched frame to the step that needs it, or drops it when
+    /// it is not the frame playback is about to show.
+    /// </summary>
+    private DecodedFrame? TakePrefetch(string path, uint frameIndex)
+    {
+        var frame = _prefetchedFrame;
+        if (frame is not null && _prefetchedPath == path &&
+            _prefetchedIndex == frameIndex && _prefetchedEdge == AnimatedPreviewEdge())
+        {
+            _prefetchedFrame = null;
+            _prefetchedPath = null;
+            ++_prefetchToken;
+            return frame;
+        }
+
+        DiscardPrefetch();
+        return null;
+    }
+
+    private void DiscardPrefetch()
+    {
+        ++_prefetchToken;
+        _prefetchedFrame?.Bitmap?.Dispose();
+        _prefetchedFrame = null;
+        _prefetchedPath = null;
     }
 
     /// <summary>
