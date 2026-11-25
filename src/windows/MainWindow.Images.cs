@@ -2,6 +2,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.Storage.Pickers;
 using NopeView.App.Native;
+using System.Diagnostics;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 
@@ -15,6 +16,12 @@ public sealed partial class MainWindow : Window
     // they are refreshed on this interval instead of on every frame.
     private const int AnimationUiUpdateIntervalMs = 300;
     private long _lastFrameUiUpdate;
+
+    // One scan per folder per session. Enumerating a folder is disk work, so it
+    // runs on a worker thread and the result is reused while the user moves
+    // through the images of the same folder.
+    private readonly Dictionary<string, Task<IReadOnlyList<string>>> _directoryScans =
+        new(StringComparer.OrdinalIgnoreCase);
 
     private void OpenImageFromCommandLine()
     {
@@ -36,6 +43,10 @@ public sealed partial class MainWindow : Window
 
     private async Task OpenImageViaPickerAsync()
     {
+        // The filter list is built from the formats the router discovered, so
+        // the picker waits for the setup instead of enumerating formats here.
+        await RouterAsync();
+
         var picker = new FileOpenPicker(AppWindow.Id)
         {
             SuggestedStartLocation = PickerLocationId.PicturesLibrary,
@@ -58,35 +69,13 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Extensions the router can decode. The router discovers its formats once
-    /// at startup, so the list is built on first use and reused afterwards.
+    /// Extensions the router can decode, filled in by the router setup. Until
+    /// that setup finishes the list is empty, which only affects the picker
+    /// filters of a command that is already waiting for it.
     /// </summary>
     private IReadOnlyList<string> SupportedExtensions()
     {
-        if (_supportedExtensions is not null)
-        {
-            return _supportedExtensions;
-        }
-
-        var extensions = new List<string>();
-        if (_routerContext != IntPtr.Zero)
-        {
-            foreach (var format in RouterApi.ListFormats(_routerContext))
-            {
-                if (!format.CanDecode)
-                {
-                    continue;
-                }
-                foreach (var extension in format.Extensions.Split(
-                             ',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                {
-                    extensions.Add(extension);
-                }
-            }
-        }
-
-        _supportedExtensions = extensions;
-        return extensions;
+        return _supportedExtensions ?? Array.Empty<string>();
     }
 
     private void RootGrid_DragOver(object sender, DragEventArgs e)
@@ -122,7 +111,19 @@ public sealed partial class MainWindow : Window
         _frameCount = 1;
         _frameIndex = 0;
         UpdateAnimationControls();
-        _directory = ImageDirectory.Create(path, SupportedExtensions());
+
+        var wait = Stopwatch.StartNew();
+        var session = await RouterAsync();
+        wait.Stop();
+        UiPerf.Record("router-wait", wait.Elapsed, "open");
+
+        if (session.Context == IntPtr.Zero)
+        {
+            ShowError(Strings.RouterUnavailable);
+            return;
+        }
+
+        _directory = await CreateDirectoryAsync(path);
         UpdateNavigationState();
         await ShowCurrentImageAsync();
     }
@@ -137,6 +138,59 @@ public sealed partial class MainWindow : Window
         StopAnimation();
         await DecodeAndShowAsync(_directory.CurrentPath);
         UpdateNavigationState();
+    }
+
+    /// <summary>
+    /// Builds the directory around the opened file. The scan runs off the UI
+    /// thread, so a large or slow folder delays the load instead of the input
+    /// that asked for it.
+    /// </summary>
+    private async Task<ImageDirectory> CreateDirectoryAsync(string path)
+    {
+        var fullPath = Path.GetFullPath(path);
+        var directory = Path.GetDirectoryName(fullPath);
+        IReadOnlyList<string> paths = Array.Empty<string>();
+
+        if (!string.IsNullOrEmpty(directory))
+        {
+            var scan = Stopwatch.StartNew();
+            paths = await ScanDirectoryAsync(directory);
+            scan.Stop();
+            UiPerf.Record("dir-scan", scan.Elapsed, $"{paths.Count} paths");
+        }
+
+        return ImageDirectory.FromPaths(fullPath, paths);
+    }
+
+    private Task<IReadOnlyList<string>> ScanDirectoryAsync(string directory)
+    {
+        if (_directoryScans.TryGetValue(directory, out var cached))
+        {
+            return cached;
+        }
+
+        var extensions = SupportedExtensions().ToArray();
+        var scan = Task.Run<IReadOnlyList<string>>(() =>
+            FilesApi.TryListPaths(directory, extensions, out var paths)
+                ? paths
+                : Array.Empty<string>());
+
+        _directoryScans[directory] = scan;
+        return scan;
+    }
+
+    /// <summary>
+    /// Drops a cached scan after the app wrote a file into that folder, so the
+    /// next open sees the new file instead of the list from before the write.
+    /// </summary>
+    private void ForgetDirectoryScan(string path)
+    {
+        var fullPath = Path.GetFullPath(path);
+        var directory = Path.GetDirectoryName(fullPath);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            _directoryScans.Remove(directory);
+        }
     }
 
     private void UpdateFileStatus(string path)

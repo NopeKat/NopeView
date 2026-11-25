@@ -1,11 +1,9 @@
-using NopeView.App.Native;
-
 namespace NopeView.App;
 
 /// <summary>
-/// Supported image files in one directory, with a current position. The core
-/// file list service owns enumeration, extension filtering, and sorting; this
-/// type only keeps the current index and the movement rules.
+/// Supported image files in one directory, with a current position. Enumeration
+/// runs on a worker thread and hands its result over; this type only sorts the
+/// paths and keeps the current index and the movement rules.
 /// </summary>
 internal sealed class ImageDirectory
 {
@@ -18,34 +16,33 @@ internal sealed class ImageDirectory
         _index = index;
     }
 
-    internal static ImageDirectory Create(string filePath, IEnumerable<string> extensions)
+    /// <summary>
+    /// Wraps an enumerated path list around the file that is being opened. An
+    /// empty list, which a missing or unreadable directory produces, still
+    /// leaves the opened file as the only entry.
+    /// </summary>
+    internal static ImageDirectory FromPaths(string fullPath, IReadOnlyList<string> paths)
     {
-        var fullPath = Path.GetFullPath(filePath);
-        var directory = Path.GetDirectoryName(fullPath);
-        var paths = new List<string>();
-
-        if (!string.IsNullOrEmpty(directory) &&
-            FilesApi.TryListPaths(directory, extensions, out var corePaths))
+        var sorted = paths.Count > 0 ? new List<string>(paths) : new List<string>();
+        if (sorted.Count == 0)
         {
-            paths.AddRange(corePaths);
+            sorted.Add(fullPath);
+        }
+        else
+        {
+            sorted.Sort(StringComparer.OrdinalIgnoreCase);
         }
 
-        if (paths.Count == 0)
-        {
-            paths.Add(fullPath);
-        }
-
-        paths.Sort(StringComparer.OrdinalIgnoreCase);
-        var index = paths.BinarySearch(fullPath, StringComparer.OrdinalIgnoreCase);
+        var index = sorted.BinarySearch(fullPath, StringComparer.OrdinalIgnoreCase);
         if (index < 0)
         {
             // BinarySearch reports the insertion point as the complement of the
             // index, so the file joins the list without sorting it again.
-            paths.Insert(~index, fullPath);
+            sorted.Insert(~index, fullPath);
             index = ~index;
         }
 
-        return new ImageDirectory(paths, index);
+        return new ImageDirectory(sorted, index);
     }
 
     internal string CurrentPath => _paths[_index];

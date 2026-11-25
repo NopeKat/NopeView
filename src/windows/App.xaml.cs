@@ -5,6 +5,10 @@ namespace NopeView.App;
 
 public partial class App : Application
 {
+    // Assigned by Program before Application.Start, so the settings file is
+    // read once and the window only consumes the values it was handed.
+    internal static SettingsService Settings { get; set; } = null!;
+
     private Window? _window;
 
     public App()
@@ -14,7 +18,7 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        _window = new MainWindow();
+        _window = new MainWindow(Settings);
         _window.Activate();
     }
 }

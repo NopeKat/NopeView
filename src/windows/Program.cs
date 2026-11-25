@@ -11,10 +11,14 @@ public static class Program
     {
         // The framework resolves the language of its own strings (window
         // chrome, picker commands) when the first window is created, so the
-        // stored choice has to be in place before Application.Start.
+        // stored choice has to be in place before Application.Start. The file
+        // is read here once and handed to the window that consumes it.
         var settings = new SettingsService();
         settings.Load();
         Localization.Apply(settings.Language);
+        // The namespace shares its name with the application class, so the
+        // static slot is reached through the fully qualified type.
+        global::NopeView.App.App.Settings = settings;
 
         Application.Start(callbackParams =>
         {

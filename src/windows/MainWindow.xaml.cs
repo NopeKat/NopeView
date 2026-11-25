@@ -50,7 +50,10 @@ public sealed partial class MainWindow : Window
     private const int PreviewMinEdge = 1024;
     private const int PreviewMaxEdge = 4096;
 
-    private IntPtr _routerContext;
+    // The router loads every format library it finds, which is disk and loader
+    // work. It runs on a worker thread from construction on, and the first
+    // open awaits the result instead of loading it while the window is shown.
+    private readonly Task<RouterSession> _routerSetup;
     private IReadOnlyList<string>? _supportedExtensions;
     private ImageDirectory? _directory;
     private readonly ViewState _view = new();
@@ -116,11 +119,19 @@ public sealed partial class MainWindow : Window
     // User preferences are loaded at startup and saved as soon as a choice is
     // made on the settings page. Theme is applied to the root grid so the local
     // ThemeDictionaries in App.xaml switch without touching system brushes.
-    private readonly SettingsService _settings = new();
+    private readonly SettingsService _settings;
 
-    public MainWindow()
+    // The settings service is internal to the app, so the window is created
+    // through its own assembly only.
+    internal MainWindow(SettingsService settings)
     {
         InitializeComponent();
+        // The settings file is read once, before the framework starts, so the
+        // window only consumes the values it was handed.
+        _settings = settings;
+
+        _routerSetup = Task.Run(CreateRouterSession);
+
         // Mica is the Fluent window backdrop. The content layer uses a low
         // opacity fill so the material shows through the title bar and the
         // viewer surface, which keeps both areas in one continuous plane.
@@ -155,13 +166,6 @@ public sealed partial class MainWindow : Window
         AddOemKeyAccelerators();
         AddCommandAccelerators();
 
-        if (!RouterApi.TryCreate(null, out _routerContext))
-        {
-            _routerContext = IntPtr.Zero;
-        }
-
-        _settings.Load();
-        Localization.Apply(_settings.Language);
         ApplyTheme(_settings.Theme);
         ApplyImageFrame(_settings.ImageFrame);
         ApplyLocalization();
@@ -196,8 +200,138 @@ public sealed partial class MainWindow : Window
         _settingsWindow?.Close();
         _animationTimer.Stop();
         _decodeCancellation?.Cancel();
-        RouterApi.Close(_routerContext);
-        _routerContext = IntPtr.Zero;
+        UiPerf.Flush();
+        _settings.Flush(300);
+
+        // The router may still be loading when the window closes. The session
+        // closes itself once the setup finishes, so the native context is
+        // released either way.
+        _ = _routerSetup.ContinueWith(
+            static completed =>
+            {
+                if (completed.IsCompletedSuccessfully)
+                {
+                    completed.Result.Close();
+                }
+            },
+            TaskContinuationOptions.ExecuteSynchronously);
+    }
+
+    /// <summary>
+    /// The router session, created once on a worker thread. Callers await this
+    /// instead of touching the native context directly, so a window that opens
+    /// before the libraries are loaded simply continues when they are.
+    /// </summary>
+    private async Task<RouterSession> RouterAsync()
+    {
+        var session = await _routerSetup;
+        _supportedExtensions = session.Extensions;
+
+        if (_closing)
+        {
+            // Handing out a context that is already being torn down would let a
+            // late command decode into freed memory.
+            session.Close();
+        }
+
+        return session;
+    }
+
+    private static RouterSession CreateRouterSession()
+    {
+        var context = IntPtr.Zero;
+        IReadOnlyList<string> extensions = Array.Empty<string>();
+
+        try
+        {
+            if (RouterApi.TryCreate(null, out var created) && created != IntPtr.Zero)
+            {
+                context = created;
+                extensions = CollectExtensions(created);
+            }
+        }
+        catch (Exception ex)
+        {
+            // A missing or broken router must not take the window down with it.
+            Debug.WriteLine($"Router: could not create the context: {ex.Message}");
+            context = IntPtr.Zero;
+            extensions = Array.Empty<string>();
+        }
+
+        return new RouterSession(context, extensions);
+    }
+
+    /// <summary>
+    /// Extensions every decodable format claims, built once from the formats
+    /// the router discovered. The work belongs to the router setup, so the
+    /// window never asks the native side for it while a command runs.
+    /// </summary>
+    private static IReadOnlyList<string> CollectExtensions(IntPtr context)
+    {
+        var extensions = new List<string>();
+
+        foreach (var format in RouterApi.ListFormats(context))
+        {
+            if (!format.CanDecode)
+            {
+                continue;
+            }
+
+            foreach (var extension in format.Extensions.Split(
+                         ',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                extensions.Add(extension);
+            }
+        }
+
+        return extensions;
+    }
+
+    /// <summary>
+    /// One created router context and the extensions it supports. Closing is
+    /// idempotent and safe from the worker that finished the setup, because the
+    /// window may close before the libraries have finished loading.
+    /// </summary>
+    private sealed class RouterSession
+    {
+        private readonly object _gate = new();
+        private IntPtr _context;
+        private bool _closed;
+
+        internal RouterSession(IntPtr context, IReadOnlyList<string> extensions)
+        {
+            _context = context;
+            Extensions = extensions;
+        }
+
+        internal IReadOnlyList<string> Extensions { get; }
+
+        internal IntPtr Context
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return _closed ? IntPtr.Zero : _context;
+                }
+            }
+        }
+
+        internal void Close()
+        {
+            lock (_gate)
+            {
+                if (_closed)
+                {
+                    return;
+                }
+
+                _closed = true;
+                var context = _context;
+                _context = IntPtr.Zero;
+                RouterApi.Close(context);
+            }
+        }
     }
 
     private nint Handle => WindowNative.GetWindowHandle(this);

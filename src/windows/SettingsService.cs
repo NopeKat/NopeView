@@ -21,6 +21,13 @@ internal sealed class SettingsService
 
     private readonly string _path;
 
+    // Writes are disk work, so the UI thread only hands over the document that
+    // should be on disk next. One background writer drains that slot, and a
+    // newer document replaces a pending older one instead of queueing behind it.
+    private readonly object _pendingGate = new();
+    private SettingsDocument? _pending;
+    private bool _writerRunning;
+
     internal SettingsService()
     {
         var root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -121,7 +128,73 @@ internal sealed class SettingsService
         Save();
     }
 
+    /// <summary>
+    /// Schedules a write of the current values and returns at once. The caller
+    /// runs on the UI thread, so nothing here touches the disk.
+    /// </summary>
     private void Save()
+    {
+        var document = new SettingsDocument(
+            Theme.ToString(), Language, ImageFrame.ToString(), SettingsWindowBounds);
+
+        lock (_pendingGate)
+        {
+            _pending = document;
+            if (_writerRunning)
+            {
+                return;
+            }
+
+            _writerRunning = true;
+        }
+
+        _ = Task.Run(WritePending);
+    }
+
+    /// <summary>
+    /// Waits up to the given time for the pending write to reach the disk. Used
+    /// while the window closes, where blocking is acceptable and losing the
+    /// last choice is not.
+    /// </summary>
+    internal void Flush(int milliseconds)
+    {
+        var clock = Stopwatch.StartNew();
+        while (clock.ElapsedMilliseconds < milliseconds)
+        {
+            lock (_pendingGate)
+            {
+                if (_pending is null && !_writerRunning)
+                {
+                    return;
+                }
+            }
+
+            Thread.Sleep(1);
+        }
+    }
+
+    private void WritePending()
+    {
+        while (true)
+        {
+            SettingsDocument document;
+            lock (_pendingGate)
+            {
+                if (_pending is null)
+                {
+                    _writerRunning = false;
+                    return;
+                }
+
+                document = _pending;
+                _pending = null;
+            }
+
+            WriteDocument(document);
+        }
+    }
+
+    private void WriteDocument(SettingsDocument document)
     {
         var temporary = _path + ".tmp";
         try
@@ -133,9 +206,7 @@ internal sealed class SettingsService
             }
 
             var json = JsonSerializer.Serialize(
-                new SettingsDocument(
-                    Theme.ToString(), Language, ImageFrame.ToString(), SettingsWindowBounds),
-                SettingsJsonContext.Default.SettingsDocument);
+                document, SettingsJsonContext.Default.SettingsDocument);
 
             // Write beside the target and replace in one step. Readers either
             // see the previous file or the new one, never a partial write.

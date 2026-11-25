@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using NopeView.App.Native;
+using System.Diagnostics;
 using Windows.Graphics.Imaging;
 
 namespace NopeView.App;
@@ -13,7 +14,8 @@ public sealed partial class MainWindow : Window
         bool resetView = true,
         bool fullResolution = false)
     {
-        if (_routerContext == IntPtr.Zero)
+        var session = await RouterAsync();
+        if (session.Context == IntPtr.Zero)
         {
             ShowError(Strings.RouterUnavailable);
             return;
@@ -43,7 +45,7 @@ public sealed partial class MainWindow : Window
             // Decoding, the pixel copy, and the premultiply step all run on a
             // worker thread. Leaving them on the UI thread froze the window for
             // the whole decode and prevented a loading state from rendering.
-            var context = _routerContext;
+            var context = session.Context;
             var maxDimension = fullResolution ? 0 : PreviewEdge();
             var frame = await Task.Run(
                 () => DecodeFrame(context, path, frameIndex, maxDimension), token);
@@ -69,7 +71,16 @@ public sealed partial class MainWindow : Window
 
             try
             {
+                // Handing the pixels to the display is the one step of the open
+                // path that runs on the UI thread, so its cost is recorded here
+                // instead of being assumed.
+                var upload = Stopwatch.StartNew();
                 await _frameSource.SetBitmapAsync(frame.Bitmap);
+                upload.Stop();
+                UiPerf.Record(
+                    "bitmap-upload",
+                    upload.Elapsed,
+                    $"{frame.BitmapWidth}x{frame.BitmapHeight}");
             }
             finally
             {
@@ -224,6 +235,7 @@ public sealed partial class MainWindow : Window
             var image = decoded.Value;
             frame.Bitmap = PixelBuffer.ToSoftwareBitmap(image, BitmapAlphaMode.Premultiplied);
             frame.BitmapWidth = image.Width;
+            frame.BitmapHeight = image.Height;
             frame.SourceWidth = image.SourceWidth > 0 ? image.SourceWidth : image.Width;
             frame.SourceHeight = image.SourceHeight > 0 ? image.SourceHeight : image.Height;
             frame.FrameCount = image.FrameCount;
@@ -242,6 +254,7 @@ public sealed partial class MainWindow : Window
         internal SoftwareBitmap? Bitmap;
         internal int Status;
         internal int BitmapWidth;
+        internal int BitmapHeight;
         internal int SourceWidth;
         internal int SourceHeight;
         internal uint FrameCount;

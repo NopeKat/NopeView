@@ -84,9 +84,16 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        var session = await RouterAsync();
+        if (session.Context == IntPtr.Zero)
+        {
+            ShowError(Strings.RouterUnavailable, Strings.CopyTitle);
+            return;
+        }
+
         try
         {
-            using var bitmap = await DecodeStraightBitmapAsync(path, _frameIndex);
+            using var bitmap = await DecodeStraightBitmapAsync(session.Context, path, _frameIndex);
             if (bitmap is null)
             {
                 ShowError(Strings.CopyDecodeFailed, Strings.CopyTitle);
@@ -119,9 +126,9 @@ public sealed partial class MainWindow : Window
     /// Decodes the current frame again as straight (non premultiplied) BGRA,
     /// which is what an encoder and the clipboard expect.
     /// </summary>
-    private async Task<SoftwareBitmap?> DecodeStraightBitmapAsync(string path, uint frameIndex)
+    private async Task<SoftwareBitmap?> DecodeStraightBitmapAsync(
+        IntPtr context, string path, uint frameIndex)
     {
-        var context = _routerContext;
         await _decodeGate.WaitAsync();
         try
         {
@@ -177,7 +184,14 @@ public sealed partial class MainWindow : Window
 
         try
         {
-            var context = _routerContext;
+            var session = await RouterAsync();
+            if (session.Context == IntPtr.Zero)
+            {
+                ShowError(Strings.RouterUnavailable, Strings.SaveTitle);
+                return;
+            }
+
+            var context = session.Context;
             var frameIndex = _frameIndex;
             var target = result.Path;
 
@@ -192,6 +206,9 @@ public sealed partial class MainWindow : Window
             {
                 _decodeGate.Release();
             }
+
+            // The folder now holds one more image, so its scan is stale.
+            ForgetDirectoryScan(target);
         }
         catch (Exception ex)
         {
