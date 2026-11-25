@@ -93,8 +93,13 @@
                            Style="{StaticResource SettingsSectionHeaderStyle}"
                            AutomationProperties.HeadingLevel="Level2" />
 
+                <!-- 36 px bottom margin on the closing expander follows the WinUI
+                     Gallery settings page, where the scroll view reserves its bottom
+                     inset on the last block instead of on the ScrollView itself. It
+                     keeps the expanded last card clear of the page edge. -->
                 <toolkit:SettingsExpander x:Name="AboutExpander"
                                           IsExpanded="False"
+                                          Margin="0,0,0,36"
                                           AutomationProperties.AutomationId="AboutExpander">
                     <toolkit:SettingsExpander.HeaderIcon>
                         <ImageIcon Width="20"
