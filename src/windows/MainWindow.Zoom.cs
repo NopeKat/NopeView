@@ -114,10 +114,10 @@ public sealed partial class MainWindow : Window
         ApplyViewTransform();
         UpdateViewStatus();
 
-        if (_view.Zoom > 1.001)
+        if (IsMagnified)
         {
-            // Zooming past fit magnifies a preview bitmap, so the real pixels
-            // replace it once the input stops.
+            // Magnifying a preview bitmap is the one case that needs the real
+            // pixels, and they arrive once the input stops.
             ScheduleFullResolutionUpgrade();
         }
     }
@@ -129,7 +129,7 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private void ScheduleFullResolutionUpgrade()
     {
-        if (!_previewActive || _frameCount > 1 || _directory is null)
+        if (UpgradeSource is null)
         {
             return;
         }
@@ -141,7 +141,7 @@ public sealed partial class MainWindow : Window
     private void UpgradeTimer_Tick(object? sender, object e)
     {
         _upgradeTimer.Stop();
-        if (_view.Zoom <= 1.001)
+        if (!IsMagnified)
         {
             return;
         }

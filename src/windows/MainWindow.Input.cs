@@ -27,12 +27,11 @@ public sealed partial class MainWindow : Window
         // wheel zoom at the pointer makes pinch feel centered on the fingers.
         ZoomAtPoint(delta > 0 ? _view.Zoom * 1.1 : _view.Zoom / 1.1, point.Position);
         e.Handled = true;
-        UiPerf.Stop(clock, "zoom-wheel", $"{_view.Zoom:0.00}");
+        UiPerf.Stop(clock, "zoom-wheel", UiPerf.Number(_view.Zoom));
     }
 
     private void Viewport_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        var clock = UiPerf.Start();
         var point = e.GetCurrentPoint(Viewport);
         if (point.Properties.IsLeftButtonPressed ||
             e.Pointer.PointerDeviceType == PointerDeviceType.Touch)
@@ -48,8 +47,6 @@ public sealed partial class MainWindow : Window
             _touchPoints[e.Pointer.PointerId] = point.Position;
             UpdatePinchState();
         }
-
-        UiPerf.Stop(clock, "pointer-press", point.Properties.IsLeftButtonPressed ? "left" : "other");
     }
 
     private void Viewport_PointerMoved(object sender, PointerRoutedEventArgs e)
@@ -84,7 +81,7 @@ public sealed partial class MainWindow : Window
             ZoomAtPoint(_view.Zoom * (distance / _pinchDistance), center);
             _pinchCenter = center;
             _pinchDistance = distance;
-            UiPerf.Stop(clock, "pinch-move", $"{_view.Zoom:0.00}");
+            UiPerf.Stop(clock, "pinch-move", UiPerf.Number(_view.Zoom));
             return;
         }
 
@@ -108,7 +105,7 @@ public sealed partial class MainWindow : Window
         ApplyViewTransform();
         _lastPanPoint = point.Position;
         e.Handled = true;
-        UiPerf.Stop(clock, "pan-move", $"{_view.Zoom:0.00}");
+        UiPerf.Stop(clock, "pan-move", UiPerf.Number(_view.Zoom));
     }
 
     private void Viewport_PointerReleased(object sender, PointerRoutedEventArgs e)

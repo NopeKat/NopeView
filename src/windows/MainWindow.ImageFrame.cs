@@ -111,6 +111,6 @@ public sealed partial class MainWindow : Window
         var clock = UiPerf.Start();
         _view.ApplyTo(ImageRotation, ImageScale, ImageTranslation);
         UpdateImageFrameStroke();
-        UiPerf.Stop(clock, "apply-transform", $"{_view.Zoom:0.00}");
+        UiPerf.Stop(clock, "apply-transform", UiPerf.Number(_view.Zoom));
     }
 }

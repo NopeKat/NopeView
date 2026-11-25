@@ -18,12 +18,17 @@ internal static class UiPerf
     private static readonly bool Enabled =
         Environment.GetEnvironmentVariable(EnvironmentName) == "1";
 
-    // Samples are buffered and written in one go, because the writer itself
-    // runs on the UI thread. Eight samples or two seconds, whichever comes
-    // first, keeps the file readable without turning timing into logging work.
+    // Samples are buffered on the UI thread and handed to one writer that
+    // drains them off the UI thread, because the recorder is called from input
+    // handlers. Eight samples or two seconds, whichever comes first, keeps the
+    // file readable without turning timing into logging work.
     private static readonly object Gate = new();
     private static readonly List<string> Samples = new();
     private static readonly Stopwatch SinceFlush = Stopwatch.StartNew();
+
+    // Writes are chained so batches reach the file in the order they were
+    // recorded. Guarded by Gate.
+    private static Task WriteTail = Task.CompletedTask;
 
     internal static void Record(string name, TimeSpan elapsed, string detail)
     {
@@ -43,9 +48,18 @@ internal static class UiPerf
 
             if (Samples.Count >= 8 || SinceFlush.ElapsedMilliseconds >= 2000)
             {
-                WriteSamples();
+                QueueWrite();
             }
         }
+    }
+
+    /// <summary>
+    /// Formats a detail value the way the samples are read back, so a desktop
+    /// whose decimal separator is a comma does not write a different log.
+    /// </summary>
+    internal static string Number(double value)
+    {
+        return value.ToString("0.00", CultureInfo.InvariantCulture);
     }
 
     /// <summary>
@@ -68,6 +82,11 @@ internal static class UiPerf
         Record(name, clock.Elapsed, detail);
     }
 
+    /// <summary>
+    /// Queues what is still buffered and waits briefly for the writer, so the
+    /// last samples survive the exit. Only the close path calls this, where a
+    /// short block is acceptable.
+    /// </summary>
     internal static void Flush()
     {
         if (!Enabled)
@@ -75,13 +94,26 @@ internal static class UiPerf
             return;
         }
 
+        Task tail;
         lock (Gate)
         {
-            WriteSamples();
+            QueueWrite();
+            tail = WriteTail;
+        }
+
+        try
+        {
+            tail.Wait(TimeSpan.FromSeconds(2));
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"UiPerf: the writer did not finish: {ex.Message}");
         }
     }
 
-    private static void WriteSamples()
+    // Called with Gate held. The batch is built here, where the samples live,
+    // and reaches the disk from a worker thread.
+    private static void QueueWrite()
     {
         SinceFlush.Restart();
         if (Samples.Count == 0)
@@ -96,14 +128,32 @@ internal static class UiPerf
         }
         Samples.Clear();
 
+        var text = builder.ToString();
+        var previous = WriteTail;
+        WriteTail = Task.Run(async () =>
+        {
+            try
+            {
+                await previous.ConfigureAwait(false);
+            }
+            catch
+            {
+                // A failed batch must not stop the batches behind it.
+            }
+
+            Append(text);
+        });
+    }
+
+    private static void Append(string text)
+    {
         try
         {
             var directory = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 FolderName);
             Directory.CreateDirectory(directory);
-            File.AppendAllText(
-                Path.Combine(directory, FileName), builder.ToString(), Encoding.UTF8);
+            File.AppendAllText(Path.Combine(directory, FileName), text, Encoding.UTF8);
         }
         catch (Exception ex)
         {

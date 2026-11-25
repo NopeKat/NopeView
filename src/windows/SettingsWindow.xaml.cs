@@ -341,18 +341,13 @@ public sealed partial class SettingsWindow : Window
         var timer = DispatcherQueue.CreateTimer();
         timer.Interval = TimeSpan.FromMilliseconds(600);
         timer.IsRepeating = false;
-        timer.Tick += (_, _) =>
-        {
-            timer.Stop();
-            SaveBounds();
-        };
+        timer.Tick += (_, _) => PersistBounds();
         return timer;
     }
 
     private void SettingsWindow_BoundsClosing(object sender, WindowEventArgs args)
     {
-        _boundsTimer?.Stop();
-        SaveBounds();
+        PersistBounds();
     }
 
     /// <summary>
@@ -391,11 +386,20 @@ public sealed partial class SettingsWindow : Window
             return;
         }
 
-        _boundsTimer?.Stop();
-        SaveBounds();
+        PersistBounds();
         _hidden = true;
         Win32Window.Hide(Handle);
         Hidden?.Invoke();
+    }
+
+    /// <summary>
+    /// Stops the pending bounds write and stores the rectangle the window is at.
+    /// Every path that ends with the window off screen comes through here.
+    /// </summary>
+    private void PersistBounds()
+    {
+        _boundsTimer?.Stop();
+        SaveBounds();
     }
 
     private void SaveBounds()

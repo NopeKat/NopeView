@@ -2,7 +2,6 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.Storage.Pickers;
 using NopeView.App.Native;
-using System.Diagnostics;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 
@@ -113,10 +112,9 @@ public sealed partial class MainWindow : Window
         _frameIndex = 0;
         UpdateAnimationControls();
 
-        var wait = Stopwatch.StartNew();
+        var clock = UiPerf.Start();
         var session = await RouterAsync();
-        wait.Stop();
-        UiPerf.Record("router-wait", wait.Elapsed, "open");
+        UiPerf.Stop(clock, "router-wait", "open");
 
         if (session.Context == IntPtr.Zero)
         {
@@ -154,10 +152,9 @@ public sealed partial class MainWindow : Window
 
         if (!string.IsNullOrEmpty(directory))
         {
-            var scan = Stopwatch.StartNew();
+            var clock = UiPerf.Start();
             paths = await ScanDirectoryAsync(directory);
-            scan.Stop();
-            UiPerf.Record("dir-scan", scan.Elapsed, $"{paths.Count} paths");
+            UiPerf.Stop(clock, "dir-scan", $"{paths.Count} paths");
         }
 
         return ImageDirectory.FromPaths(fullPath, paths);

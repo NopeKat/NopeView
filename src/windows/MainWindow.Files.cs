@@ -101,25 +101,18 @@ public sealed partial class MainWindow : Window
             }
 
             // The clipboard accepts a bitmap stream, so the decoded frame is
-            // encoded to PNG in memory. Encoding keeps the alpha channel and
-            // avoids depending on the source format. The encoder copies the
-            // whole frame, so it runs on a worker thread; the clipboard calls
-            // stay on the UI thread, which owns the OLE clipboard.
-            var stream = await Task.Run(async () =>
-            {
-                var buffer = new InMemoryRandomAccessStream();
-                var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, buffer);
-                encoder.SetSoftwareBitmap(bitmap);
-                await encoder.FlushAsync();
-                buffer.Seek(0);
-                return buffer;
-            });
+            // encoded to PNG in memory; the clipboard calls below stay on the
+            // UI thread, which owns the OLE clipboard.
+            var stream = await EncodePngAsync(bitmap);
 
             var data = new DataPackage();
             data.SetBitmap(RandomAccessStreamReference.CreateFromStream(stream));
             Clipboard.SetContent(data);
             Clipboard.Flush();
 
+            // The new copy replaced the previous one, so the stream the last
+            // copy kept alive is no longer read and goes back here.
+            _clipboardImage?.Dispose();
             _clipboardImage = stream;
         }
         catch (Exception ex)
@@ -154,6 +147,24 @@ public sealed partial class MainWindow : Window
         {
             _decodeGate.Release();
         }
+    }
+
+    /// <summary>
+    /// Encodes a decoded frame to a PNG stream in memory. Encoding keeps the
+    /// alpha channel and avoids depending on the source format; the encoder
+    /// copies the whole frame, so it runs on a worker thread.
+    /// </summary>
+    private static async Task<InMemoryRandomAccessStream> EncodePngAsync(SoftwareBitmap bitmap)
+    {
+        return await Task.Run(async () =>
+        {
+            var buffer = new InMemoryRandomAccessStream();
+            var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, buffer);
+            encoder.SetSoftwareBitmap(bitmap);
+            await encoder.FlushAsync();
+            buffer.Seek(0);
+            return buffer;
+        });
     }
 
     private async void SaveAsMenuItem_Click(object sender, RoutedEventArgs e)

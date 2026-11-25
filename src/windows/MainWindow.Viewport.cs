@@ -82,7 +82,7 @@ public sealed partial class MainWindow : Window
                 "Status.FrameSuffix", _frameIndex + 1, _frameCount);
         }
 
-        if (Math.Abs(_view.Zoom - 1.0) < 0.001)
+        if (IsAtFit)
         {
             ViewStatusText.Text =
                 Localization.Format("Status.ViewFit", rotation) + details;
@@ -136,6 +136,21 @@ public sealed partial class MainWindow : Window
             return fitScale * rasterizationScale;
         }
     }
+
+    // Fit is zoom exactly 1, and gesture arithmetic leaves a little float
+    // drift, so the readout and the preview upgrade share one tolerance.
+    private const double FitTolerance = 0.001;
+
+    /// <summary>
+    /// True while the image is drawn at the size that fits the viewport.
+    /// </summary>
+    private bool IsAtFit => Math.Abs(_view.Zoom - 1.0) < FitTolerance;
+
+    /// <summary>
+    /// True while the image is drawn larger than the viewport, which is where
+    /// a downscaled preview bitmap puts fewer pixels on screen than it claims.
+    /// </summary>
+    private bool IsMagnified => _view.Zoom > 1.0 + FitTolerance;
 
     /// <summary>
     /// Zoom, rotation, flips and pan of the displayed image. Every gesture

@@ -1,6 +1,5 @@
 using Microsoft.UI.Xaml;
 using NopeView.App.Native;
-using System.Diagnostics;
 using Windows.Graphics.Imaging;
 
 namespace NopeView.App;
@@ -74,13 +73,10 @@ public sealed partial class MainWindow : Window
                 // Handing the pixels to the display is the one step of the open
                 // path that runs on the UI thread, so its cost is recorded here
                 // instead of being assumed.
-                var upload = Stopwatch.StartNew();
+                var clock = UiPerf.Start();
                 await _frameSource.SetBitmapAsync(frame.Bitmap);
-                upload.Stop();
-                UiPerf.Record(
-                    "bitmap-upload",
-                    upload.Elapsed,
-                    $"{frame.BitmapWidth}x{frame.BitmapHeight}");
+                UiPerf.Stop(
+                    clock, "bitmap-upload", $"{frame.BitmapWidth}x{frame.BitmapHeight}");
             }
             finally
             {
@@ -274,13 +270,21 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>
+    /// The directory a full-resolution replacement would decode from, or null
+    /// when the displayed bitmap is already the real pixels. Animated frames
+    /// keep the preview, so they never qualify.
+    /// </summary>
+    private ImageDirectory? UpgradeSource =>
+        _previewActive && _frameCount <= 1 ? _directory : null;
+
+    /// <summary>
     /// Replaces the preview bitmap with a full-size decode once the view
     /// magnifies its pixels. One attempt per load; animated frames keep the
     /// preview so playback does not decode full frames.
     /// </summary>
     private async Task UpgradeToFullResolutionAsync()
     {
-        if (!_previewActive || _frameCount > 1 || _directory is null)
+        if (UpgradeSource is not { } directory)
         {
             return;
         }
@@ -289,7 +293,7 @@ public sealed partial class MainWindow : Window
         // second full decode; the decode result sets it again.
         _previewActive = false;
         await DecodeAndShowAsync(
-            _directory.CurrentPath, _frameIndex, resetView: false, fullResolution: true);
+            directory.CurrentPath, _frameIndex, resetView: false, fullResolution: true);
     }
 
     private void SetLoading(bool loading)

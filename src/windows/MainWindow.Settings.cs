@@ -73,19 +73,21 @@ public sealed partial class MainWindow : Window
     private void SettingsWindow_Closed(object sender, WindowEventArgs args)
     {
         _settingsWindow = null;
-
-        if (!_closing)
-        {
-            // Focus and input return to the viewer, the way a dialog hands
-            // both back when it closes.
-            Win32Window.SetEnabled(Handle, true);
-            Activate();
-        }
+        RestoreViewerInput();
     }
 
     // The settings window is hidden rather than closed, so input comes back
     // through the same path a close would take, just without a destroyed page.
     private void SettingsWindow_Hidden()
+    {
+        RestoreViewerInput();
+    }
+
+    /// <summary>
+    /// Hands focus and input back to the viewer, the way a dialog does when it
+    /// goes away. Both the hidden and the closed path end here.
+    /// </summary>
+    private void RestoreViewerInput()
     {
         if (!_closing)
         {
@@ -122,7 +124,7 @@ public sealed partial class MainWindow : Window
     {
         var oldFit = GetFitScale(_imageFrameStyle);
         var newFit = GetFitScale(frame);
-        var wasFit = Math.Abs(_view.Zoom - 1.0) < 0.001;
+        var wasFit = IsAtFit;
 
         _imageFrameStyle = frame;
         ApplyImageDecoration();
