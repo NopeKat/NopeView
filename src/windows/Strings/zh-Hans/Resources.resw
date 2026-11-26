@@ -82,7 +82,7 @@
     <value>复制路径</value>
   </data>
   <data name="ContextSaveAs.Text" xml:space="preserve">
-    <value>另存为…</value>
+    <value>另存为</value>
   </data>
   <data name="ContextShowInExplorer.Text" xml:space="preserve">
     <value>在资源管理器中显示</value>

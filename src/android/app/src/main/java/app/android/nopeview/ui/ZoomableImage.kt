@@ -226,7 +226,7 @@ fun ZoomableImage(
         if (isPreview) {
             Text(
                 text = "${stringResource(R.string.view_preview)} " +
-                    "${bitmap.width}×${bitmap.height}",
+                    "${bitmap.width}x${bitmap.height}",
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(8.dp)

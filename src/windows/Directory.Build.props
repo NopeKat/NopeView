@@ -1,4 +1,4 @@
-﻿<Project>
+<Project>
   <!--
     Scoped to the Windows app only, so other .NET modules keep their own
     artifact folders. Produces:
