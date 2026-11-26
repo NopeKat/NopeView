@@ -1,3 +1,6 @@
+# Copyright (c) 2026 NopeKat. All rights reserved.
+# Licensed under the GNU Affero General Public License v3.0; see LICENSE.
+
 cmake_minimum_required(VERSION 3.22.1)
 project(nopeview_codec C CXX)
 

@@ -10,3 +10,10 @@ components of this core, so both contracts live here.
 
 The plugin ABI is not here: plugins are a separate shared module, so their
 contract lives in `src/shared/plugin/abi/`.
+
+## License
+
+Copyright (c) 2026 NopeKat. All rights reserved.
+
+Part of NopeView, licensed under the GNU Affero General Public License v3.0.
+See the root [LICENSE](../../../../LICENSE) for the full text.

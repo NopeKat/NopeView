@@ -9,3 +9,10 @@ the GUI application or its startup path.
 - Intended to expose the same browsing and conversion capabilities without a
   window, so scripts and batch workflows can use them.
 - Current state: skeleton only. No implementation yet.
+
+## License
+
+Copyright (c) 2026 NopeKat. All rights reserved.
+
+Part of NopeView, licensed under the GNU Affero General Public License v3.0.
+See the root [LICENSE](../../../LICENSE) for the full text.

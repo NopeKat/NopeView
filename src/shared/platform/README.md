@@ -16,3 +16,10 @@ platform-specific capabilities behind one unified interface.
 - Per-platform implementations live inside `platforms`; callers see one
   interface and never branch on the platform.
 - Current state: skeleton only. No implementation yet.
+
+## License
+
+Copyright (c) 2026 NopeKat. All rights reserved.
+
+Part of NopeView, licensed under the GNU Affero General Public License v3.0.
+See the root [LICENSE](../../../LICENSE) for the full text.

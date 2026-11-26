@@ -14,3 +14,10 @@ UTF-8 paths to the host.
 - The Windows backend uses `FindFirstFileW` and converts UTF-16 names to UTF-8,
   so non-ASCII paths work end to end. Other platforms add their own backend
   behind the same ABI.
+
+## License
+
+Copyright (c) 2026 NopeKat. All rights reserved.
+
+Part of NopeView, licensed under the GNU Affero General Public License v3.0.
+See the root [LICENSE](../../../LICENSE) for the full text.

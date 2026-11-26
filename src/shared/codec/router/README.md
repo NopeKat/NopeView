@@ -25,3 +25,10 @@ only the router; it never probes formats directly.
   has no router context, so the codec that owns the pixels travels with the
   image in `nv_router_image.pixels_release`; an image may therefore be released
   after `nv_router_destroy` and still reach its library's free function.
+
+## License
+
+Copyright (c) 2026 NopeKat. All rights reserved.
+
+Part of NopeView, licensed under the GNU Affero General Public License v3.0.
+See the root [LICENSE](../../../../LICENSE) for the full text.

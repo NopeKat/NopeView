@@ -153,4 +153,6 @@ src/
 
 ## License
 
+Copyright (c) 2026 NopeKat. All rights reserved.
+
 NopeView is licensed under the **GNU Affero General Public License v3.0**. See [LICENSE](LICENSE) for the full text.

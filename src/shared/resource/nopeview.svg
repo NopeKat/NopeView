@@ -1,3 +1,8 @@
+<!--
+    Copyright (c) 2026 NopeKat. All rights reserved.
+    Licensed under the GNU Affero General Public License v3.0; see LICENSE.
+-->
+
 <svg xmlns="http://www.w3.org/2000/svg" width="2048" height="2048" viewBox="0 0 2048 2048" role="img" aria-label="NopeView">
 <defs>
 <linearGradient id="bg" x1="2060" y1="-10" x2="780" y2="2480" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5479FF"/><stop offset="1" stop-color="#DD9CFF"/></linearGradient>

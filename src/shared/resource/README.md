@@ -12,3 +12,10 @@ Cross-platform source assets shared by every platform build.
   `ic_launcher_monochrome.xml`. All three are derived from the same `nopeview.svg`
   geometry; update them together when the base logo changes.
 - Keep runtime-only and platform-specific files out of this directory.
+
+## License
+
+Copyright (c) 2026 NopeKat. All rights reserved.
+
+Part of NopeView, licensed under the GNU Affero General Public License v3.0.
+See the root [LICENSE](../../../LICENSE) for the full text.

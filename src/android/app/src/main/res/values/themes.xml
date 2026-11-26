@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Copyright (c) 2026 NopeKat. All rights reserved.
+    Licensed under the GNU Affero General Public License v3.0; see LICENSE.
+-->
+
 <resources>
     <style name="Theme.NopeView" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/viewer_canvas</item>

@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Copyright (c) 2026 NopeKat. All rights reserved.
+    Licensed under the GNU Affero General Public License v3.0; see LICENSE.
+-->
+
 <assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
   <assemblyIdentity version="0.0.3.0" name="NopeView.App" />
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">

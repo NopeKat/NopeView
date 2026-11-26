@@ -17,3 +17,10 @@ organization, screen capture, and pin-to-screen.
 - The shared core never depends on a plugin. A missing plugin degrades features
   but must not crash the app.
 - Current state: skeleton only. No plugins yet.
+
+## License
+
+Copyright (c) 2026 NopeKat. All rights reserved.
+
+Part of NopeView, licensed under the GNU Affero General Public License v3.0.
+See the root [LICENSE](../../../LICENSE) for the full text.
