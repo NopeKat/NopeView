@@ -204,7 +204,7 @@ bool CanOutputToColorEncoding(const ColorEncoding& c_desired) {
   if (!c_desired.HaveFields()) {
     return false;
   }
-  // TODO(veluca): keep in sync with dec_reconstruct.cc
+  // TODO(veluca): keep in sync with dec_reconstruct.cpp
   const auto& tf = c_desired.Tf();
   if (!tf.IsPQ() && !tf.IsSRGB() && !tf.have_gamma && !tf.IsLinear() &&
       !tf.IsHLG() && !tf.IsDCI() && !tf.Is709()) {

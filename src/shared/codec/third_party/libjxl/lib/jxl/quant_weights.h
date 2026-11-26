@@ -364,7 +364,7 @@ class DequantMatrices {
       DequantLibraryInternal;
   // Return the array of library kNumPredefinedTables QuantEncoding entries as
   // a constexpr array. Use Library() to obtain a pointer to the copy in the
-  // .cc file.
+  // .cpp file.
   static DequantLibraryInternal LibraryInit();
 
   // Returns aligned memory.

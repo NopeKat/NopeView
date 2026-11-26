@@ -20,7 +20,7 @@
 // prediction hit rates. Uses a robust estimator to summarize the measurements.
 // The precision is about 0.2%.
 //
-// Examples: see nanobenchmark_test.cc.
+// Examples: see nanobenchmark_test.cpp.
 //
 // Background: Microbenchmarks such as http://github.com/google/benchmark
 // can measure elapsed times on the order of a microsecond. Shorter functions

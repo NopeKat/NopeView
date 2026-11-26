@@ -152,7 +152,7 @@ class ImageBundle {
     c_current_ = new_c_current;
   }
 
-  // TODO(lode): TransformTo and CopyTo are implemented in enc_image_bundle.cc,
+  // TODO(lode): TransformTo and CopyTo are implemented in enc_image_bundle.cpp,
   // move these functions out of this header file and class, to
   // enc_image_bundle.h.
 

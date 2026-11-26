@@ -60,7 +60,7 @@ inline JXL_NOINLINE bool Debug(const char* format, ...) {
 // arguments are compiled but not evaluated when enabled is false. The format
 // string must be a explicit string in the call, for example:
 //   JXL_DEBUG(JXL_DEBUG_MYMODULE, "my module message: %d", some_var);
-// Add a header at the top of your module's .cc or .h file (depending on whether
+// Add a header at the top of your module's .cpp or .h file (depending on whether
 // you have JXL_DEBUG calls from the .h as well) like this:
 //   #ifndef JXL_DEBUG_MYMODULE
 //   #define JXL_DEBUG_MYMODULE 0

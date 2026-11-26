@@ -6,7 +6,7 @@
 #ifndef LIB_JXL_TEST_UTILS_H_
 #define LIB_JXL_TEST_UTILS_H_
 
-// TODO(eustas): reduce includes (move to .cc)
+// TODO(eustas): reduce includes (move to .cpp)
 
 // Macros and functions useful for tests.
 

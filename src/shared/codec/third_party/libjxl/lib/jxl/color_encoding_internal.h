@@ -128,7 +128,7 @@ struct ColorEncoding : public Fields {
   static const ColorEncoding& LinearSRGB(bool is_gray = false);
 
   // Returns true if an ICC profile was successfully created from fields.
-  // Must be called after modifying fields. Defined in color_management.cc.
+  // Must be called after modifying fields. Defined in color_management.cpp.
   Status CreateICC() {
     storage_.icc.clear();
     const JxlColorEncoding external = ToExternal();
