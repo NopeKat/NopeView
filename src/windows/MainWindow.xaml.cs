@@ -1,3 +1,4 @@
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
@@ -225,12 +226,8 @@ public sealed partial class MainWindow : Window
         UiPerf.Stop(keysClock, "ctor-accelerators", "key + command");
 
         var themeClock = UiPerf.Start();
-        var themeApplyClock = UiPerf.Start();
-        ApplyTheme(_settings.Theme);
-        UiPerf.Stop(themeApplyClock, "ctor-theme-apply", "theme + colors");
-        var frameClock = UiPerf.Start();
+        ApplyThemeEarly(_settings.Theme);
         ApplyImageFrame(_settings.ImageFrame);
-        UiPerf.Stop(frameClock, "ctor-frame", "decoration + fit");
         UiPerf.Stop(themeClock, "ctor-theme", "theme + frame");
 
         var languageClock = UiPerf.Start();
@@ -513,6 +510,15 @@ public sealed partial class MainWindow : Window
         UpdateCaptionButtonInset();
         AppTitleBar.SizeChanged += (_, _) => UpdateCaptionButtonInset();
         ViewStatusText.SizeChanged += (_, _) => UpdateCaptionButtonInset();
+
+        // The caption buttons keep the system palette until this runs. They are
+        // only colored after the first layout, because the first assignment
+        // initializes the title bar customization and costs about 60 ms, which
+        // would otherwise sit in front of the first paint.
+        DispatcherQueue.TryEnqueue(
+            DispatcherQueuePriority.Low,
+            () => ApplyTitleBarColors(_settings.Theme));
+
         OpenImageFromCommandLine();
     }
 

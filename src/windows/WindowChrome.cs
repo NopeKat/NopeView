@@ -64,13 +64,7 @@ internal static class WindowChrome
             return;
         }
 
-        var effectiveTheme = theme switch
-        {
-            AppTheme.Dark => ElementTheme.Dark,
-            AppTheme.Light => ElementTheme.Light,
-            _ => root.ActualTheme,
-        };
-        var isDark = effectiveTheme == ElementTheme.Dark;
+        var isDark = IsDark(theme, root);
         var titleBar = window.AppWindow.TitleBar;
 
         // High contrast owns a separate system palette for text and surfaces.
@@ -109,6 +103,34 @@ internal static class WindowChrome
         var frameClock = UiPerf.Start();
         ApplyFrameTheme(window, isDark);
         UiPerf.Stop(frameClock, "chrome-frame", isDark ? "dark" : "light");
+    }
+
+    /// <summary>
+    /// Applies only the frame palette. That is the part the desktop reads before
+    /// the window is shown, and it costs well under a millisecond, unlike the
+    /// button colors, whose first assignment initializes the title bar
+    /// customization and takes tens of milliseconds.
+    /// </summary>
+    internal static void ApplyFramePalette(
+        Window window, FrameworkElement root, AppTheme theme)
+    {
+        if (!AppWindowTitleBar.IsCustomizationSupported())
+        {
+            return;
+        }
+
+        ApplyFrameTheme(window, IsDark(theme, root));
+    }
+
+    private static bool IsDark(AppTheme theme, FrameworkElement root)
+    {
+        var effectiveTheme = theme switch
+        {
+            AppTheme.Dark => ElementTheme.Dark,
+            AppTheme.Light => ElementTheme.Light,
+            _ => root.ActualTheme,
+        };
+        return effectiveTheme == ElementTheme.Dark;
     }
 
     /// <summary>

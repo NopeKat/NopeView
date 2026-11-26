@@ -158,6 +158,15 @@ public sealed partial class MainWindow : Window
         ApplyTitleBarColors(theme);
     }
 
+    private void ApplyThemeEarly(AppTheme theme)
+    {
+        // The caption button colors are deferred until the window has laid out;
+        // see RootGrid_Loaded. Only the frame palette, which the desktop reads
+        // before the window is shown, is applied here.
+        ThemeApplication.Apply(RootGrid, theme);
+        WindowChrome.ApplyFramePalette(this, RootGrid, theme);
+    }
+
     // The caption buttons are drawn by the system, outside the XAML theme.
     // WindowChrome pins their colors so a forced dark theme cannot leave
     // light-theme black glyphs on a dark Mica bar.
