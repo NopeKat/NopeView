@@ -12,7 +12,7 @@
 #include "lib/jxl/dec_xyb.h"
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_cms.cc"
+#define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_cms.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

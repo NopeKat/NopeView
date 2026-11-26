@@ -9,7 +9,7 @@
 #include <memory>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_splines.cc"
+#define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_splines.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

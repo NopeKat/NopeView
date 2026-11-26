@@ -24,7 +24,7 @@
 #include "lib/jxl/pack_signed.h"
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "lib/jxl/splines.cc"
+#define HWY_TARGET_INCLUDE "lib/jxl/splines.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

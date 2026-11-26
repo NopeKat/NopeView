@@ -17,7 +17,7 @@
 #include "lib/jxl/image.h"
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "lib/jxl/dec_external_image.cc"
+#define HWY_TARGET_INCLUDE "lib/jxl/dec_external_image.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

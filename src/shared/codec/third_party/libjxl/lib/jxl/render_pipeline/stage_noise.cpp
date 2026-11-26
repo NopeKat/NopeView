@@ -9,7 +9,7 @@
 #include "lib/jxl/noise.h"
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_noise.cc"
+#define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_noise.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

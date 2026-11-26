@@ -23,7 +23,7 @@
 #include <stdint.h>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "hwy/per_target.cc"
+#define HWY_TARGET_INCLUDE "hwy/per_target.cpp"
 #include "hwy/foreach_target.h"  // IWYU pragma: keep
 #include "hwy/highway.h"
 

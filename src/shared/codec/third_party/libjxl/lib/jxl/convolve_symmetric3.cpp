@@ -7,7 +7,7 @@
 #include "lib/jxl/convolve.h"
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "lib/jxl/convolve_symmetric3.cc"
+#define HWY_TARGET_INCLUDE "lib/jxl/convolve_symmetric3.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

@@ -12,7 +12,7 @@
 #include "lib/jxl/epf.h"
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_epf.cc"
+#define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_epf.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

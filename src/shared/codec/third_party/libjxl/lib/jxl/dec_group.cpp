@@ -15,7 +15,7 @@
 #include "lib/jxl/frame_header.h"
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "lib/jxl/dec_group.cc"
+#define HWY_TARGET_INCLUDE "lib/jxl/dec_group.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

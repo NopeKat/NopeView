@@ -22,7 +22,7 @@
 #include "lib/jxl/memory_manager_internal.h"
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_write.cc"
+#define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_write.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

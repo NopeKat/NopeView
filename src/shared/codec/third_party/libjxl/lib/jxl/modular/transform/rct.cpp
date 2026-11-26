@@ -5,7 +5,7 @@
 
 #include "lib/jxl/modular/transform/rct.h"
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "lib/jxl/modular/transform/rct.cc"
+#define HWY_TARGET_INCLUDE "lib/jxl/modular/transform/rct.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 HWY_BEFORE_NAMESPACE();

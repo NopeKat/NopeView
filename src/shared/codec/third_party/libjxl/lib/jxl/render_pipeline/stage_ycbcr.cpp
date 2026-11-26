@@ -6,7 +6,7 @@
 #include "lib/jxl/render_pipeline/stage_ycbcr.h"
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_ycbcr.cc"
+#define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_ycbcr.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

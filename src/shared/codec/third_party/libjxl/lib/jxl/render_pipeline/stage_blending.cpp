@@ -8,7 +8,7 @@
 #include <jxl/memory_manager.h>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_blending.cc"
+#define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_blending.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

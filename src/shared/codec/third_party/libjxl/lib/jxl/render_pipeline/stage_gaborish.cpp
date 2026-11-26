@@ -6,7 +6,7 @@
 #include "lib/jxl/render_pipeline/stage_gaborish.h"
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_gaborish.cc"
+#define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_gaborish.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

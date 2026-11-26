@@ -9,7 +9,7 @@
 #include "lib/jxl/base/sanitizers.h"
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_xyb.cc"
+#define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_xyb.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

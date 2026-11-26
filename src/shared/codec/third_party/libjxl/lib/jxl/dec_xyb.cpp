@@ -8,7 +8,7 @@
 #include <cstring>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "lib/jxl/dec_xyb.cc"
+#define HWY_TARGET_INCLUDE "lib/jxl/dec_xyb.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

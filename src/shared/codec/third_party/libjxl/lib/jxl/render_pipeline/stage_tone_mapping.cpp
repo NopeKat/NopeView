@@ -8,7 +8,7 @@
 #include "lib/jxl/base/sanitizers.h"
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_tone_mapping.cc"
+#define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_tone_mapping.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

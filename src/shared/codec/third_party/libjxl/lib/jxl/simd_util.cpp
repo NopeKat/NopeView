@@ -8,7 +8,7 @@
 #include <cstddef>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "lib/jxl/simd_util.cc"
+#define HWY_TARGET_INCLUDE "lib/jxl/simd_util.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 
