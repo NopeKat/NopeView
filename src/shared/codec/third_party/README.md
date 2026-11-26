@@ -4,7 +4,8 @@ Vendored sources the format codecs compile in. Each library keeps its licence
 next to its sources and is only partially imported, as noted below.
 
 - `stb` — `stb_image.h` and `stb_image_write.h` used by the png, jpg, gif, bmp,
-  ico, tga and hdr codecs. Public domain.
+  ico, tga and hdr codecs. MIT or public domain, licence texts inside the
+  headers.
 - `libwebp` (1.4.0) — decode path only: `src/dec`, `src/demux`, `src/dsp`,
   `src/utils`, plus the encoder headers `src/dsp/lossless.h` needs. The `webp`
   codec uses it for still and animated WebP. BSD-style licence in `COPYING`.
@@ -15,9 +16,9 @@ next to its sources and is only partially imported, as noted below.
   disabled. BSD-3-Clause licence in `LICENSE`.
 - `miniz` — `miniz.c` and `miniz.h`, used by the `exr`, `tiff`, `psd` and `svg`
   codecs for Deflate data; the `svg` codec only inflates the gzip wrapper of an
-  svgz. Public domain.
+  svgz. MIT licence, text inside `miniz.c`.
 - `bcdec` — `bcdec.h` only, used by the `dds` codec to expand BC1 to BC7 blocks.
-  Public domain, licence text inside the header.
+  MIT or the Unlicense, licence texts inside the header.
 - `openjpeg` (2.5.2) — `src/lib/openjp2`: the whole decode path plus the small
   encoder it needs, minus the JPIP index writers (`cidx_manager`, `phix_manager`,
   `ppix_manager`, `thix_manager`, `tpix_manager`). The `jp2` codec uses it for

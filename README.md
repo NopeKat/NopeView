@@ -133,7 +133,6 @@ src/
 │       ├── src/main/cpp/       CMakeLists.txt and nopeview_jni.c for the native router/JNI bridge
 │       │   └── webp_config/    minimal libwebp config so arm64 uses the C fallback
 │       └── src/androidTest/
-│           └── assets/NOTICE.md  provenance for external test images
 └── shared/
     ├── cli/                    command-line entry point (notes only)
     ├── platform/               platform capability layer (notes only)
