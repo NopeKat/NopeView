@@ -240,11 +240,28 @@ static inline int32_t nv_request_max_dimension(const nv_format_decode_request *r
     return request->max_dimension > 0 ? request->max_dimension : 0;
 }
 
-/*
- * Box-average downscale for tightly packed pixels with 1 to 4 components.
+/* Reciprocal of a box-filter divisor: floor(2^31 / divisor). The product with
+ * a sum below 2^31 lands at the exact quotient or one below it, so a single
+ * borrow check restores integer-division rounding. The 31-bit form keeps the
+ * reciprocal of 1 representable. */
+static inline uint32_t nv_box_magic(uint32_t divisor)
+{
+    return (uint32_t)(((uint64_t)1u << 31) / (uint64_t)divisor);
+}
+
+static inline uint64_t nv_box_divide(uint64_t sum, uint32_t magic, uint32_t divisor)
+{
+    uint64_t quotient = (sum * (uint64_t)magic) >> 31;
+
+    if (sum - quotient * (uint64_t)divisor >= (uint64_t)divisor) {
+        quotient++;
+    }
+    return quotient;
+}
+
+/* Box-average downscale for tightly packed pixels with 1 to 4 components.
  * The longest edge becomes max_dimension and the aspect ratio is preserved.
- * Returns a malloc'ed buffer whose rows are new_width * components bytes.
- */
+ * Returns a malloc'ed buffer whose rows are new_width * components bytes. */
 static inline unsigned char *nv_downscale_pixels(
     const unsigned char *source,
     int width,
@@ -262,6 +279,9 @@ static inline unsigned char *nv_downscale_pixels(
     size_t row_bytes;
     size_t total;
     unsigned char *result;
+    int *columns;
+    int span_a;
+    int x;
     int y;
 
     if (source == NULL || width <= 0 || height <= 0 || stride <= 0 ||
@@ -290,15 +310,50 @@ static inline unsigned char *nv_downscale_pixels(
 
     row_bytes = (size_t)target_width * (size_t)components;
     total = row_bytes * (size_t)target_height;
+
+    /* The source column ranges repeat on every output row, and finding them
+     * needs two 64-bit divides per pixel, so they are resolved once here. */
+    columns = (int *)malloc((size_t)target_width * 2u * sizeof(int));
+    if (columns == NULL) {
+        return NULL;
+    }
+    for (x = 0; x < target_width; x++) {
+        int start = (int)(((int64_t)x * width) / target_width);
+        int end = (int)(((int64_t)(x + 1) * width) / target_width);
+
+        if (end <= start) {
+            end = start + 1;
+        }
+        if (end > width) {
+            end = width;
+        }
+        columns[x * 2] = start;
+        columns[x * 2 + 1] = end;
+    }
+
+    /* Columns are a fixed width or one wider, so a row only ever needs two
+     * divisors. Their reciprocals are built once per row and the per-channel
+     * divide becomes a multiply plus a borrow fix-up. */
+    span_a = width / target_width;
+    if (span_a < 1) {
+        span_a = 1;
+    }
+
     result = (unsigned char *)allocate(total);
     if (result == NULL) {
+        free(columns);
         return NULL;
     }
 
     for (y = 0; y < target_height; y++) {
         int source_y0 = (int)(((int64_t)y * height) / target_height);
         int source_y1 = (int)(((int64_t)(y + 1) * height) / target_height);
-        int x;
+        int span_y;
+        int count_a;
+        int count_b;
+        uint32_t magic_a;
+        uint32_t magic_b;
+        int row_fast;
 
         if (source_y1 <= source_y0) {
             source_y1 = source_y0 + 1;
@@ -306,20 +361,37 @@ static inline unsigned char *nv_downscale_pixels(
         if (source_y1 > height) {
             source_y1 = height;
         }
+        span_y = source_y1 - source_y0;
+        count_a = span_a * span_y;
+        count_b = (span_a + 1) * span_y;
+        magic_a = nv_box_magic(count_a);
+        magic_b = nv_box_magic(count_b);
+        /* The reciprocal stays exact only while the sums fit a 32-bit
+         * magnitude; past that the row keeps plain division. */
+        row_fast = (int64_t)255 * count_b <= (int64_t)INT_MAX;
 
         for (x = 0; x < target_width; x++) {
-            int source_x0 = (int)(((int64_t)x * width) / target_width);
-            int source_x1 = (int)(((int64_t)(x + 1) * width) / target_width);
-            int64_t sum[4] = {0, 0, 0, 0};
-            int64_t count = 0;
+            int source_x0 = columns[x * 2];
+            int source_x1 = columns[x * 2 + 1];
+            int count;
+            int use_magic;
+            uint32_t magic;
+            uint64_t sum[4] = {0u, 0u, 0u, 0u};
             int channel;
             int source_y;
 
-            if (source_x1 <= source_x0) {
-                source_x1 = source_x0 + 1;
+            count = (source_x1 - source_x0) * span_y;
+            if (row_fast && count == count_a) {
+                magic = magic_a;
+                use_magic = 1;
             }
-            if (source_x1 > width) {
-                source_x1 = width;
+            else if (row_fast && count == count_b) {
+                magic = magic_b;
+                use_magic = 1;
+            }
+            else {
+                magic = 0u;
+                use_magic = 0;
             }
 
             for (source_y = source_y0; source_y < source_y1; source_y++) {
@@ -332,16 +404,19 @@ static inline unsigned char *nv_downscale_pixels(
                     for (channel = 0; channel < components; channel++) {
                         sum[channel] += pixel[channel];
                     }
-                    count++;
                 }
             }
 
             for (channel = 0; channel < components; channel++) {
                 result[(size_t)y * row_bytes + (size_t)x * (size_t)components + (size_t)channel] =
-                    (unsigned char)(sum[channel] / count);
+                    (unsigned char)(use_magic
+                        ? nv_box_divide(sum[channel], magic, (uint32_t)count)
+                        : sum[channel] / (uint64_t)count);
             }
         }
     }
+
+    free(columns);
 
     *out_width = target_width;
     *out_height = target_height;

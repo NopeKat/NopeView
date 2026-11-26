@@ -32,6 +32,7 @@
 #include "nv_format_common.h"
 
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -131,6 +132,65 @@ static void cache_unlock(void)
     atomic_flag_clear_explicit(&g_cache_lock, memory_order_release);
 }
 #endif
+
+/* Decode stages are timed when NOPEVIEW_UI_PERF is set, the same switch the
+ * managed side uses, so a slow open can be attributed to a stage instead of
+ * the whole call. Lines are appended next to the managed probe log. */
+static int png_perf_enabled(void)
+{
+    static int cached = -1;
+
+    if (cached < 0) {
+        const char *flag = getenv("NOPEVIEW_UI_PERF");
+        cached = (flag != NULL && flag[0] != '\0' && flag[0] != '0') ? 1 : 0;
+    }
+    return cached;
+}
+
+static double png_perf_now_ms(void)
+{
+#if defined(_WIN32)
+    LARGE_INTEGER frequency;
+    LARGE_INTEGER counter;
+
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&counter);
+    return (double)counter.QuadPart * 1000.0 / (double)frequency.QuadPart;
+#else
+    return 0.0;
+#endif
+}
+
+static void png_perf_write(int width, int height, double total, double scan,
+    double inflate, double compose, double scale)
+{
+#if defined(_WIN32)
+    const char *local = getenv("LOCALAPPDATA");
+    char path[512];
+    FILE *handle;
+
+    if (local == NULL || local[0] == '\0') {
+        return;
+    }
+    snprintf(path, sizeof(path), "%s\\NopeView\\native-perf.log", local);
+    handle = fopen(path, "a");
+    if (handle == NULL) {
+        return;
+    }
+    fprintf(handle,
+        "png-decode %.1f ms scan=%.1f inflate=%.1f compose=%.1f scale=%.1f px=%dx%d\n",
+        total, scan, inflate, compose, scale, width, height);
+    fclose(handle);
+#else
+    (void)width;
+    (void)height;
+    (void)total;
+    (void)scan;
+    (void)inflate;
+    (void)compose;
+    (void)scale;
+#endif
+}
 
 #if defined(_WIN32)
 extern __declspec(dllimport) int __stdcall MultiByteToWideChar(
@@ -575,6 +635,13 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     int cache_all = 0;
     int64_t file_size = 0;
     int64_t file_mtime = 0;
+    int perf_on = 0;
+    double perf_start = 0.0;
+    double perf_stage = 0.0;
+    double perf_scan = 0.0;
+    double perf_inflate = 0.0;
+    double perf_compose = 0.0;
+    double perf_scale = 0.0;
     nv_png_cache *slot = NULL;
     unsigned char *cache_pixels = NULL;
     uint32_t *cache_delays = NULL;
@@ -601,6 +668,12 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     out_image->struct_size = (uint32_t)sizeof(*out_image);
     memset(&header, 0, sizeof(header));
     memset(&still, 0, sizeof(still));
+
+    perf_on = png_perf_enabled();
+    if (perf_on) {
+        perf_start = png_perf_now_ms();
+        perf_stage = perf_start;
+    }
 
     components = nv_components_for(request->desired_pixel_format);
     output_format = nv_output_format(request->desired_pixel_format);
@@ -735,6 +808,12 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
         goto cleanup;
     }
 
+    if (perf_on) {
+        double now = png_perf_now_ms();
+        perf_scan = now - perf_stage;
+        perf_stage = now;
+    }
+
     canvas_width = header.width;
     canvas_height = header.height;
     if (canvas_width > 32768u || canvas_height > 32768u) {
@@ -787,6 +866,7 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
 
     for (index = 0u; index <= last; index++) {
         nv_png_frame *frame = frame_count == 1u && frames == NULL ? &still : &frames[index];
+        double stage_start = perf_on ? png_perf_now_ms() : 0.0;
 
         if (frame->width == 0u || frame->height == 0u ||
             frame->x_offset + frame->width > canvas_width ||
@@ -815,6 +895,12 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
         if ((uint32_t)frame_width != frame->width || (uint32_t)frame_height != frame->height) {
             status = NV_FORMAT_ERR_DECODE_FAILED;
             goto cleanup;
+        }
+
+        if (perf_on) {
+            double now = png_perf_now_ms();
+            perf_inflate += now - stage_start;
+            stage_start = now;
         }
 
         /* A frame that asks to be rolled back needs the region saved before it
@@ -855,6 +941,10 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
         }
         free(snapshot);
         snapshot = NULL;
+
+        if (perf_on) {
+            perf_compose += png_perf_now_ms() - stage_start;
+        }
     }
 
     if (cache_all) {
@@ -873,6 +963,9 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     canvas = NULL;
 
 have_frame:
+    if (perf_on) {
+        perf_stage = png_perf_now_ms();
+    }
     pixels = result;
     result = NULL;
     width = (int)canvas_width;
@@ -904,6 +997,10 @@ have_frame:
         free(pixels);
     }
 
+    if (perf_on) {
+        perf_scale = png_perf_now_ms() - perf_stage;
+    }
+
     out_image->width = (int32_t)width;
     out_image->height = (int32_t)height;
     out_image->stride = (int32_t)width * components;
@@ -925,6 +1022,11 @@ cleanup:
     free(still.data);
     if (frames != NULL) {
         nv_png_free_frames(frames, frame_count);
+    }
+    if (status == NV_FORMAT_OK && perf_on) {
+        png_perf_write((int)canvas_width, (int)canvas_height,
+            png_perf_now_ms() - perf_start, perf_scan, perf_inflate,
+            perf_compose, perf_scale);
     }
     return status;
 }
