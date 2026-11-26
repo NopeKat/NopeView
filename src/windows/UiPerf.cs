@@ -100,6 +100,30 @@ internal static class UiPerf
         return Enabled ? Stopwatch.StartNew() : null;
     }
 
+    // Marked at the first line of the process, so the startup spans can be
+    // reported against the same origin.
+    private static long _processStartTick;
+
+    internal static void MarkStart()
+    {
+        _processStartTick = Environment.TickCount64;
+    }
+
+    /// <summary>
+    /// Records a span that started at the marked process start, for startup
+    /// phases whose beginning is inside the framework rather than ours.
+    /// </summary>
+    internal static void RecordSinceStart(string name, string detail)
+    {
+        if (!Enabled || _processStartTick == 0)
+        {
+            return;
+        }
+
+        var elapsed = Environment.TickCount64 - _processStartTick;
+        Record(name, TimeSpan.FromMilliseconds(elapsed), detail);
+    }
+
     internal static void Stop(Stopwatch? clock, string name, string detail)
     {
         if (clock is null)

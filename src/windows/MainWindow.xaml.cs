@@ -158,17 +158,28 @@ public sealed partial class MainWindow : Window
     // through its own assembly only.
     internal MainWindow(SettingsService settings)
     {
+        var xamlClock = UiPerf.Start();
         InitializeComponent();
+        UiPerf.Stop(xamlClock, "ctor-xaml", "initialize component");
+
         // The settings file is read once, before the framework starts, so the
         // window only consumes the values it was handed.
         _settings = settings;
 
-        _routerSetup = Task.Run(CreateRouterSession);
+        _routerSetup = Task.Run(() =>
+        {
+            var clock = UiPerf.Start();
+            var session = CreateRouterSession();
+            UiPerf.Stop(clock, "router-setup", $"{session.Extensions.Count} formats");
+            return session;
+        });
 
         // Mica is the Fluent window backdrop. The content layer uses a low
         // opacity fill so the material shows through the title bar and the
         // viewer surface, which keeps both areas in one continuous plane.
+        var backdropClock = UiPerf.Start();
         SystemBackdrop = new MicaBackdrop();
+        UiPerf.Stop(backdropClock, "ctor-backdrop", "mica");
 
         // The viewport receives pointer events for panning and touch pinch
         // tracking, including events already handled by child elements.
@@ -208,12 +219,19 @@ public sealed partial class MainWindow : Window
         // animates, but the handler is cheap and keeps the estimate warm.
         _renderingClock.Start();
         CompositionTarget.Rendering += CompositionTarget_Rendering;
+        var keysClock = UiPerf.Start();
         AddOemKeyAccelerators();
         AddCommandAccelerators();
+        UiPerf.Stop(keysClock, "ctor-accelerators", "key + command");
 
+        var themeClock = UiPerf.Start();
         ApplyTheme(_settings.Theme);
         ApplyImageFrame(_settings.ImageFrame);
+        UiPerf.Stop(themeClock, "ctor-theme", "theme + frame");
+
+        var languageClock = UiPerf.Start();
         ApplyLocalization();
+        UiPerf.Stop(languageClock, "ctor-localization", "strings");
 
         // Set the window icon explicitly. For an unpackaged WinUI 3 app the
         // executable's ApplicationIcon alone does not reach Explorer, so the
@@ -222,19 +240,25 @@ public sealed partial class MainWindow : Window
         var iconPath = Path.Combine(AppContext.BaseDirectory, "assets", "nopeview.ico");
         if (File.Exists(iconPath))
         {
+            var iconClock = UiPerf.Start();
             AppWindow.SetIcon(iconPath);
+            UiPerf.Stop(iconClock, "ctor-icon", iconPath);
         }
 
         // Extend content into the title bar so the official TitleBar control
         // occupies the caption area and keeps the system buttons.
+        var titleBarClock = UiPerf.Start();
         ExtendsContentIntoTitleBar = true;
         ApplyTitleBarColors(_settings.Theme);
+        UiPerf.Stop(titleBarClock, "ctor-title-bar", "extend + colors");
 
         // System theme changes update ActualTheme without going through
         // ApplyTheme, so the system caption buttons need their own refresh.
         RootGrid.ActualThemeChanged += (_, _) => ApplyTitleBarColors(_settings.Theme);
 
+        var startupClock = UiPerf.Start();
         ConfigureStartupWindow();
+        UiPerf.Stop(startupClock, "ctor-startup-window", "placement + maximize");
 
         // Build the settings window during the first idle stretch, so the first
         // Ctrl+, only has to show a window that already exists.
@@ -449,6 +473,27 @@ public sealed partial class MainWindow : Window
 
     private void RootGrid_Loaded(object sender, RoutedEventArgs e)
     {
+        // The span a user feels as "the app opening": from the process starting
+        // to content that can be drawn.
+        if (UiPerf.IsEnabled)
+        {
+            try
+            {
+                var startTime = System.Diagnostics.Process
+                    .GetCurrentProcess()
+                    .StartTime;
+                UiPerf.Record(
+                    "startup-first-frame",
+                    DateTime.Now - startTime,
+                    _settings.Theme.ToString());
+            }
+            catch (System.ComponentModel.Win32Exception)
+            {
+                // Start time is unavailable for some protected processes; the
+                // measurement is dropped rather than guessed.
+            }
+        }
+
         // The official TitleBar control owns the drag region, pane toggle and
         // system caption buttons, so it is registered as the title bar directly.
         SetTitleBar(AppTitleBar);

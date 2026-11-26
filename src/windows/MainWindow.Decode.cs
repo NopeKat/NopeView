@@ -40,6 +40,7 @@ public sealed partial class MainWindow : Window
         }
 
         var gateHeld = false;
+        var openClock = resetView ? UiPerf.Start() : null;
         try
         {
             await _decodeGate.WaitAsync(token);
@@ -64,7 +65,17 @@ public sealed partial class MainWindow : Window
             // A frame decoded while the previous one was on screen skips the
             // worker step entirely, and only the handoff is left to do.
             var frame = readyFrame ?? await Task.Run(
-                () => DecodeFrame(context, path, frameIndex, maxDimension), token);
+                () =>
+                {
+                    var clock = UiPerf.Start();
+                    var decoded = DecodeFrame(context, path, frameIndex, maxDimension);
+                    UiPerf.Stop(
+                        clock,
+                        "decode",
+                        $"{maxDimension} -> {decoded.BitmapWidth}x{decoded.BitmapHeight}");
+                    return decoded;
+                },
+                token);
 
             if (generation != _decodeGeneration)
             {
@@ -201,6 +212,13 @@ public sealed partial class MainWindow : Window
             if (resetView && generation == _decodeGeneration)
             {
                 SetLoading(false);
+
+                // Everything an open waits for, from the request to the image
+                // being on screen, which is the number a user actually feels.
+                UiPerf.Stop(
+                    openClock,
+                    "open-total",
+                    $"{_imagePixelWidth}x{_imagePixelHeight}");
             }
 
             if (ReferenceEquals(_decodeCancellation, cancellation))

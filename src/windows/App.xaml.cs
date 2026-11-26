@@ -18,7 +18,14 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        // Everything before this ran inside the framework's own startup.
+        UiPerf.RecordSinceStart("startup-framework", "before the window");
+
+        var windowClock = UiPerf.Start();
         _window = new MainWindow(Settings);
+        UiPerf.Stop(windowClock, "startup-window", "constructor");
+
         _window.Activate();
+        UiPerf.RecordSinceStart("startup-activated", "window shown");
     }
 }
