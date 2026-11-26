@@ -3,35 +3,35 @@
 
 package app.android.nopeview
 
+import android.content.Context
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
-import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
 import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 
 /**
- * Runs after RestoreSeedTest and a force-stop. It must not clear preferences:
- * the saved URI and its persisted read grant are the state under test.
+ * Runs after RestoreLostPermissionSeedTest and a force-stop. The saved URI is
+ * unreadable, so the app must clear it and show the empty state.
  */
-class RestoreAfterRestartTest {
+class RestoreLostPermissionRestartTest {
     @get:Rule
     val rule = createEmptyComposeRule()
 
     @Test
-    fun restoresLastImageAfterProcessRestart() {
+    fun clearsUnreadableLastUri() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val prefs = context.getSharedPreferences("viewer", Context.MODE_PRIVATE)
         TestShell.startMain()
-        awaitTag("control_open")
+        awaitTag("viewer_shell")
 
-        rule.onNodeWithTag("control_info").performClick()
-        awaitTag("info_dialog")
-        val name = context.getString(R.string.image_info_name) + ": restore.png"
-        val dimensions = context.getString(R.string.image_info_dimensions) + ": 80 x 40"
-        rule.onNodeWithText(name).assertExists()
-        rule.onNodeWithText(dimensions).assertExists()
+        rule.waitUntil(timeoutMillis = 15_000) {
+            prefs.getString("last_uri", null) == null
+        }
+        rule.onNodeWithText(context.getString(R.string.empty_title)).assertExists()
+        assertNull(prefs.getString("last_uri", null))
     }
 
     private fun awaitTag(tag: String) {

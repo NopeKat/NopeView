@@ -13,15 +13,15 @@ import org.junit.Rule
 import org.junit.Test
 
 /**
- * Runs after RestoreLostPermissionSeedTest and a force-stop. The saved URI is
- * unreadable, so the app must clear it and show the empty state.
+ * Runs after RestoreDeletedFileSeedTest and a force-stop. The saved URI
+ * still exists, but its backing file does not.
  */
-class RestoreLostPermissionAfterRestartTest {
+class RestoreDeletedFileRestartTest {
     @get:Rule
     val rule = createEmptyComposeRule()
 
     @Test
-    fun clearsUnreadableLastUri() {
+    fun clearsDeletedLastImage() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val prefs = context.getSharedPreferences("viewer", Context.MODE_PRIVATE)
         TestShell.startMain()

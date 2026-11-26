@@ -17,7 +17,7 @@ import org.junit.Test
 
 /**
  * Leaves one image in the persisted viewer state. The test runner is stopped
- * after this class, then RestoreAfterRestartTest starts a fresh process.
+ * after this class, then RestoreRestartTest starts a fresh process.
  */
 class RestoreSeedTest {
     @get:Rule
