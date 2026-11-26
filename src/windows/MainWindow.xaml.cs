@@ -235,9 +235,9 @@ public sealed partial class MainWindow : Window
         UiPerf.Stop(languageClock, "ctor-localization", "strings");
 
         // Set the window icon explicitly. For an unpackaged WinUI 3 app the
-        // executable's ApplicationIcon alone does not reach Explorer, so the
-        // taskbar button, Alt-Tab and thumbnails show a default icon until the
-        // running window is given one through AppWindow.SetIcon.
+        // executable's ApplicationIcon only covers Explorer; the taskbar icon,
+        // Alt-Tab and thumbnails use the window icon instead, which has to be
+        // assigned at runtime through AppWindow.SetIcon.
         var iconPath = Path.Combine(AppContext.BaseDirectory, "assets", "nopeview.ico");
         if (File.Exists(iconPath))
         {

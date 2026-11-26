@@ -15,7 +15,7 @@
 namespace jxl {
 
 // TODO(veluca): decide if 12 is the best constant here (valid range is up to
-// 16). This requires recomputing the Huffman tables in {enc,dec}_ans.cc
+// 16). This requires recomputing the Huffman tables in {enc,dec}_ans.cpp
 // 14 gives a 0.2% improvement at d1 and makes d8 slightly worse. This is
 // likely not worth the increase in encoder complexity.
 #define ANS_LOG_TAB_SIZE 12u

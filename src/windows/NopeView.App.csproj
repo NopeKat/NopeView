@@ -13,7 +13,9 @@
     <StartupObject>NopeView.Program</StartupObject>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <!-- Application icon shown in Explorer, taskbar, Alt-Tab and Start. -->
+    <!-- Application icon embedded in the executable, which Explorer shows.
+         The taskbar, Alt-Tab and thumbnails use the window icon instead, set
+         at runtime by AppWindow.SetIcon. -->
     <ApplicationIcon>assets\nopeview.ico</ApplicationIcon>
     <!-- Project version uses the x.y.z.n scheme and starts at 0.0.0.0. The third
          segment z is the default increment; the fourth segment n stays 0 and is

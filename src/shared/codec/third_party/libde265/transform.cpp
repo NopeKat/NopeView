@@ -193,7 +193,7 @@ void decode_quantization_parameters(thread_context* tctx, int xC,int yC,
   int log2CbSize = tctx->img->get_log2CbSize(xCUBase, yCUBase);
 
   // TODO: On broken input, log2CbSize may be zero (multithreaded only). Not sure yet why.
-  // Maybe another decoding thread is overwriting the value set in slice.cc:read_coding_unit.
+  // Maybe another decoding thread is overwriting the value set in slice.cpp:read_coding_unit.
   // id:000163,sig:06,src:002041,op:havoc,rep:16.bin
   if (log2CbSize<3) { log2CbSize=3; }
 

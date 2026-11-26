@@ -250,7 +250,7 @@ public:
   int RefPicList_PicState[2][MAX_NUM_REF_PICS]; /* We have to save the PicState because the decoding
                                                    of an image may be delayed and the PicState can
                                                    change in the mean-time (e.g. from ShortTerm to
-                                                   LongTerm). PicState is used in motion.cc */
+                                                   LongTerm). PicState is used in motion.cpp */
 
   char LongTermRefPic[2][MAX_NUM_REF_PICS]; /* Flag whether the picture at this ref-pic-list
                                                is a long-term picture. */

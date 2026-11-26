@@ -261,7 +261,7 @@ static inline uint64_t nv_box_divide(uint64_t sum, uint32_t magic, uint32_t divi
 
 /* Box-average downscale for tightly packed pixels with 1 to 4 components.
  * The longest edge becomes max_dimension and the aspect ratio is preserved.
- * Returns a malloc'ed buffer whose rows are new_width * components bytes. */
+ * Returns a malloc'ed buffer whose rows are target_width * components bytes. */
 static inline unsigned char *nv_downscale_pixels(
     const unsigned char *source,
     int width,
