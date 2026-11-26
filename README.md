@@ -122,32 +122,32 @@ The project is a single monorepo:
 
 ```
 src/
-├── windows/                    Windows app (WinUI 3)
-│   ├── assets/                 derived ICO and title-bar PNG
-│   ├── Native/                 P/Invoke bindings; DLLs load from Native/x64
-│   ├── Strings/                en-US / zh-Hans Resources.resw
-│   ├── SettingsWindow.xaml     modal settings window
-│   └── MainWindow.*.cs         viewer split by concern
-├── android/                    Android app (Jetpack Compose, Gradle)
-│   └── app/
-│       ├── src/main/cpp/       CMakeLists.txt and nopeview_jni.c for the native router/JNI bridge
-│       │   └── webp_config/    minimal libwebp config so arm64 uses the C fallback
-│       └── src/androidTest/
-│           └── assets/NOTICE.md  provenance for external test images
-└── shared/
-    ├── cli/                    command-line entry point (notes only)
-    ├── platform/               platform capability layer (notes only)
-    ├── plugin/                 application plugins
-    │   └── abi/                application plugin ABI
-    ├── resource/               cross-platform source assets (base logo SVG)
-    ├── filelist/               shared file list service
-    │   └── abi/                file list ABI
-    └── codec/                  codec core
-        ├── abi/                router ABI and format ABI
-        ├── router/             dispatch, loader, I/O, cache, platform
-        ├── formats/            one library per format (18 formats)
-        ├── tests/              format smoke tests
-        └── third_party/        bcdec, dav1d, highway, libde265, libheif,
+|-- windows/                    Windows app (WinUI 3)
+|   |-- assets/                 derived ICO and title-bar PNG
+|   |-- Native/                 P/Invoke bindings; DLLs load from Native/x64
+|   |-- Strings/                en-US / zh-Hans Resources.resw
+|   |-- SettingsWindow.xaml     modal settings window
+|   `-- MainWindow.*.cs         viewer split by concern
+|-- android/                    Android app (Jetpack Compose, Gradle)
+|   `-- app/
+|       |-- src/main/cpp/       CMakeLists.txt and nopeview_jni.c for the native router/JNI bridge
+|       |   `-- webp_config/    minimal libwebp config so arm64 uses the C fallback
+|       `-- src/androidTest/
+|           `-- assets/NOTICE.md  provenance for external test images
+`-- shared/
+    |-- cli/                    command-line entry point (notes only)
+    |-- platform/               platform capability layer (notes only)
+    |-- plugin/                 application plugins
+    |   `-- abi/                application plugin ABI
+    |-- resource/               cross-platform source assets (base logo SVG)
+    |-- filelist/               shared file list service
+    |   `-- abi/                file list ABI
+    `-- codec/                  codec core
+        |-- abi/                router ABI and format ABI
+        |-- router/             dispatch, loader, I/O, cache, platform
+        |-- formats/            one library per format (18 formats)
+        |-- tests/              format smoke tests
+        `-- third_party/        bcdec, dav1d, highway, libde265, libheif,
                                 libjxl, libwebp, miniz, nanosvg, openjpeg, stb,
                                 tinyexr
 ```
