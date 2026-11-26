@@ -59,7 +59,11 @@ internal static class Localization
             }
             else if (_overrideApplied)
             {
-                Microsoft.Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = SystemPreference;
+                // Clearing the override does not pull the framework back to the
+                // Windows language in a running process; it keeps the language
+                // the override last selected. Pin the system language instead,
+                // so returning to it re-resolves the same way an override does.
+                Microsoft.Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = systemLanguage;
                 _overrideApplied = false;
             }
             UiPerf.Stop(overrideClock, "language-override", language);
