@@ -113,6 +113,7 @@ File opening through the picker and drag and drop, previous/next navigation, and
 - Windows screenshots use `Windows.Graphics.Capture`.
 - Format smoke tests live in `src/shared/codec/tests/`.
 - Android instrumented tests live in `src/android/app/src/androidTest/` and cover decode, viewer shell, restore, and memory cases.
+- Their image fixtures are kept outside the repository so one copy serves every platform. Stage them onto the device under the app-specific external files root (`Android/data/app.android.nopeview/files/test-assets`) before an instrumented run; a run without staged fixtures is skipped with that directory named.
 - Android instrumented tests are compile-verified only; they have not run on a device or emulator yet.
 
 ## Repository layout
