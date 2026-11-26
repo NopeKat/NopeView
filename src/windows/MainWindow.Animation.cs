@@ -173,6 +173,17 @@ public sealed partial class MainWindow : Window
             }
         }
 
+        // How long the newest size event took to reach a presented frame.
+        if (_resizeLatencyStartMs >= 0)
+        {
+            var latency = now - _resizeLatencyStartMs;
+            _resizeLatencyStartMs = -1;
+            UiPerf.Record(
+                "resize-latency",
+                TimeSpan.FromMilliseconds(latency),
+                UiPerf.Number(Viewport.ActualWidth));
+        }
+
         // Idle gaps between unrelated renders and stalls are not refresh ticks.
         if (delta < MinRefreshPeriodMs || delta > 40.0)
         {

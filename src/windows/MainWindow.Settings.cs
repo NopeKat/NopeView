@@ -46,8 +46,10 @@ public sealed partial class MainWindow : Window
             var workArea = DisplayArea
                 .GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary)
                 .WorkArea;
+            var buildClock = UiPerf.Start();
             var settingsWindow = new SettingsWindow(
                 _settings, ApplyTheme, ApplyLanguage, ApplyImageFrame, workArea);
+            UiPerf.Stop(buildClock, "settings-build", "first open");
 
             // Settings is modal: the viewer owns it, which keeps it above the
             // viewer and out of the taskbar, and keeps the viewer blocked while
@@ -64,7 +66,9 @@ public sealed partial class MainWindow : Window
         // The viewer ignores mouse and keyboard until the settings window
         // closes, the way the owner of a dialog does.
         Win32Window.SetEnabled(Handle, false);
+        var showClock = UiPerf.Start();
         _settingsWindow.ShowAndFocus();
+        UiPerf.Stop(showClock, "settings-show", "activate");
     }
 
     // A modal window has to hand input back, and an owned window is closed

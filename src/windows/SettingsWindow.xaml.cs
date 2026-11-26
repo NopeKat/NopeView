@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using NopeView.App.Native;
 using System;
+using System.Diagnostics;
 using Windows.Graphics;
 using WinRT.Interop;
 
@@ -51,6 +52,10 @@ public sealed partial class SettingsWindow : Window
     /// </summary>
     internal event Action? Hidden;
 
+    // Opened when the viewer asked for the window, so the first load can be
+    // reported as one span that runs from the request to ready content.
+    private readonly Stopwatch? _firstLoadClock;
+
     internal SettingsWindow(
         SettingsService settings,
         Action<AppTheme> applyTheme,
@@ -58,6 +63,7 @@ public sealed partial class SettingsWindow : Window
         Action<ImageFrameStyle> applyImageFrame,
         RectInt32 anchorWorkArea)
     {
+        _firstLoadClock = UiPerf.Start();
         InitializeComponent();
         _settings = settings;
         _applyThemeToApp = applyTheme;
@@ -208,6 +214,7 @@ public sealed partial class SettingsWindow : Window
 
     private void RootGrid_Loaded(object sender, RoutedEventArgs e)
     {
+        UiPerf.Stop(_firstLoadClock, "settings-first-load", "content ready");
         SetTitleBar(AppTitleBar);
 
         // Same treatment as the viewer: the caption keeps its drag, double click

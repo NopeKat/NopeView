@@ -13,9 +13,17 @@ public sealed partial class MainWindow : Window
     private bool _viewStatusPending;
     private readonly DispatcherTimer _frameSizeTimer = new();
 
+    // When the last size event arrived, so the next presented frame can report
+    // how long the resize took to reach the screen.
+    private double _resizeLatencyStartMs = -1;
+
     private void Viewport_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         MarkInteraction("resize");
+        if (UiPerf.IsEnabled)
+        {
+            _resizeLatencyStartMs = _renderingClock.Elapsed.TotalMilliseconds;
+        }
         var bounds = new Rect(0, 0, e.NewSize.Width, e.NewSize.Height);
         if (_viewportClip is null)
         {
@@ -34,17 +42,17 @@ public sealed partial class MainWindow : Window
         // A live resize only rewrites the scale that carries the fit factor.
         // Re-sizing the frame here would relay out and repaint the bitmap on
         // every size event, which is what makes a snapped window stutter.
-        // The local size is baked once the resize settles, and only early when
-        // the live scale would stretch the bitmap past a softness the eye can
-        // catch or hold a surface far larger than the screen needs.
+        // Shrinking is free: the frame keeps its larger surface and the scale
+        // draws it down, which stays sharp. Growing is the only case that needs
+        // more pixels, so that is the only case worth a bake.
         ApplyViewTransform();
         QueueViewStatusUpdate();
 
         var fit = GetFitScale(_imageFrameStyle);
-        if (_frameFit > 0 && fit > 0 &&
-            (fit > _frameFit * FrameSizeMaxStretch ||
-             fit < _frameFit * FrameSizeMaxShrink))
+        if (_frameFit > 0 && fit > 0 && fit > _frameFit * FrameSizeMaxStretch)
         {
+            // Far beyond the tolerated softness: pay for the bake now instead
+            // of showing a blurred image for the rest of the drag.
             UpdateImageFrameSize();
             return;
         }
@@ -53,11 +61,11 @@ public sealed partial class MainWindow : Window
     }
 
     // A live scale may stretch the baked bitmap this far before it looks soft.
-    private const double FrameSizeMaxStretch = 1.25;
+    private const double FrameSizeMaxStretch = 2.0;
 
-    // ... and may shrink it this far before the frame holds more pixels than
-    // the screen can use.
-    private const double FrameSizeMaxShrink = 0.6;
+    // Below this share of the baked size the surface is holding pixels the
+    // screen cannot use, so the settle bake trims it back.
+    private const double FrameSizeMaxShrink = 0.4;
 
     // Settling time after the last size event before the frame is re-sized.
     private const double FrameSizeBakeDelayMs = 200;
@@ -76,11 +84,23 @@ public sealed partial class MainWindow : Window
     private void FrameSizeTimer_Tick(object? sender, object e)
     {
         _frameSizeTimer.Stop();
-        if (!_closing)
+        if (_closing)
+        {
+            return;
+        }
+
+        // Only two cases earn a bake: the frame is drawing the bitmap larger
+        // than it holds, or it is holding far more pixels than the screen can
+        // use. Everything between them keeps the size it has, because a
+        // downscaled bitmap stays sharp and costs nothing to show.
+        var fit = GetFitScale(_imageFrameStyle);
+        if (_frameFit > 0 && fit > 0 &&
+            (fit > _frameFit || fit < _frameFit * FrameSizeMaxShrink))
         {
             UpdateImageFrameSize();
-            UpdateViewStatus();
         }
+
+        UpdateViewStatus();
     }
 
     private void QueueViewStatusUpdate()
