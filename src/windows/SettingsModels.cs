@@ -30,6 +30,7 @@ internal enum ImageFrameStyle
 /// the source-generated serializer able to write it without reflection.
 /// </summary>
 internal sealed record SettingsDocument(
+    [property: JsonPropertyName("schemaVersion")] int SchemaVersion,
     [property: JsonPropertyName("theme")] string Theme,
     [property: JsonPropertyName("language")] string? Language,
     [property: JsonPropertyName("imageFrame")] string? ImageFrame,

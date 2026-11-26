@@ -17,6 +17,10 @@ internal sealed class SettingsService
     private const string FolderName = "NopeView";
     private const string FileName = "settings.json";
 
+    // Bumped when a stored field changes shape. A missing or older value is
+    // treated as version zero and rewritten as the current version on save.
+    private const int CurrentSchemaVersion = 1;
+
     // A zero or absurd rectangle is treated like no stored value, so a
     // hand-edited or truncated file cannot open a window nothing can show.
     private const int MinWindowEdge = 200;
@@ -69,6 +73,11 @@ internal sealed class SettingsService
             var json = File.ReadAllText(_path);
             var document = JsonSerializer.Deserialize(
                 json, SettingsJsonContext.Default.SettingsDocument);
+            if (document is { SchemaVersion: <= 0 })
+            {
+                document = document with { SchemaVersion = CurrentSchemaVersion };
+            }
+
             if (document?.Theme is { } name &&
                 Enum.TryParse(name, ignoreCase: true, out AppTheme parsed) &&
                 Enum.IsDefined(parsed))
@@ -138,7 +147,7 @@ internal sealed class SettingsService
     private void Save()
     {
         var document = new SettingsDocument(
-            Theme.ToString(), Language, ImageFrame.ToString(), SettingsWindowBounds);
+            CurrentSchemaVersion, Theme.ToString(), Language, ImageFrame.ToString(), SettingsWindowBounds);
 
         lock (_pendingGate)
         {
