@@ -1,6 +1,7 @@
 using Microsoft.Windows.ApplicationModel.Resources;
 using System.Diagnostics;
 using System.Globalization;
+using System.Runtime.InteropServices;
 
 namespace NopeView.App;
 
@@ -19,6 +20,10 @@ internal static class Localization
     private static ResourceManager? _resources;
     private static ResourceContext? _context;
     private static string _language = FallbackLanguage;
+    private static bool _overrideApplied;
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetUserDefaultUILanguage();
 
     /// <summary>
     /// Applies a stored preference. An empty preference means "follow Windows";
@@ -26,15 +31,35 @@ internal static class Localization
     /// </summary>
     internal static void Apply(string? preference)
     {
-        var language = Resolve(preference);
+        var resolveClock = UiPerf.Start();
+        var explicitLanguage = ExplicitPreference(preference);
+        var systemLanguage = SystemLanguage();
+        var language = explicitLanguage ?? systemLanguage;
+        UiPerf.Stop(resolveClock, "language-resolve", preference ?? "system");
         _language = language;
         _context = null;
 
         // The WinUI framework reads this override for strings it ships itself,
-        // such as picker buttons and the InfoBar close command.
+        // such as picker buttons and the InfoBar close command. Setting it
+        // initializes the globalization factory and re-resolves those strings,
+        // which costs tens of milliseconds, so it is only set when the app
+        // language really differs from the Windows one. Following Windows
+        // needs no override, because the framework already picked that
+        // language for its own strings.
         try
         {
-            Microsoft.Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = language;
+            var overrideClock = UiPerf.Start();
+            if (language != systemLanguage)
+            {
+                Microsoft.Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = language;
+                _overrideApplied = true;
+            }
+            else if (_overrideApplied)
+            {
+                Microsoft.Windows.Globalization.ApplicationLanguages.PrimaryLanguageOverride = SystemPreference;
+                _overrideApplied = false;
+            }
+            UiPerf.Stop(overrideClock, "language-override", language);
         }
         catch (Exception ex)
         {
@@ -101,7 +126,11 @@ internal static class Localization
         return context;
     }
 
-    private static string Resolve(string? preference)
+    /// <summary>
+    /// Returns the stored choice when it names a bundle, and null when the app
+    /// follows Windows.
+    /// </summary>
+    private static string? ExplicitPreference(string? preference)
     {
         if (string.Equals(preference, SimplifiedChinese, StringComparison.OrdinalIgnoreCase))
         {
@@ -113,8 +142,19 @@ internal static class Localization
             return FallbackLanguage;
         }
 
-        foreach (var tag in Windows.Globalization.ApplicationLanguages.Languages)
+        return null;
+    }
+
+    /// <summary>
+    /// Maps the Windows UI language to one of the two bundles. The WinRT
+    /// language list answers the same question, but reading it initializes the
+    /// globalization factory, which costs about 35 ms on the startup path.
+    /// </summary>
+    private static string SystemLanguage()
+    {
+        try
         {
+            var tag = CultureInfo.GetCultureInfo((int)GetUserDefaultUILanguage()).Name;
             if (IsSimplifiedChinese(tag))
             {
                 return SimplifiedChinese;
@@ -124,6 +164,9 @@ internal static class Localization
             {
                 return FallbackLanguage;
             }
+        }
+        catch (ArgumentException)
+        {
         }
 
         return FallbackLanguage;

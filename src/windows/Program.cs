@@ -17,8 +17,12 @@ public static class Program
         // is read here once and handed to the window that consumes it.
         var settingsClock = UiPerf.Start();
         var settings = new SettingsService();
+        var loadClock = UiPerf.Start();
         settings.Load();
+        UiPerf.Stop(loadClock, "startup-settings-load", "read json");
+        var languageClock = UiPerf.Start();
         Localization.Apply(settings.Language);
+        UiPerf.Stop(languageClock, "startup-language", settings.Language);
         UiPerf.Stop(settingsClock, "startup-settings", "load + language");
 
         // The namespace shares its name with the application class, so the

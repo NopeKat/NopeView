@@ -89,6 +89,7 @@ internal static class WindowChrome
             return;
         }
 
+        var buttonsClock = UiPerf.Start();
         titleBar.ButtonBackgroundColor = Colors.Transparent;
         titleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
         titleBar.ButtonForegroundColor = isDark ? Colors.White : Colors.Black;
@@ -103,8 +104,11 @@ internal static class WindowChrome
         titleBar.ButtonInactiveForegroundColor = isDark
             ? Color.FromArgb(0xFF, 0xA0, 0xA0, 0xA0)
             : Color.FromArgb(0xFF, 0x60, 0x60, 0x60);
+        UiPerf.Stop(buttonsClock, "chrome-buttons", isDark ? "dark" : "light");
 
+        var frameClock = UiPerf.Start();
         ApplyFrameTheme(window, isDark);
+        UiPerf.Stop(frameClock, "chrome-frame", isDark ? "dark" : "light");
     }
 
     /// <summary>

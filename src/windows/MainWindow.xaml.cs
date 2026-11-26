@@ -225,8 +225,12 @@ public sealed partial class MainWindow : Window
         UiPerf.Stop(keysClock, "ctor-accelerators", "key + command");
 
         var themeClock = UiPerf.Start();
+        var themeApplyClock = UiPerf.Start();
         ApplyTheme(_settings.Theme);
+        UiPerf.Stop(themeApplyClock, "ctor-theme-apply", "theme + colors");
+        var frameClock = UiPerf.Start();
         ApplyImageFrame(_settings.ImageFrame);
+        UiPerf.Stop(frameClock, "ctor-frame", "decoration + fit");
         UiPerf.Stop(themeClock, "ctor-theme", "theme + frame");
 
         var languageClock = UiPerf.Start();
