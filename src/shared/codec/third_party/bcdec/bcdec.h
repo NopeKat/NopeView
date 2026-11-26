@@ -1,4 +1,4 @@
-﻿/* bcdec.h - v0.985
+/* bcdec.h - v0.985
    provides functions to decompress blocks of BC compressed images
    written by Sergii "iOrange" Kudlai in 2022
 
@@ -1416,7 +1416,7 @@ BCDECDEF void bcdec_bc7(const void* compressedBlock, void* decompressedBlock, in
                 /* The index value for interpolating color comes from the secondary index bits for the texel
                    if the mode has an index selection bit and its value is one, and from the primary index bits otherwise.
                    The alpha index comes from the secondary index bits if the block has a secondary index and
-                   the block either doesn’t have an index selection bit or that bit is zero, and from the primary index bits otherwise. */
+                   the block either doesn't have an index selection bit or that bit is zero, and from the primary index bits otherwise. */
                 if (!indexSelectionBit) {
                     r = bcdec__interpolate(endpoints[partitionSet * 2][0], endpoints[partitionSet * 2 + 1][0],  weights,  index);
                     g = bcdec__interpolate(endpoints[partitionSet * 2][1], endpoints[partitionSet * 2 + 1][1],  weights,  index);
@@ -1431,10 +1431,10 @@ BCDECDEF void bcdec_bc7(const void* compressedBlock, void* decompressedBlock, in
             }
 
             switch (rotation) {
-                case 1: {   /* 01 – Block format is Scalar(R) Vector(AGB) - swap A and R */
+                case 1: {   /* 01 - Block format is Scalar(R) Vector(AGB) - swap A and R */
                     bcdec__swap_values(&a, &r);
                 } break;
-                case 2: {   /* 10 – Block format is Scalar(G) Vector(RAB) - swap A and G */
+                case 2: {   /* 10 - Block format is Scalar(G) Vector(RAB) - swap A and G */
                     bcdec__swap_values(&a, &g);
                 } break;
                 case 3: {   /* 11 - Block format is Scalar(B) Vector(RGA) - swap A and B */
