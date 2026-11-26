@@ -1,3 +1,6 @@
+// Copyright (c) 2026 NopeKat. All rights reserved.
+// Licensed under the GNU Affero General Public License v3.0; see LICENSE.
+
 /*
  * nv_format_abi.h - Boundary B: format ABI.
  *

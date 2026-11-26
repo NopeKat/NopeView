@@ -1,3 +1,6 @@
+// Copyright (c) 2026 NopeKat. All rights reserved.
+// Licensed under the GNU Affero General Public License v3.0; see LICENSE.
+
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Automation.Peers;

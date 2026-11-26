@@ -1,3 +1,6 @@
+// Copyright (c) 2026 NopeKat. All rights reserved.
+// Licensed under the GNU Affero General Public License v3.0; see LICENSE.
+
 /*
  * JPEG format codec.
  * Implements the format ABI (nv_format_abi.h) on top of stb_image and

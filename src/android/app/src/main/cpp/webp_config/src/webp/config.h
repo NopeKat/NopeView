@@ -1,3 +1,6 @@
+// Copyright (c) 2026 NopeKat. All rights reserved.
+// Licensed under the GNU Affero General Public License v3.0; see LICENSE.
+
 // Minimal libwebp configuration for the Android arm64 C fallback path.
 // The vendored tree has no NEON sources, so no instruction set macros are
 // defined here. WebP_HAVE_* must stay undefined: libwebp checks definedness,
