@@ -1,3 +1,4 @@
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
@@ -13,6 +14,12 @@ namespace NopeView.App;
 public sealed partial class MainWindow : Window
 {
     private SettingsWindow? _settingsWindow;
+
+    // Builds the settings window once, hidden, a moment after the viewer
+    // settles. A timer rather than a load callback keeps the build out of the
+    // startup path, where it would delay the first image.
+    private readonly DispatcherTimer _settingsPrewarmTimer = new();
+    private const double SettingsPrewarmDelayMs = 2000;
 
     // Set while the main window is closing. Closing the settings window at the
     // same time must not try to activate a window that is already gone.
@@ -40,16 +47,34 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private void OpenSettingsWindow()
     {
+        EnsureSettingsWindow();
+
+        // The viewer ignores mouse and keyboard until the settings window
+        // closes, the way the owner of a dialog does.
+        Win32Window.SetEnabled(Handle, false);
+        var showClock = UiPerf.Start();
+        _settingsWindow!.ShowAndFocus();
+        UiPerf.Stop(showClock, "settings-show", "activate");
+    }
+
+    /// <summary>
+    /// Builds the settings window once, hidden. The page is expensive enough
+    /// that a first open used to show nothing for about 370 ms, so the build is
+    /// moved to a moment when the viewer is idle and the open itself only has
+    /// to show a window that already exists.
+    /// </summary>
+    private SettingsWindow EnsureSettingsWindow()
+    {
         if (_settingsWindow is null)
         {
-            // The new window opens on the display that hosts the viewer.
+            // The window opens on the display that hosts the viewer.
             var workArea = DisplayArea
                 .GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary)
                 .WorkArea;
             var buildClock = UiPerf.Start();
             var settingsWindow = new SettingsWindow(
                 _settings, ApplyTheme, ApplyLanguage, ApplyImageFrame, workArea);
-            UiPerf.Stop(buildClock, "settings-build", "first open");
+            UiPerf.Stop(buildClock, "settings-build", "hidden build");
 
             // Settings is modal: the viewer owns it, which keeps it above the
             // viewer and out of the taskbar, and keeps the viewer blocked while
@@ -63,12 +88,29 @@ public sealed partial class MainWindow : Window
             _settingsWindow = settingsWindow;
         }
 
-        // The viewer ignores mouse and keyboard until the settings window
-        // closes, the way the owner of a dialog does.
-        Win32Window.SetEnabled(Handle, false);
-        var showClock = UiPerf.Start();
-        _settingsWindow.ShowAndFocus();
-        UiPerf.Stop(showClock, "settings-show", "activate");
+        return _settingsWindow;
+    }
+
+    private void SettingsPrewarmTimer_Tick(object? sender, object e)
+    {
+        _settingsPrewarmTimer.Stop();
+        if (_closing || _settingsWindow is not null)
+        {
+            return;
+        }
+
+        // An open owns the UI thread for as long as it decodes. Building the
+        // page in the middle of it would be felt as a delayed image, so the
+        // prewarm waits for the next idle moment instead.
+        if (LoadingRing.Visibility == Visibility.Visible)
+        {
+            _settingsPrewarmTimer.Start();
+            return;
+        }
+
+        var clock = UiPerf.Start();
+        EnsureSettingsWindow();
+        UiPerf.Stop(clock, "settings-prewarm", "hidden build");
     }
 
     // A modal window has to hand input back, and an owned window is closed

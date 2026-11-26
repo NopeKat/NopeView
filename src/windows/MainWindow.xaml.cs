@@ -200,6 +200,9 @@ public sealed partial class MainWindow : Window
         _upgradeTimer.Interval = TimeSpan.FromMilliseconds(300);
         _frameSizeTimer.Tick += FrameSizeTimer_Tick;
         _frameSizeTimer.Interval = TimeSpan.FromMilliseconds(FrameSizeBakeDelayMs);
+        _settingsPrewarmTimer.Tick += SettingsPrewarmTimer_Tick;
+        _settingsPrewarmTimer.Interval =
+            TimeSpan.FromMilliseconds(SettingsPrewarmDelayMs);
 
         // The presented-frame interval only has to be known while something
         // animates, but the handler is cheap and keeps the estimate warm.
@@ -233,6 +236,10 @@ public sealed partial class MainWindow : Window
 
         ConfigureStartupWindow();
 
+        // Build the settings window during the first idle stretch, so the first
+        // Ctrl+, only has to show a window that already exists.
+        _settingsPrewarmTimer.Start();
+
         Closed += MainWindow_Closed;
     }
 
@@ -250,6 +257,7 @@ public sealed partial class MainWindow : Window
         _animationTimer.Stop();
         _upgradeTimer.Stop();
         _frameSizeTimer.Stop();
+        _settingsPrewarmTimer.Stop();
         _decodeCancellation?.Cancel();
         DiscardPrefetch();
         UiPerf.Flush();
