@@ -7,14 +7,13 @@ using System.Text.Json;
 namespace NopeView.App;
 
 /// <summary>
-/// Persists user preferences as JSON under the local app data folder.
+/// Persists user preferences as JSON in the folder the app writes to.
 /// A missing or unreadable file falls back to defaults instead of failing.
 /// Writes go through a temporary file so a crash mid-write cannot leave a
 /// truncated file behind.
 /// </summary>
 internal sealed class SettingsService
 {
-    private const string FolderName = "NopeView";
     private const string FileName = "settings.json";
 
     // Bumped when a stored field changes shape. A missing or older value is
@@ -37,8 +36,8 @@ internal sealed class SettingsService
 
     internal SettingsService()
     {
-        var root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        _path = Path.Combine(root, FolderName, FileName);
+        _path = Path.Combine(AppStorage.Root, FileName);
+        AppStorage.AdoptLegacyFile(FileName, _path);
     }
 
     internal AppTheme Theme { get; private set; } = AppTheme.System;

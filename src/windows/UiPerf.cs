@@ -10,12 +10,12 @@ namespace NopeView.App;
 /// <summary>
 /// Opt-in timing record for work that runs on the UI thread. Sampling stays
 /// off unless NOPEVIEW_UI_PERF is set to 1, so a normal run pays nothing; when
-/// it is on, samples are appended to %LOCALAPPDATA%\NopeView\ui-perf.log.
+/// it is on, samples are appended to ui-perf.log in the folder the app writes
+/// to.
 /// </summary>
 internal static class UiPerf
 {
     private const string EnvironmentName = "NOPEVIEW_UI_PERF";
-    private const string FolderName = "NopeView";
     private const string FileName = "ui-perf.log";
 
     private static readonly bool Enabled =
@@ -205,9 +205,7 @@ internal static class UiPerf
     {
         try
         {
-            var directory = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                FolderName);
+            var directory = AppStorage.Root;
             Directory.CreateDirectory(directory);
             File.AppendAllText(Path.Combine(directory, FileName), text, Encoding.UTF8);
         }

@@ -168,14 +168,24 @@ static void png_perf_write(int width, int height, double total, double scan,
     double inflate, double compose, double scale)
 {
 #if defined(_WIN32)
-    const char *local = getenv("LOCALAPPDATA");
+    char directory[480];
     char path[512];
+    char *slash;
+    DWORD length;
     FILE *handle;
 
-    if (local == NULL || local[0] == '\0') {
+    /* The log lives beside the executable, the folder the app writes all of
+     * its run time files to, so a portable copy leaves nothing behind. */
+    length = GetModuleFileNameA(NULL, directory, (DWORD)sizeof(directory));
+    if (length == 0u || length >= (DWORD)sizeof(directory)) {
         return;
     }
-    snprintf(path, sizeof(path), "%s\\NopeView\\native-perf.log", local);
+    slash = strrchr(directory, '\\');
+    if (slash == NULL) {
+        return;
+    }
+    *slash = '\0';
+    snprintf(path, sizeof(path), "%s\\native-perf.log", directory);
     handle = fopen(path, "a");
     if (handle == NULL) {
         return;
