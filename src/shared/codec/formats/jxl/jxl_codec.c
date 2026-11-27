@@ -14,11 +14,164 @@
 
 #include <jxl/color_encoding.h>
 #include <jxl/decode.h>
+#include <jxl/parallel_runner.h>
 
 #include <limits.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+#if defined(_WIN32)
+#include <windows.h>
+#else
+#include <pthread.h>
+#include <unistd.h>
+#endif
+
+/* libjxl only decodes on more than one thread when the caller supplies a
+ * parallel runner; the vendored build has no libjxl_threads, so the runner
+ * below spreads the frame's row groups over a fixed set of threads. Eight is
+ * the ceiling because row-group cost stops dominating past that on the images
+ * this viewer opens. */
+#define JXL_MAX_RUNNER_THREADS 8
+
+#if defined(_WIN32)
+typedef HANDLE jxl_thread_handle;
+#define JXL_WORKER_RETURN DWORD WINAPI
+#else
+typedef pthread_t jxl_thread_handle;
+#define JXL_WORKER_RETURN void *
+#endif
+
+/* One slice of the value range, run on one thread. */
+typedef struct jxl_run_slice {
+    void *opaque;
+    JxlParallelRunFunction func;
+    uint32_t start;
+    uint32_t end;
+    size_t stride;
+    size_t thread_index;
+    jxl_thread_handle handle;
+} jxl_run_slice;
+
+/* Threads to use: one per logical processor, clamped to the ceiling and to the
+ * number of values the caller handed over. */
+static size_t runner_thread_count(uint32_t start_range, uint32_t end_range)
+{
+    long count;
+    uint32_t values = end_range - start_range;
+
+#if defined(_WIN32)
+    SYSTEM_INFO information;
+
+    GetSystemInfo(&information);
+    count = (long)information.dwNumberOfProcessors;
+#else
+    count = sysconf(_SC_NPROCESSORS_ONLN);
+#endif
+
+    if (count < 1) {
+        return 1u;
+    }
+    if (count > JXL_MAX_RUNNER_THREADS) {
+        count = JXL_MAX_RUNNER_THREADS;
+    }
+    if ((uint32_t)count > values) {
+        return (size_t)values;
+    }
+    return (size_t)count;
+}
+
+#if defined(_WIN32)
+static DWORD WINAPI run_slice_worker(LPVOID parameter)
+#else
+static void *run_slice_worker(void *parameter)
+#endif
+{
+    jxl_run_slice *slice = (jxl_run_slice *)parameter;
+    uint32_t value;
+
+    for (value = slice->start; value < slice->end; value += (uint32_t)slice->stride) {
+        slice->func(slice->opaque, value, slice->thread_index);
+    }
+
+#if defined(_WIN32)
+    return 0u;
+#else
+    return NULL;
+#endif
+}
+
+/* JxlParallelRunner implementation. Thread 0 runs on the calling thread, so a
+ * range shorter than the thread count never starts a thread it does not need. */
+static JxlParallelRetCode jxl_parallel_run(
+    void *runner_opaque,
+    void *jpegxl_opaque,
+    JxlParallelRunInit init,
+    JxlParallelRunFunction func,
+    uint32_t start_range,
+    uint32_t end_range)
+{
+    jxl_run_slice slices[JXL_MAX_RUNNER_THREADS];
+    size_t threads;
+    size_t index;
+    JxlParallelRetCode init_result;
+
+    (void)runner_opaque;
+
+    if (init == NULL || func == NULL || end_range <= start_range) {
+        return JXL_PARALLEL_RET_RUNNER_ERROR;
+    }
+
+    threads = runner_thread_count(start_range, end_range);
+    init_result = init(jpegxl_opaque, threads);
+    if (init_result != JXL_PARALLEL_RET_SUCCESS) {
+        return init_result;
+    }
+
+    for (index = 0u; index < threads; index++) {
+        slices[index].opaque = jpegxl_opaque;
+        slices[index].func = func;
+        slices[index].start = start_range + (uint32_t)index;
+        slices[index].end = end_range;
+        slices[index].stride = threads;
+        slices[index].thread_index = index;
+        slices[index].handle = 0;
+    }
+
+    for (index = 1u; index < threads; index++) {
+#if defined(_WIN32)
+        slices[index].handle = CreateThread(
+            NULL, 0u, run_slice_worker, &slices[index], 0u, NULL);
+#else
+        if (pthread_create(&slices[index].handle, NULL, run_slice_worker, &slices[index]) != 0) {
+            slices[index].handle = 0;
+        }
+#endif
+        if (slices[index].handle == 0) {
+            /* A slice without a thread still has to cover its values; running
+             * it here keeps the decode correct rather than failing it. */
+            run_slice_worker(&slices[index]);
+        }
+    }
+
+    run_slice_worker(&slices[0]);
+
+    for (index = 1u; index < threads; index++) {
+        if (slices[index].handle == 0) {
+            continue;
+        }
+#if defined(_WIN32)
+        WaitForSingleObject(slices[index].handle, INFINITE);
+        CloseHandle(slices[index].handle);
+#else
+        pthread_join(slices[index].handle, NULL);
+#endif
+    }
+
+    return JXL_PARALLEL_RET_SUCCESS;
+}
+
 const char *nv_format_abi_version(void)
 {
     return NV_FORMAT_ABI_VERSION;
@@ -79,6 +232,13 @@ nv_format_status nv_format_decode(
     decoder = JxlDecoderCreate(NULL);
     if (decoder == NULL) {
         return NV_FORMAT_ERR_OUT_OF_MEMORY;
+    }
+
+    /* Without a runner libjxl decodes every row group on the calling thread. */
+    if (JxlDecoderSetParallelRunner(decoder, jxl_parallel_run, NULL) !=
+        JXL_DEC_SUCCESS) {
+        JxlDecoderDestroy(decoder);
+        return NV_FORMAT_ERR_DECODE_FAILED;
     }
 
     if (JxlDecoderSubscribeEvents(
