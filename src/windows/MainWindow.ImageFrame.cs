@@ -68,7 +68,10 @@ public sealed partial class MainWindow : Window
     /// <summary>
     /// Device-independent units per image pixel when the bitmap is fitted.
     /// Shadow mode reserves an inset so the soft edge can render inside the
-    /// viewport clip. Returns zero while the layout is not measurable yet.
+    /// viewport clip. A quarter turn puts the bitmap's height across the width,
+    /// so the box the picture has to fit into uses the swapped pair while the
+    /// frame keeps the file's own width and height. Returns zero while the
+    /// layout is not measurable yet.
     /// </summary>
     private double GetFitScale(ImageFrameStyle style)
     {
@@ -83,9 +86,12 @@ public sealed partial class MainWindow : Window
         var inset = style == ImageFrameStyle.Shadow ? ImageShadowInset : 0;
         var availableWidth = Math.Max(1, Viewport.ActualWidth - inset * 2);
         var availableHeight = Math.Max(1, Viewport.ActualHeight - inset * 2);
+        var quarterTurn = IsQuarterTurn;
+        var boxWidth = quarterTurn ? _imagePixelHeight : _imagePixelWidth;
+        var boxHeight = quarterTurn ? _imagePixelWidth : _imagePixelHeight;
         return Math.Min(
-            availableWidth / _imagePixelWidth,
-            availableHeight / _imagePixelHeight);
+            availableWidth / boxWidth,
+            availableHeight / boxHeight);
     }
 
     /// <summary>
@@ -124,6 +130,12 @@ public sealed partial class MainWindow : Window
     {
         var clock = UiPerf.Start();
         var fit = GetFitScale(_imageFrameStyle);
+
+        // The pan is the one part of the view that can place the picture
+        // entirely out of sight, and every gesture, resize and rotation
+        // funnels through here, so the bounds are enforced in one place.
+        ClampPan(fit);
+
         var compensation = _frameFit > 0 && fit > 0 ? fit / _frameFit : 1.0;
         _view.ApplyTo(ImageRotation, ImageScale, ImageTranslation, compensation);
         UpdateImageFrameStroke(_view.Zoom * compensation);

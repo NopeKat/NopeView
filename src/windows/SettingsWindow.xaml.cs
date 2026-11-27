@@ -324,12 +324,17 @@ public sealed partial class SettingsWindow : Window
         var position = AppWindow.Position;
         var size = AppWindow.Size;
 
-        // The state flags cannot tell a maximized window apart reliably on every
-        // desktop, so the size is compared instead: the configured window never
-        // grows past 92% of the work area, so filling it means maximized. A
-        // maximized window only marks the flag and keeps the rectangle the user
-        // chose before maximizing.
-        if (size.Width >= _anchorWorkArea.Width || size.Height >= _anchorWorkArea.Height)
+        // The presenter reports the state on every desktop and on every
+        // display, which matters once the window is dragged off the monitor it
+        // was anchored to. The size test stays as a fallback: a snapped window
+        // fills one axis only, so both axes have to be full before it counts.
+        var presenterMaximized =
+            AppWindow.Presenter is OverlappedPresenter presenter &&
+            presenter.State == OverlappedPresenterState.Maximized;
+        var fillsWorkArea =
+            size.Width >= _anchorWorkArea.Width &&
+            size.Height >= _anchorWorkArea.Height;
+        if (presenterMaximized || fillsWorkArea)
         {
             _maximized = true;
         }

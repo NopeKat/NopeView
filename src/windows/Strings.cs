@@ -15,6 +15,9 @@ internal static class Strings
     internal static string CopyTitle => Localization.Get("Error.CopyTitle");
     internal static string SaveTitle => Localization.Get("Error.SaveTitle");
     internal static string AnimationTitle => Localization.Get("Error.AnimationTitle");
+    internal static string SettingsTitle => Localization.Get("Error.SettingsTitle");
+    internal static string ShowInExplorerTitle =>
+        Localization.Get("Error.ShowInExplorerTitle");
 
     internal static string RouterUnavailable => Localization.Get("Error.RouterUnavailable");
     internal static string CopyDecodeFailed => Localization.Get("Error.CopyDecodeFailed");
@@ -28,10 +31,16 @@ internal static class Strings
     internal static string SaveFailed(string reason) =>
         Localization.Format("Error.SaveFailed", reason);
 
+    internal static string ShowInExplorerFailed(string reason) =>
+        Localization.Format("Error.ShowInExplorerFailed", reason);
+
     internal static string LimitedTitle => Localization.Get("Notice.LimitedTitle");
 
     internal static string LimitedResolution(int megapixels, int edge) =>
         Localization.Format("Notice.LimitedResolution", megapixels, edge);
+
+    internal static string FolderUnreadable(string name) =>
+        Localization.Format("Notice.FolderUnreadable", name);
 
     internal static string DescribeDecodeStatus(int status) => status switch
     {

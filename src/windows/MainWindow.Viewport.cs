@@ -223,6 +223,43 @@ public sealed partial class MainWindow : Window
     private bool IsMagnified => _view.Zoom > 1.0 + FitTolerance;
 
     /// <summary>
+    /// True while the view is turned a quarter turn, where the bitmap's width
+    /// and height on screen are the reverse of the file's.
+    /// </summary>
+    private bool IsQuarterTurn =>
+        ((int)Math.Round(_view.Rotation / 90.0)) % 2 != 0;
+
+    /// <summary>
+    /// Keeps the image inside the viewport. The pan offset is the only part of
+    /// the view that can carry the picture out of sight, so the slack on each
+    /// axis is half of whatever the scaled image overhangs the viewport; with
+    /// no overhang the image stays centered.
+    /// </summary>
+    private void ClampPan(double fit)
+    {
+        if (fit <= 0 ||
+            _imagePixelWidth <= 0 ||
+            _imagePixelHeight <= 0 ||
+            _frameFit <= 0 ||
+            Viewport.ActualWidth <= 0 ||
+            Viewport.ActualHeight <= 0)
+        {
+            return;
+        }
+
+        var quarterTurn = IsQuarterTurn;
+        var shownWidth =
+            (quarterTurn ? _imagePixelHeight : _imagePixelWidth) * fit * _view.Zoom;
+        var shownHeight =
+            (quarterTurn ? _imagePixelWidth : _imagePixelHeight) * fit * _view.Zoom;
+
+        var slackX = Math.Max(0, (shownWidth - Viewport.ActualWidth) / 2);
+        var slackY = Math.Max(0, (shownHeight - Viewport.ActualHeight) / 2);
+        _view.PanX = Math.Clamp(_view.PanX, -slackX, slackX);
+        _view.PanY = Math.Clamp(_view.PanY, -slackY, slackY);
+    }
+
+    /// <summary>
     /// Zoom, rotation, flips and pan of the displayed image. Every gesture
     /// writes here and one ApplyTo call pushes the values into the render
     /// transform, so the numbers and the transform cannot drift apart.

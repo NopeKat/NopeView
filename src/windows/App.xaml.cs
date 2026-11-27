@@ -3,6 +3,7 @@
 
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using System.Diagnostics;
 
 namespace NopeView.App;
 
@@ -17,6 +18,12 @@ public partial class App : Application
     public App()
     {
         InitializeComponent();
+
+        // Commands already turn their own failures into the error panel, so
+        // anything reaching here is a bug. It is recorded for a trace and left
+        // unhandled instead of being hidden behind a flag.
+        UnhandledException += (_, args) =>
+            Debug.WriteLine($"Unhandled exception: {args.Exception}");
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)

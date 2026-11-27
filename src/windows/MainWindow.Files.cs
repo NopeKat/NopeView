@@ -31,7 +31,7 @@ public sealed partial class MainWindow : Window
 
     private void CopyPathMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        CopyCurrentPath();
+        RunCommand(CopyCurrentPath, Strings.CopyTitle);
     }
 
     private void CopyCurrentPath()
@@ -42,10 +42,20 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        var data = new DataPackage();
-        data.SetText(path);
-        Clipboard.SetContent(data);
-        Clipboard.Flush();
+        // The clipboard is shared with every other process on the desktop, so
+        // another app holding it open is a normal outcome that has to be
+        // reported rather than thrown out of the click handler.
+        try
+        {
+            var data = new DataPackage();
+            data.SetText(path);
+            Clipboard.SetContent(data);
+            Clipboard.Flush();
+        }
+        catch (Exception ex)
+        {
+            ShowError(Strings.CopyFailed(ex.Message), Strings.CopyTitle);
+        }
     }
 
     private void CopyFileMenuItem_Click(object sender, RoutedEventArgs e)
@@ -249,6 +259,42 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             ShowError(Strings.SaveFailed(ex.Message), Strings.SaveTitle);
+            return;
+        }
+
+        // The file exists now. When it landed next to the image on screen, the
+        // list navigation walks has to pick it up, or the new file stays
+        // invisible until the folder is opened again. A rescan that fails is
+        // not a save failure, so it is kept out of the block above.
+        await RefreshDirectoryAfterSaveAsync(path, result.Path);
+    }
+
+    /// <summary>
+    /// Rebuilds the directory around the open file when a save wrote into the
+    /// same folder. A failure here only costs the new file its list entry, and
+    /// the next open rebuilds the list anyway.
+    /// </summary>
+    private async Task RefreshDirectoryAfterSaveAsync(
+        string sourcePath, string targetPath)
+    {
+        var sourceDirectory = Path.GetDirectoryName(Path.GetFullPath(sourcePath));
+        var targetDirectory = Path.GetDirectoryName(Path.GetFullPath(targetPath));
+        if (string.IsNullOrEmpty(sourceDirectory) ||
+            string.IsNullOrEmpty(targetDirectory) ||
+            !string.Equals(
+                sourceDirectory, targetDirectory, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        try
+        {
+            _directory = await CreateDirectoryAsync(sourcePath);
+            UpdateNavigationState();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Save: could not refresh the folder list: {ex.Message}");
         }
     }
 
@@ -299,16 +345,33 @@ public sealed partial class MainWindow : Window
 
     private void ShowInExplorerMenuItem_Click(object sender, RoutedEventArgs e)
     {
+        RunCommand(ShowCurrentInExplorer, Strings.ShowInExplorerTitle);
+    }
+
+    /// <summary>
+    /// Opens the shell view around the current file. The shell refuses when the
+    /// file or its folder is gone, and that is reported instead of leaving the
+    /// command silently dead.
+    /// </summary>
+    private void ShowCurrentInExplorer()
+    {
         var path = CurrentPath;
         if (path is null)
         {
             return;
         }
 
-        Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"")
+        try
         {
-            UseShellExecute = true
-        });
+            Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"")
+            {
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            ShowError(Strings.ShowInExplorerFailed(ex.Message), Strings.ShowInExplorerTitle);
+        }
     }
 
     private async void CopyImageAccelerator_Invoked(
@@ -324,7 +387,7 @@ public sealed partial class MainWindow : Window
         KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
-        CopyCurrentPath();
+        RunCommand(CopyCurrentPath, Strings.CopyTitle);
     }
 
     private async void SaveAsAccelerator_Invoked(

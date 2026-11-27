@@ -11,6 +11,13 @@ namespace NopeView.App;
 public sealed partial class MainWindow : Window
 {
     /// <summary>
+    /// Interactive zoom ceiling. It never falls below the zoom already in use
+    /// because 1:1 can need more than the wheel allows, and a ceiling under the
+    /// current value would turn a zoom-in step into a jump back down.
+    /// </summary>
+    private double ZoomCeiling => Math.Max(MaxZoom, _view.Zoom);
+
+    /// <summary>
     /// Scales the image around an anchor point so the content under the
     /// fingers or the cursor stays put. The image scales around its center
     /// and then pans, so the pan offset compensates for the difference the
@@ -19,7 +26,7 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private void ZoomAtPoint(double zoom, Point anchor)
     {
-        var newZoom = Math.Clamp(zoom, MinZoom, MaxZoom);
+        var newZoom = Math.Clamp(zoom, MinZoom, ZoomCeiling);
         if (Math.Abs(newZoom - _view.Zoom) < 0.0001)
         {
             return;
@@ -55,17 +62,31 @@ public sealed partial class MainWindow : Window
 
     /// <summary>
     /// Turns the view by a quarter turn. The angle stays inside [0, 360) so
-    /// the readout never shows a negative or wrapped value.
+    /// the readout never shows a negative or wrapped value. A quarter turn
+    /// swaps the bitmap's extents on screen, so the fitted box changes and the
+    /// frame is re-sized to the new fit instead of being clipped by the old one.
     /// </summary>
     private void RotateBy(double degrees)
     {
+        var wasFit = IsAtFit;
+        var oldFit = GetFitScale(_imageFrameStyle);
+
         _view.Rotation = (_view.Rotation + degrees) % 360;
         if (_view.Rotation < 0)
         {
             _view.Rotation += 360;
         }
 
-        ApplyViewTransform();
+        // The new fit is known before the frame is re-sized, so a view that was
+        // magnified keeps the same on-screen scale with one transform pass.
+        var newFit = GetFitScale(_imageFrameStyle);
+        if (!wasFit && oldFit > 0 && newFit > 0)
+        {
+            _view.Zoom = Math.Clamp(
+                _view.Zoom * oldFit / newFit, MinZoom, ZoomCeiling);
+        }
+
+        UpdateImageFrameSize();
         UpdateViewStatus();
     }
 
@@ -113,7 +134,7 @@ public sealed partial class MainWindow : Window
 
     private void SetZoom(double zoom)
     {
-        _view.Zoom = Math.Clamp(zoom, MinZoom, MaxZoom);
+        _view.Zoom = Math.Clamp(zoom, MinZoom, ZoomCeiling);
         ApplyViewTransform();
         UpdateViewStatus();
 
@@ -145,6 +166,15 @@ public sealed partial class MainWindow : Window
     {
         _upgradeTimer.Stop();
         if (!IsMagnified)
+        {
+            return;
+        }
+
+        // The loading ring is the existing "an open is decoding" signal (the
+        // settings prewarm reads it too). A full decode that landed here would
+        // take the generation away from the open and leave the ring running
+        // over a stale image.
+        if (LoadingRing.Visibility == Visibility.Visible)
         {
             return;
         }

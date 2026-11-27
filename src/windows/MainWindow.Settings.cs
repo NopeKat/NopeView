@@ -30,7 +30,7 @@ public sealed partial class MainWindow : Window
 
     private void SettingsMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        OpenSettingsWindow();
+        RunCommand(OpenSettingsWindow, Strings.SettingsTitle);
     }
 
     // Ctrl+, and Ctrl+2 both bring the settings window forward. It is a modal
@@ -39,7 +39,7 @@ public sealed partial class MainWindow : Window
     private void SettingsAccelerator_Invoked(
         KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
-        OpenSettingsWindow();
+        RunCommand(OpenSettingsWindow, Strings.SettingsTitle);
         args.Handled = true;
     }
 
@@ -190,10 +190,12 @@ public sealed partial class MainWindow : Window
 
         // A shadow inset changes the fitted box. Keep the bitmap at the same
         // on-screen scale when the user was zoomed in; at fit the image simply
-        // refits to the new box.
+        // refits to the new box. The ceiling follows the current zoom so a
+        // view at 1:1 is not pulled back to the wheel limit.
         if (!wasFit && oldFit > 0 && newFit > 0)
         {
-            _view.Zoom = Math.Clamp(_view.Zoom * oldFit / newFit, MinZoom, MaxZoom);
+            _view.Zoom = Math.Clamp(
+                _view.Zoom * oldFit / newFit, MinZoom, ZoomCeiling);
         }
 
         ApplyViewTransform();

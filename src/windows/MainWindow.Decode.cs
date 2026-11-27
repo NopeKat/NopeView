@@ -55,9 +55,12 @@ public sealed partial class MainWindow : Window
             // the whole decode and prevented a loading state from rendering.
             var context = session.Context;
 
-            // An animation decodes every step again, so it keeps a tighter
-            // preview bound than a still image. The frame count only becomes
-            // known from the first decode, which is why both signals count.
+            // An animation decodes every step again, so playback keeps a tighter
+            // preview bound than a still image. The first frame stays on the
+            // still budget on purpose: the frame count is only known after a
+            // decode, and this frame is what a paused animation shows, so it has
+            // to stay sharp. The frame count is reset on navigation, so a still
+            // never inherits the budget of the animation opened before it.
             var animated = frameIndex > 0 || _frameCount > 1;
             var maxDimension = fullResolution
                 ? FullResolutionEdge(_imagePixelWidth, _imagePixelHeight)
@@ -151,6 +154,11 @@ public sealed partial class MainWindow : Window
             _frameCount = Math.Max(1u, frame.FrameCount);
             _frameDelayMs = frame.FrameDelayMs;
 
+            // The frame is on screen, so the indicator an open raised has done
+            // its job. Hiding it here as well as in the finally keeps it from
+            // outliving a request that a newer one replaced.
+            SetLoading(false);
+
             if (resetView)
             {
                 // A new image owns the whole UI state: frame size, commands,
@@ -208,7 +216,13 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            ShowError(Strings.OpenFailed(ex.Message));
+            // Only the request that still owns the view reports its failure; a
+            // superseded one has already handed the indicator to a newer decode.
+            if (generation == _decodeGeneration)
+            {
+                ShowError(Strings.OpenFailed(ex.Message));
+                SetLoading(false);
+            }
             if (!resetView)
             {
                 StopAnimation();
@@ -248,6 +262,11 @@ public sealed partial class MainWindow : Window
         void FailDecode(string message)
         {
             ShowError(message);
+
+            // A failure still ends the request that raised the indicator, so it
+            // goes away with the error instead of spinning forever behind it.
+            SetLoading(false);
+
             if (fullResolution)
             {
                 _previewActive = true;

@@ -197,6 +197,12 @@
   <data name="Error.AnimationTitle" xml:space="preserve">
     <value>无法播放动画</value>
   </data>
+  <data name="Error.SettingsTitle" xml:space="preserve">
+    <value>无法打开设置窗口</value>
+  </data>
+  <data name="Error.ShowInExplorerTitle" xml:space="preserve">
+    <value>无法打开文件夹</value>
+  </data>
   <data name="Error.RouterUnavailable" xml:space="preserve">
     <value>编解码器路由器不可用。</value>
   </data>
@@ -213,8 +219,15 @@
   <data name="Error.SaveFailed" xml:space="preserve">
     <value>无法保存图像：{0}</value>
   </data>
+  <data name="Error.ShowInExplorerFailed" xml:space="preserve">
+    <value>无法打开文件夹：{0}</value>
+  </data>
   <data name="Notice.LimitedTitle" xml:space="preserve">
     <value>已按像素上限处理</value>
+  </data>
+  <data name="Notice.FolderUnreadable" xml:space="preserve">
+    <value>无法读取 {0} 中的图片列表。</value>
+    <comment>{0} is the folder name.</comment>
   </data>
   <data name="Notice.LimitedResolution" xml:space="preserve">
     <value>这张图像超过 {0} 百万像素上限，已按长边 {1} 像素处理。</value>

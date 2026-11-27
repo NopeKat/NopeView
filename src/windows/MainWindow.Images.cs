@@ -21,8 +21,10 @@ public sealed partial class MainWindow : Window
 
     // One scan per folder per session. Enumerating a folder is disk work, so it
     // runs on a worker thread and the result is reused while the user moves
-    // through the images of the same folder.
-    private readonly Dictionary<string, Task<IReadOnlyList<string>>> _directoryScans =
+    // through the images of the same folder. A failed scan is reported as null
+    // and never kept: the folder may become readable later, and a cached empty
+    // result would leave navigation stuck on a single image.
+    private readonly Dictionary<string, Task<IReadOnlyList<string>?>> _directoryScans =
         new(StringComparer.OrdinalIgnoreCase);
 
     private void OpenImageFromCommandLine()
@@ -137,7 +139,14 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        // Navigation owns the new image from here on. A pending full-resolution
+        // upgrade belongs to the previous file, and its frame index must not
+        // decode a frame that the new file does not have.
         StopAnimation();
+        _upgradeTimer.Stop();
+        _frameCount = 1;
+        _frameIndex = 0;
+
         await DecodeAndShowAsync(_directory.CurrentPath);
         UpdateNavigationState();
     }
@@ -156,28 +165,55 @@ public sealed partial class MainWindow : Window
         if (!string.IsNullOrEmpty(directory))
         {
             var clock = UiPerf.Start();
-            paths = await ScanDirectoryAsync(directory);
-            UiPerf.Stop(clock, "dir-scan", $"{paths.Count} paths");
+            var scan = await ScanDirectoryAsync(directory);
+            if (scan is null)
+            {
+                // The opened file still shows as a list of one, but a folder
+                // that cannot be enumerated explains why navigation has nowhere
+                // to go.
+                UiPerf.Stop(clock, "dir-scan", "unreadable");
+                ShowNotice(
+                    Strings.FolderUnreadable(Path.GetFileName(directory)),
+                    Strings.OpenTitle);
+            }
+            else
+            {
+                paths = scan;
+                UiPerf.Stop(clock, "dir-scan", $"{scan.Count} paths");
+            }
         }
 
         return ImageDirectory.FromPaths(fullPath, paths);
     }
 
-    private Task<IReadOnlyList<string>> ScanDirectoryAsync(string directory)
+    /// <summary>
+    /// Enumerates a folder once per session. Returns null when the folder
+    /// cannot be read, which is dropped from the cache instead of being reused
+    /// for every later open of that folder.
+    /// </summary>
+    private async Task<IReadOnlyList<string>?> ScanDirectoryAsync(string directory)
     {
         if (_directoryScans.TryGetValue(directory, out var cached))
         {
-            return cached;
+            return await cached;
         }
 
         var extensions = SupportedExtensions().ToArray();
-        var scan = Task.Run<IReadOnlyList<string>>(() =>
-            FilesApi.TryListPaths(directory, extensions, out var paths)
+        var scan = Task.Run<IReadOnlyList<string>?>(() =>
+        {
+            return FilesApi.TryListPaths(directory, extensions, out var paths)
                 ? paths
-                : Array.Empty<string>());
+                : null;
+        });
 
         _directoryScans[directory] = scan;
-        return scan;
+        var result = await scan;
+        if (result is null)
+        {
+            _directoryScans.Remove(directory);
+        }
+
+        return result;
     }
 
     /// <summary>

@@ -205,6 +205,23 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Runs a synchronous command under the same guard as the async one, so a
+    /// clipboard or shell failure ends in the error panel instead of taking the
+    /// process down.
+    /// </summary>
+    private void RunCommand(Action command, string title)
+    {
+        try
+        {
+            command();
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message, title);
+        }
+    }
+
     private void ShowError(string message, string? title = null)
     {
         // The panel keeps whatever severity it last showed, so every error
