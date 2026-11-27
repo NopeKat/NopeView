@@ -54,6 +54,26 @@ is recorded here as well, under its own heading.
 - Full-resolution zoom, clipboard copy and save as stop at 64 megapixels, and
   the status bar says when an image was handled at reduced size instead of
   spending gigabytes on a scan that large.
+- Turning the view a quarter turn refits the picture to the rotated box instead
+  of clipping it against the window, and a magnified view keeps the same
+  on-screen scale across the turn.
+- The wheel keeps its direction once Actual size has pushed the zoom past the
+  8x wheel limit, where a zoom-in step used to shrink the image.
+- Panning is bounded, so the picture can no longer be dragged completely out of
+  the viewport.
+- Opening another image cancels a pending full-resolution decode, so it no
+  longer replaces the new file or hides a frame the new file does not have, and
+  the loading ring always clears when a decode ends.
+- A folder that could not be read is not remembered as an empty one: the scan
+  is retried on the next open, and the error bar says why navigation has
+  nowhere to go.
+- Save as rescans the folder when the file lands next to the open image, so the
+  new file appears in the list without reopening the folder.
+- The settings window counts as maximized only when the presenter reports it or
+  both axes fill the work area, so a window snapped to half the screen keeps
+  its own size and place for the next open.
+- Clipboard, shell and settings commands report their failures in the error
+  bar instead of ending the process.
 
 #### Known limitations
 
