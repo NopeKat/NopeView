@@ -110,6 +110,7 @@ $thirdParty = Join-Path $repo 'src\shared\codec\third_party'
 $dav1d = Join-Path $thirdParty 'dav1d'
 $libjxl = Join-Path $thirdParty 'libjxl'
 $highway = Join-Path $thirdParty 'highway'
+$libjpegTurbo = Join-Path $thirdParty 'libjpeg-turbo'
 $filesAbi = Join-Path $repo 'src\shared\filelist\abi'
 
 # dav1d keeps the Meson source groups: the bitdepth templates are compiled once
@@ -182,6 +183,25 @@ $libheifWarnings = @(
     '4701', '4702', '4706', '4146', '4018', '4133', '4189', '4819',
     '4273', '4127', '4245', '4389', '4334', '4703', '4099', '4333'
 )
+$libjpegTurboWarnings = @(
+    '4013', '4018', '4028', '4100', '4127', '4133', '4152', '4189', '4244',
+    '4245', '4267', '4305', '4310', '4389', '4456', '4457', '4459', '4668',
+    '4701', '4702', '4703', '4706', '4819'
+)
+# libjpeg-turbo compiles the precision-dependent units once per sample
+# precision. Decoding is 8-bit in practice, but the master selection of the
+# decoder also names the 12-bit and 16-bit entry points, so both are built.
+$libjpegTurboSrc = Join-Path $libjpegTurbo 'src'
+$libjpegTurboPrecision16 = @(
+    'jdapistd.c', 'jdcolor.c', 'jddiffct.c', 'jdlossls.c', 'jdmainct.c',
+    'jdpostct.c', 'jdsample.c', 'jutils.c'
+) | ForEach-Object { Join-Path $libjpegTurboSrc $_ }
+$libjpegTurboPrecision12 = @(
+    'jdapistd.c', 'jdcoefct.c', 'jdcolor.c', 'jddctmgr.c', 'jddiffct.c',
+    'jdlossls.c', 'jdmainct.c', 'jdmerge.c', 'jidctflt.c', 'jidctfst.c',
+    'jidctint.c', 'jidctred.c', 'jdpostct.c', 'jquant1.c', 'jquant2.c',
+    'jdsample.c', 'jutils.c'
+) | ForEach-Object { Join-Path $libjpegTurboSrc $_ }
 
 # Each library names its own source file and the directories it includes.
 $targets = @(
@@ -212,8 +232,36 @@ $targets = @(
     @{
         Name = 'jpg_codec'
         Source = 'src\shared\codec\formats\jpg\jpg_codec.c'
-        Includes = @($codecAbi, $stb)
+        Includes = @(
+            $codecAbi,
+            $stb,
+            (Join-Path $libjpegTurbo 'src'),
+            (Join-Path $libjpegTurbo 'config\windows')
+        )
         Exports = 'NV_FORMAT_ABI_EXPORTS'
+        # Decoding runs through libjpeg-turbo, so the decompressor sources are
+        # compiled into this library. Encoding stays on stb_image_write.
+        VendoredSets = @(
+            @{
+                Name = 'base'
+                Sources = @((Join-Path $libjpegTurbo 'src\*.c'))
+                # Included by jdcolor, jdmerge and jdhuff, never compiled alone.
+                Exclude = @('jdcol565.c', 'jdcolext.c', 'jdmrg565.c', 'jdmrgext.c', 'jstdhuff.c')
+                Suppress = $libjpegTurboWarnings
+            },
+            @{
+                Name = 'p12'
+                Sources = $libjpegTurboPrecision12
+                Defines = @('BITS_IN_JSAMPLE=12')
+                Suppress = $libjpegTurboWarnings
+            },
+            @{
+                Name = 'p16'
+                Sources = $libjpegTurboPrecision16
+                Defines = @('BITS_IN_JSAMPLE=16')
+                Suppress = $libjpegTurboWarnings
+            }
+        )
     },
     @{
         Name = 'gif_codec'
@@ -572,6 +620,12 @@ foreach ($target in $targets) {
         $vendored = @()
         foreach ($pattern in $set.Sources) {
             $vendored += Get-ChildItem -Path $pattern -File | ForEach-Object { $_.FullName }
+        }
+
+        # A library may keep a source that another one includes instead of
+        # compiling; those files must stay on disk but never reach cl.
+        foreach ($name in ($set.ContainsKey('Exclude') ? $set.Exclude : @())) {
+            $vendored = $vendored | Where-Object { (Split-Path -Leaf $_) -ne $name }
         }
 
         $vendoredLanguage = $set.ContainsKey('Language') ? $set.Language : 'c'

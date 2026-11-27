@@ -14,6 +14,7 @@ set(BCDEC_ROOT "${SHARED_ROOT}/codec/third_party/bcdec")
 set(NANOSVG_ROOT "${SHARED_ROOT}/codec/third_party/nanosvg")
 set(TINYEXR_ROOT "${SHARED_ROOT}/codec/third_party/tinyexr")
 set(OPENJPEG_ROOT "${SHARED_ROOT}/codec/third_party/openjpeg")
+set(LIBJPEG_TURBO_ROOT "${SHARED_ROOT}/codec/third_party/libjpeg-turbo")
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -43,8 +44,9 @@ target_compile_options(nopeview PRIVATE -Wall -Wextra)
 target_link_libraries(nopeview PRIVATE "${LOG_LIB}" "${DL_LIB}" "${JNIGRAPHICS_LIB}")
 
 # The stb-backed formats need no extra vendored sources. HDR and DNG tone
-# mapping also uses libm, which is linked only by those two targets.
-foreach(FORMAT png jpg gif bmp ico tga hdr dng)
+# mapping also uses libm, which is linked only by those two targets. JPEG is
+# built separately because its decoder is libjpeg-turbo.
+foreach(FORMAT png gif bmp ico tga hdr dng)
     add_library(${FORMAT}_codec SHARED
         "${SHARED_ROOT}/codec/formats/${FORMAT}/${FORMAT}_codec.c"
     )
@@ -56,6 +58,32 @@ foreach(FORMAT png jpg gif bmp ico tga hdr dng)
         target_link_libraries(${FORMAT}_codec PRIVATE "${M_LIB}")
     endif()
 endforeach()
+
+# JPEG decodes through libjpeg-turbo, which also gives the preview path a
+# scaled IDCT. The vendored warning baseline is relaxed for those sources.
+file(GLOB LIBJPEG_TURBO_SOURCES "${LIBJPEG_TURBO_ROOT}/src/*.c")
+# Included by jdcolor, jdmerge and jdhuff rather than compiled on their own.
+list(REMOVE_ITEM LIBJPEG_TURBO_SOURCES
+    "${LIBJPEG_TURBO_ROOT}/src/jdcol565.c"
+    "${LIBJPEG_TURBO_ROOT}/src/jdcolext.c"
+    "${LIBJPEG_TURBO_ROOT}/src/jdmrg565.c"
+    "${LIBJPEG_TURBO_ROOT}/src/jdmrgext.c"
+    "${LIBJPEG_TURBO_ROOT}/src/jstdhuff.c"
+)
+set_source_files_properties(${LIBJPEG_TURBO_SOURCES} PROPERTIES COMPILE_OPTIONS "-w")
+add_library(jpg_codec SHARED
+    "${SHARED_ROOT}/codec/formats/jpg/jpg_codec.c"
+    ${LIBJPEG_TURBO_SOURCES}
+)
+target_include_directories(jpg_codec PRIVATE
+    "${CODEC_ABI}"
+    "${STB_ROOT}"
+    "${LIBJPEG_TURBO_ROOT}/src"
+    "${LIBJPEG_TURBO_ROOT}/config/android"
+)
+target_compile_definitions(jpg_codec PRIVATE NV_CODEC_MEMORY_BUDGET=268435456)
+target_compile_options(jpg_codec PRIVATE -Wall -Wextra)
+target_link_libraries(jpg_codec PRIVATE "${LOG_LIB}")
 
 # TIFF and PSD vendor miniz per shared library, matching the Windows build.
 # miniz keeps its upstream warning baseline instead of the codec warning set.

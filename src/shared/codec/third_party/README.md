@@ -42,6 +42,16 @@ next to its sources and is only partially imported, as noted below.
   `src/vcs_version.h` are written by hand because Meson normally generates
   them. The bitdepth template sources are compiled twice, once with
   `BITDEPTH=8` and once with `BITDEPTH=16`. BSD-2-Clause licence in `COPYING`.
+- `libjpeg-turbo` (3.1.0) — the decompressor translation units and the shared
+  helpers they call, used by the `jpg` codec for baseline, progressive and
+  arithmetic JPEG and for the scaled IDCT that keeps previews cheap. The
+  encoder, the TurboJPEG API, the SIMD kernels and the command-line tools are
+  left out, and the four files that jdcolor, jdmerge and jdhuff include
+  (`jdcol565`, `jdcolext`, `jdmrg565`, `jdmrgext`, `jstdhuff`) stay on disk
+  but are not compiled on their own. `config/windows` and `config/android`
+  each carry hand-written `jconfig.h`, `jconfigint.h` and `jversion.h`
+  because CMake and configure normally generate them. BSD-style licence
+  (IJG, BSD-3-Clause and zlib) in `LICENSE.md`.
 - `libjxl` (0.11.1) — the decoder translation units from
   `JPEGXL_INTERNAL_DEC_SOURCES`, the public `jxl` headers, and the C decoder
   API. Encoder, tools, tests and the JPEG reconstruction path are left out;

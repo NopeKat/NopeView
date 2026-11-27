@@ -20,6 +20,7 @@ miniz and nanosvg have none.
 | highway | 1.1.0 | Apache-2.0 or BSD-3-Clause | Copyright (c) Google LLC |
 | libde265 | 1.0.15 | LGPL-3.0-or-later | Copyright (c) 2013-2014 struktur AG, Dirk Farin |
 | libheif | 1.17.6 | LGPL-3.0-or-later | Copyright (c) 2017-2023 Dirk Farin; struktur AG |
+| libjpeg-turbo | 3.1.0 | BSD-3-Clause, IJG and zlib | Copyright (C) 2009-2024 D. R. Commander; 1991-2020 Thomas G. Lane, Guido Vollbeding; and other contributors |
 | libjxl | 0.11.1 | BSD-3-Clause | Copyright (c) the JPEG XL Project Authors |
 | libwebp | 1.4.0 | BSD-3-Clause | Copyright (c) 2010, Google Inc. |
 | miniz | - | MIT | Copyright 2013-2014 RAD Game Tools and Valve Software; Copyright 2010-2014 Rich Geldreich and Tenacious Software LLC |
@@ -31,10 +32,13 @@ miniz and nanosvg have none.
 Version numbers follow the upstream release each library was imported from.
 libheif, libjxl, and openjpeg keep a version header in the tree
 (`heif_version.h`, `include/jxl/version.h`, `opj_config.h`); dav1d's `version.h`
-records the API version 7.0.0, not the release; highway has no version marker.
+records the API version 7.0.0, not the release; libjpeg-turbo records its
+release in `config/windows/jconfigint.h` and `config/android/jconfigint.h`;
+highway has no version marker.
 
 The full licence text of each component is in the file named in its directory
-(`LICENSE`, `COPYING`, `LICENSE.txt`, or inside the single-header source).
+(`LICENSE`, `COPYING`, `LICENSE.md`, `LICENSE.txt`, or inside the
+single-header source).
 `libjxl` and `libwebp` also ship a `PATENTS` file, and `highway` ships
 `LICENSE-BSD3` for the BSD alternative.
 
@@ -62,7 +66,9 @@ The vendored tree is not a verbatim copy of the upstream releases:
    systems normally produce them: `opj_config.h` and `opj_config_private.h`,
    `heif_version.h`, `de265-version.h`, dav1d's `config.h`,
    `include/dav1d/version.h` and `src/vcs_version.h`, libjxl's
-   `include/jxl/version.h` and the two export headers, and the Android-side
+   `include/jxl/version.h` and the two export headers, libjpeg-turbo's
+   `jconfig.h`, `jconfigint.h` and `jversion.h` (one copy per target in
+   `config/windows/` and `config/android/`), and the Android-side
    `src/android/app/src/main/cpp/webp_config/config.h` that keeps libwebp on
    the C fallback.
 
@@ -71,7 +77,9 @@ minus the five JPIP index writers (`cidx_manager`, `phix_manager`,
 `ppix_manager`, `thix_manager`, `tpix_manager`); dav1d omits the assembly and
 per-architecture paths, the tools, tests, and examples; libde265 omits the
 encoder, SIMD, and tool sources; libheif omits the Unix, Windows-plugin, and
-uncompressed-image sources; libjxl omits the encoder, tools, and tests and
+uncompressed-image sources; libjpeg-turbo keeps the decompressor and the shared
+helpers it calls, and omits the encoder, the TurboJPEG API, the SIMD kernels
+and the command-line tools; libjxl omits the encoder, tools, and tests and
 compiles the box-content path out.
 
 Apart from the changes above and the sources left out of the import, no file
