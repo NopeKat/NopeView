@@ -211,15 +211,23 @@ public sealed partial class MainWindow : Window
         return _interactionTag;
     }
 
+    // Records pointer activity for the gates that wait for a quiet view. It
+    // runs regardless of sampling, unlike the tag below.
+    private void NoteInput()
+    {
+        _lastInputMs = Environment.TickCount64;
+    }
+
     private void MarkInteraction(string tag)
     {
+        NoteInput();
         if (!UiPerf.IsEnabled)
         {
             return;
         }
 
         _interactionTag = tag;
-        _interactionUntil = Environment.TickCount64 + InteractionTagHoldMs;
+        _interactionUntil = _lastInputMs + InteractionTagHoldMs;
     }
 
     private void StopAnimation()

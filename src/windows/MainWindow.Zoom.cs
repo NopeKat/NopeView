@@ -17,6 +17,21 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private double ZoomCeiling => Math.Max(MaxZoom, _view.Zoom);
 
+    // One wheel notch is 120 units, and one notch keeps the step the wheel
+    // always had. A precision touchpad or a free-spinning wheel sends smaller
+    // deltas and now moves in proportion to them instead of jumping a whole
+    // step per message. The per-event cap is deliberate: a throttled message
+    // that reports ten notches zooms less than ten steps.
+    private const double WheelDeltaPerNotch = 120.0;
+    private const double WheelZoomStep = 1.1;
+    private const double WheelZoomFactorMax = 1.6;
+
+    private static double WheelZoomFactor(int delta)
+    {
+        var factor = Math.Pow(WheelZoomStep, delta / WheelDeltaPerNotch);
+        return Math.Clamp(factor, 1.0 / WheelZoomFactorMax, WheelZoomFactorMax);
+    }
+
     /// <summary>
     /// Scales the image around an anchor point so the content under the
     /// fingers or the cursor stays put. The image scales around its center
@@ -32,12 +47,29 @@ public sealed partial class MainWindow : Window
             return;
         }
 
+        AdjustPanForZoom(newZoom, anchor);
+        SetZoom(newZoom);
+    }
+
+    /// <summary>
+    /// Moves the pan so the content under the anchor stays put across the zoom
+    /// change. The caller pushes the transform once afterwards. The tolerance
+    /// check repeats the one in ZoomAtPoint on purpose: it lets the pinch path
+    /// apply a pan while the zoom itself does not change.
+    /// </summary>
+    private void AdjustPanForZoom(double zoom, Point anchor)
+    {
+        var newZoom = Math.Clamp(zoom, MinZoom, ZoomCeiling);
+        if (Math.Abs(newZoom - _view.Zoom) < 0.0001)
+        {
+            return;
+        }
+
         var deltaX = anchor.X - Viewport.ActualWidth / 2 - _view.PanX;
         var deltaY = anchor.Y - Viewport.ActualHeight / 2 - _view.PanY;
         var factor = 1 - newZoom / _view.Zoom;
         _view.PanX += factor * deltaX;
         _view.PanY += factor * deltaY;
-        SetZoom(newZoom);
     }
 
     private void ZoomOutButton_Click(object sender, RoutedEventArgs e)
@@ -176,6 +208,15 @@ public sealed partial class MainWindow : Window
         // over a stale image.
         if (LoadingRing.Visibility == Visibility.Visible)
         {
+            return;
+        }
+
+        // A pan started after the zoom would otherwise meet the upload in the
+        // middle of the gesture. The interval stays at 300 ms here: rewriting
+        // it would also shorten every later request.
+        if (!IsInputIdle)
+        {
+            _upgradeTimer.Start();
             return;
         }
 

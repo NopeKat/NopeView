@@ -24,6 +24,10 @@ public sealed partial class MainWindow : Window
     private readonly DispatcherTimer _settingsPrewarmTimer = new();
     private const double SettingsPrewarmDelayMs = 2000;
 
+    // A gate that had to wait retries sooner than the original delay, so the
+    // build still happens at the first quiet moment instead of two seconds on.
+    private const double SettingsPrewarmRetryMs = 300;
+
     // Set while the main window is closing. Closing the settings window at the
     // same time must not try to activate a window that is already gone.
     private bool _closing;
@@ -108,9 +112,12 @@ public sealed partial class MainWindow : Window
 
         // An open owns the UI thread for as long as it decodes. Building the
         // page in the middle of it would be felt as a delayed image, so the
-        // prewarm waits for the next idle moment instead.
-        if (LoadingRing.Visibility == Visibility.Visible)
+        // prewarm waits for the next idle moment instead. The same applies while
+        // a pan or a wheel is driving the view.
+        if (LoadingRing.Visibility == Visibility.Visible || !IsInputIdle)
         {
+            _settingsPrewarmTimer.Interval =
+                TimeSpan.FromMilliseconds(SettingsPrewarmRetryMs);
             _settingsPrewarmTimer.Start();
             return;
         }

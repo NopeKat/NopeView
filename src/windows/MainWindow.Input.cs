@@ -29,13 +29,16 @@ public sealed partial class MainWindow : Window
 
         // Precision touchpad pinch arrives as Ctrl+wheel, so anchoring the
         // wheel zoom at the pointer makes pinch feel centered on the fingers.
-        ZoomAtPoint(delta > 0 ? _view.Zoom * 1.1 : _view.Zoom / 1.1, point.Position);
+        // The step follows the delta, so a message smaller than a notch moves
+        // the view by the same share instead of a whole step.
+        ZoomAtPoint(_view.Zoom * WheelZoomFactor(delta), point.Position);
         e.Handled = true;
         UiPerf.Stop(clock, "zoom-wheel", UiPerf.Number(_view.Zoom));
     }
 
     private void Viewport_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
+        NoteInput();
         var point = e.GetCurrentPoint(Viewport);
         if (point.Properties.IsLeftButtonPressed ||
             e.Pointer.PointerDeviceType == PointerDeviceType.Touch)
@@ -82,8 +85,13 @@ public sealed partial class MainWindow : Window
             MarkInteraction("pinch");
             _view.PanX += center.X - _pinchCenter.X;
             _view.PanY += center.Y - _pinchCenter.Y;
-            ApplyViewTransform();
-            ZoomAtPoint(_view.Zoom * (distance / _pinchDistance), center);
+
+            // Pan and the scale change land in one pass. SetZoom pushes the
+            // transform and clamps against the new zoom, where applying the pan
+            // first only clamped it against the old one.
+            var zoom = _view.Zoom * (distance / _pinchDistance);
+            AdjustPanForZoom(zoom, center);
+            SetZoom(zoom);
             _pinchCenter = center;
             _pinchDistance = distance;
             UiPerf.Stop(clock, "pinch-move", UiPerf.Number(_view.Zoom));
@@ -116,6 +124,7 @@ public sealed partial class MainWindow : Window
 
     private void Viewport_PointerReleased(object sender, PointerRoutedEventArgs e)
     {
+        NoteInput();
         if (_isPanning && e.Pointer.PointerId == _panPointerId)
         {
             _isPanning = false;

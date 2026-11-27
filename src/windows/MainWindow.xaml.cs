@@ -136,6 +136,19 @@ public sealed partial class MainWindow : Window
     private string _interactionTag = "idle";
     private long _interactionUntil;
 
+    // Large uploads and page builds only run once the hand has been off the
+    // view for a moment. This timestamp is kept even when sampling is off,
+    // because the gate is not a diagnostic.
+    private const long InputIdleMs = 200;
+    private long _lastInputMs;
+
+    /// <summary>
+    /// True once no pan, wheel, press or resize has reached the view for a
+    /// moment, which is when a large upload or a page build goes unnoticed.
+    /// </summary>
+    private bool IsInputIdle =>
+        Environment.TickCount64 - _lastInputMs >= InputIdleMs;
+
     // The state the animation commands already show. Frames of one animation
     // share it, so the icon and labels are only rebuilt when it changes
     // instead of on every step.
