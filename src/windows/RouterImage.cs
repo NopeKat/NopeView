@@ -59,14 +59,22 @@ internal sealed class RouterImage : IDisposable
 /// <summary>
 /// Copies router pixels into a SoftwareBitmap. Display surfaces need
 /// premultiplied alpha; the clipboard and encoders need straight alpha, and
-/// only the premultiplied path pays for the premultiply work.
+/// only the premultiplied path pays for the premultiply work. An EXIF
+/// orientation is applied while copying, so a later rotation is not needed and
+/// the frame reports the dimensions the camera meant.
 /// </summary>
 internal static unsafe class PixelBuffer
 {
-    internal static SoftwareBitmap ToSoftwareBitmap(NvRouterImage image, BitmapAlphaMode alphaMode)
+    internal static SoftwareBitmap ToSoftwareBitmap(
+        NvRouterImage image,
+        BitmapAlphaMode alphaMode,
+        int orientation = ExifOrientation.Normal)
     {
-        var width = image.Width;
-        var height = image.Height;
+        var sourceWidth = image.Width;
+        var sourceHeight = image.Height;
+        var swapAxes = ExifOrientation.SwapsAxes(orientation);
+        var width = swapAxes ? sourceHeight : sourceWidth;
+        var height = swapAxes ? sourceWidth : sourceHeight;
         var rowBytes = width * 4;
         var swapRedBlue = image.PixelFormat != RouterApi.PixelFormatBgra8;
         var premultiply = alphaMode == BitmapAlphaMode.Premultiplied;
@@ -85,24 +93,30 @@ internal static unsafe class PixelBuffer
 
         for (var y = 0; y < height; y++)
         {
-            var source = (byte*)image.Pixels + (long)y * image.Stride;
             var target = (byte*)destination
                 + description.StartIndex
                 + (long)y * description.Stride;
 
-            if (!swapRedBlue && (!premultiply || opaque))
+            if (orientation == ExifOrientation.Normal &&
+                !swapRedBlue && (!premultiply || opaque))
             {
                 // Nothing to reorder and no transparency to fold in.
+                var source = (byte*)image.Pixels + (long)y * image.Stride;
                 System.Buffer.MemoryCopy(source, target, rowBytes, rowBytes);
                 continue;
             }
 
-            for (var x = 0; x < rowBytes; x += 4)
+            for (var x = 0; x < width; x++)
             {
-                var blue = source[x];
-                var green = source[x + 1];
-                var red = source[x + 2];
-                var alpha = source[x + 3];
+                int sx;
+                int sy;
+                SourcePoint(orientation, x, y, sourceWidth, sourceHeight, out sx, out sy);
+
+                var pixel = (byte*)image.Pixels + (long)sy * image.Stride + (long)sx * 4;
+                var blue = pixel[0];
+                var green = pixel[1];
+                var red = pixel[2];
+                var alpha = pixel[3];
 
                 if (swapRedBlue)
                 {
@@ -116,14 +130,66 @@ internal static unsafe class PixelBuffer
                     red = (byte)(red * alpha / 255);
                 }
 
-                target[x] = blue;
-                target[x + 1] = green;
-                target[x + 2] = red;
-                target[x + 3] = alpha;
+                var offset = x * 4;
+                target[offset] = blue;
+                target[offset + 1] = green;
+                target[offset + 2] = red;
+                target[offset + 3] = alpha;
             }
         }
 
         return bitmap;
+    }
+
+    /// <summary>
+    /// Source pixel behind one display pixel, for each of the eight EXIF
+    /// orientations. The display size already carries the axis swap, so a
+    /// quarter turn reads the source along the other axis.
+    /// </summary>
+    private static void SourcePoint(
+        int orientation,
+        int x,
+        int y,
+        int sourceWidth,
+        int sourceHeight,
+        out int sx,
+        out int sy)
+    {
+        switch (orientation)
+        {
+            case ExifOrientation.FlipHorizontal:
+                sx = sourceWidth - 1 - x;
+                sy = y;
+                break;
+            case ExifOrientation.Rotate180:
+                sx = sourceWidth - 1 - x;
+                sy = sourceHeight - 1 - y;
+                break;
+            case ExifOrientation.FlipVertical:
+                sx = x;
+                sy = sourceHeight - 1 - y;
+                break;
+            case ExifOrientation.Transpose:
+                sx = y;
+                sy = x;
+                break;
+            case ExifOrientation.Rotate90:
+                sx = y;
+                sy = sourceHeight - 1 - x;
+                break;
+            case ExifOrientation.Transverse:
+                sx = sourceWidth - 1 - y;
+                sy = sourceHeight - 1 - x;
+                break;
+            case ExifOrientation.Rotate270:
+                sx = sourceWidth - 1 - y;
+                sy = x;
+                break;
+            default:
+                sx = x;
+                sy = y;
+                break;
+        }
     }
 
     /// <summary>

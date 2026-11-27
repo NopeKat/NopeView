@@ -143,7 +143,8 @@ public sealed partial class MainWindow : Window
                     return null;
                 }
 
-                return PixelBuffer.ToSoftwareBitmap(decoded.Value, BitmapAlphaMode.Straight);
+                return PixelBuffer.ToSoftwareBitmap(
+                    decoded.Value, BitmapAlphaMode.Straight, ExifOrientation.Read(path));
             });
         }
         finally

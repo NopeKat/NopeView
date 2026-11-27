@@ -267,11 +267,31 @@ public sealed partial class MainWindow : Window
             }
 
             var image = decoded.Value;
-            frame.Bitmap = PixelBuffer.ToSoftwareBitmap(image, BitmapAlphaMode.Premultiplied);
-            frame.BitmapWidth = image.Width;
-            frame.BitmapHeight = image.Height;
-            frame.SourceWidth = image.SourceWidth > 0 ? image.SourceWidth : image.Width;
-            frame.SourceHeight = image.SourceHeight > 0 ? image.SourceHeight : image.Height;
+
+            // A phone photo stores its pixels as the sensor saw them and puts
+            // the turn in EXIF. Turning them here rather than at display time
+            // keeps the reported size, the fit and every later copy consistent.
+            var orientation = ExifOrientation.Read(path);
+            frame.Bitmap = PixelBuffer.ToSoftwareBitmap(
+                image, BitmapAlphaMode.Premultiplied, orientation);
+            frame.BitmapWidth = frame.Bitmap.PixelWidth;
+            frame.BitmapHeight = frame.Bitmap.PixelHeight;
+
+            var sourceWidth = image.SourceWidth > 0 ? image.SourceWidth : image.Width;
+            var sourceHeight = image.SourceHeight > 0 ? image.SourceHeight : image.Height;
+            if (ExifOrientation.SwapsAxes(orientation))
+            {
+                // The orientation turned the file, so its declared size turns
+                // with it.
+                frame.SourceWidth = sourceHeight;
+                frame.SourceHeight = sourceWidth;
+            }
+            else
+            {
+                frame.SourceWidth = sourceWidth;
+                frame.SourceHeight = sourceHeight;
+            }
+
             frame.FrameCount = image.FrameCount;
             frame.FrameDelayMs = image.FrameDelayMs;
         }
