@@ -3,6 +3,7 @@
 
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Windows.Foundation;
 
@@ -206,6 +207,22 @@ public sealed partial class MainWindow : Window
 
     private void ShowError(string message, string? title = null)
     {
+        // The panel keeps whatever severity it last showed, so every error
+        // states its own instead of inheriting a warning.
+        ErrorPanel.Severity = InfoBarSeverity.Error;
+        ErrorPanel.Title = title ?? Strings.OpenTitle;
+        ErrorPanel.Message = message;
+        SetErrorBarOpen(true);
+    }
+
+    /// <summary>
+    /// Shows a note about a result the user still gets, but on reduced terms.
+    /// It uses the same panel in a warning color, so it is not mistaken for a
+    /// failure.
+    /// </summary>
+    private void ShowNotice(string message, string? title = null)
+    {
+        ErrorPanel.Severity = InfoBarSeverity.Warning;
         ErrorPanel.Title = title ?? Strings.OpenTitle;
         ErrorPanel.Message = message;
         SetErrorBarOpen(true);

@@ -60,10 +60,18 @@ public sealed partial class MainWindow : Window
             // known from the first decode, which is why both signals count.
             var animated = frameIndex > 0 || _frameCount > 1;
             var maxDimension = fullResolution
-                ? 0
+                ? FullResolutionEdge(_imagePixelWidth, _imagePixelHeight)
                 : animated
                     ? AnimatedPreviewEdge()
                     : PreviewEdge();
+
+            if (fullResolution)
+            {
+                // A poster-sized scan outgrows memory long before the display
+                // needs those pixels, so the ceiling is announced rather than
+                // applied silently.
+                NotifyLimitedResolution(maxDimension);
+            }
 
             // A frame decoded while the previous one was on screen skips the
             // worker step entirely, and only the handoff is left to do.
@@ -126,16 +134,19 @@ public sealed partial class MainWindow : Window
                 ImageView.Source = _frameSource;
             }
 
+            // A full decode is the last word even when the ceiling capped it:
+            // reporting the preview as active again would make every later
+            // zoom repeat the same decode.
+            var stillPreview = !fullResolution && frame.SourceWidth > frame.BitmapWidth;
             var sourceSizeChanged =
                 _imagePixelWidth != frame.SourceWidth ||
                 _imagePixelHeight != frame.SourceHeight;
-            var previewChanged =
-                _previewActive != (frame.SourceWidth > frame.BitmapWidth);
+            var previewChanged = _previewActive != stillPreview;
             var frameCountChanged = _frameCount != Math.Max(1u, frame.FrameCount);
 
             _imagePixelWidth = frame.SourceWidth;
             _imagePixelHeight = frame.SourceHeight;
-            _previewActive = frame.SourceWidth > frame.BitmapWidth;
+            _previewActive = stillPreview;
             _frameIndex = frameIndex;
             _frameCount = Math.Max(1u, frame.FrameCount);
             _frameDelayMs = frame.FrameDelayMs;
@@ -430,6 +441,47 @@ public sealed partial class MainWindow : Window
         var scale = Viewport.XamlRoot?.RasterizationScale ?? Scale;
         var longest = Math.Max(Viewport.ActualWidth, Viewport.ActualHeight) * scale;
         return Math.Clamp((int)Math.Round(longest), PreviewMinEdge, PreviewMaxEdge);
+    }
+
+    /// <summary>
+    /// Longest edge a full-resolution decode may have, or zero when the image
+    /// already fits the pixel ceiling. The edge keeps the aspect ratio, so a
+    /// 64 megapixel poster is still shown whole, just not at its own size.
+    /// </summary>
+    private static int FullResolutionEdge(int width, int height)
+    {
+        if (width <= 0 || height <= 0)
+        {
+            return 0;
+        }
+
+        var pixels = (long)width * (long)height;
+        if (pixels <= FullResolutionPixelCeiling)
+        {
+            return 0;
+        }
+
+        var longEdge = Math.Max(width, height);
+        var shortEdge = Math.Min(width, height);
+        var edge = (int)Math.Floor(
+            Math.Sqrt((double)FullResolutionPixelCeiling * longEdge / shortEdge));
+        return Math.Clamp(edge, 1, longEdge);
+    }
+
+    /// <summary>
+    /// Tells the user when an image was handled at reduced size because it
+    /// exceeded the pixel ceiling.
+    /// </summary>
+    private void NotifyLimitedResolution(int edge)
+    {
+        if (edge <= 0)
+        {
+            return;
+        }
+
+        ShowNotice(
+            Strings.LimitedResolution(FullResolutionMegapixels, edge),
+            Strings.LimitedTitle);
     }
 
     /// <summary>

@@ -213,6 +213,13 @@
   <data name="Error.SaveFailed" xml:space="preserve">
     <value>无法保存图像：{0}</value>
   </data>
+  <data name="Notice.LimitedTitle" xml:space="preserve">
+    <value>已按像素上限处理</value>
+  </data>
+  <data name="Notice.LimitedResolution" xml:space="preserve">
+    <value>这张图像超过 {0} 百万像素上限，已按长边 {1} 像素处理。</value>
+    <comment>{0} is the megapixel ceiling, {1} the long edge used.</comment>
+  </data>
   <data name="Error.DecodeUnsupported" xml:space="preserve">
     <value>不支持此图像格式。</value>
   </data>

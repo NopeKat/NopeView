@@ -63,6 +63,13 @@ public sealed partial class MainWindow : Window
     // more than the display can absorb, and the extra pixels are invisible.
     private const int AnimationPreviewMaxEdge = 2048;
 
+    // Full-resolution decode, clipboard copy and save as all keep the original
+    // pixels so the result is not visibly softer. A file past this many pixels
+    // is processed at the largest size that fits instead, because the decode
+    // buffer alone would otherwise run into gigabytes.
+    private const int FullResolutionMegapixels = 64;
+    private const long FullResolutionPixelCeiling = 64L * 1000 * 1000;
+
     // The router loads every format library it finds, which is disk and loader
     // work. It runs on a worker thread from construction on, and the first
     // open awaits the result instead of loading it while the window is shown.

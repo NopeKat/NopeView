@@ -28,6 +28,11 @@ internal static class Strings
     internal static string SaveFailed(string reason) =>
         Localization.Format("Error.SaveFailed", reason);
 
+    internal static string LimitedTitle => Localization.Get("Notice.LimitedTitle");
+
+    internal static string LimitedResolution(int megapixels, int edge) =>
+        Localization.Format("Notice.LimitedResolution", megapixels, edge);
+
     internal static string DescribeDecodeStatus(int status) => status switch
     {
         RouterApi.ErrUnsupportedFormat => Localization.Get("Error.DecodeUnsupported"),

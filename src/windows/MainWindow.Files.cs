@@ -4,6 +4,7 @@
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -131,13 +132,16 @@ public sealed partial class MainWindow : Window
     private async Task<SoftwareBitmap?> DecodeStraightBitmapAsync(
         IntPtr context, string path, uint frameIndex)
     {
+        var maxDimension = FullResolutionEdge(_imagePixelWidth, _imagePixelHeight);
+
         await _decodeGate.WaitAsync();
         try
         {
-            return await Task.Run(() =>
+            var bitmap = await Task.Run(() =>
             {
                 using var decoded = RouterImage.Decode(
-                    context, path, frameIndex, RouterApi.PixelFormatBgra8, 0, out _);
+                    context, path, frameIndex, RouterApi.PixelFormatBgra8,
+                    maxDimension, out _);
                 if (decoded is null)
                 {
                     return null;
@@ -146,6 +150,14 @@ public sealed partial class MainWindow : Window
                 return PixelBuffer.ToSoftwareBitmap(
                     decoded.Value, BitmapAlphaMode.Straight, ExifOrientation.Read(path));
             });
+
+            if (bitmap is null)
+            {
+                return null;
+            }
+
+            NotifyLimitedResolution(maxDimension);
+            return bitmap;
         }
         finally
         {
@@ -215,18 +227,21 @@ public sealed partial class MainWindow : Window
             var context = session.Context;
             var frameIndex = _frameIndex;
             var target = result.Path;
+            var maxDimension = FullResolutionEdge(_imagePixelWidth, _imagePixelHeight);
 
             // The frame is decoded again in its original colors. Reusing the
             // displayed bitmap would save premultiplied pixels.
             await _decodeGate.WaitAsync();
             try
             {
-                await Task.Run(() => SaveFrame(context, path, frameIndex, target));
+                await Task.Run(() => SaveFrame(context, path, frameIndex, target, maxDimension));
             }
             finally
             {
                 _decodeGate.Release();
             }
+
+            NotifyLimitedResolution(maxDimension);
 
             // The folder now holds one more image, so its scan is stale.
             ForgetDirectoryScan(target);
@@ -241,20 +256,44 @@ public sealed partial class MainWindow : Window
         IntPtr context,
         string sourcePath,
         uint frameIndex,
-        string targetPath)
+        string targetPath,
+        int maxDimension)
     {
         using var decoded = RouterImage.Decode(
-            context, sourcePath, frameIndex, RouterApi.PixelFormatRgba8, 0, out var status);
+            context, sourcePath, frameIndex, RouterApi.PixelFormatRgba8,
+            maxDimension, out var status);
         if (decoded is null)
         {
             throw new InvalidOperationException(Strings.DescribeDecodeStatus(status));
         }
 
-        var image = decoded.Value;
-        var encodeStatus = RouterApi.EncodeToFile(context, targetPath, ref image);
-        if (encodeStatus != 0)
+        // The encoder writes the pixels it is given, so a camera photo has to
+        // be turned here as well; otherwise the file lands sideways while the
+        // screen shows it upright.
+        var orientation = ExifOrientation.Read(sourcePath);
+        if (orientation == ExifOrientation.Normal)
         {
-            throw new InvalidOperationException(Strings.DescribeEncodeStatus(encodeStatus));
+            var plain = decoded.Value;
+            var plainStatus = RouterApi.EncodeToFile(context, targetPath, ref plain);
+            if (plainStatus != 0)
+            {
+                throw new InvalidOperationException(Strings.DescribeEncodeStatus(plainStatus));
+            }
+            return;
+        }
+
+        var turned = PixelBuffer.Turn(decoded.Value, orientation);
+        try
+        {
+            var encodeStatus = RouterApi.EncodeToFile(context, targetPath, ref turned);
+            if (encodeStatus != 0)
+            {
+                throw new InvalidOperationException(Strings.DescribeEncodeStatus(encodeStatus));
+            }
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(turned.Pixels);
         }
     }
 

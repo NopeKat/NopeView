@@ -193,6 +193,66 @@ internal static unsafe class PixelBuffer
     }
 
     /// <summary>
+    /// Copies the pixels into a new buffer turned the way the EXIF orientation
+    /// says, for paths that hand the pixels to an encoder rather than to a
+    /// bitmap. The caller owns the buffer and frees it with FreeHGlobal, which
+    /// is why the returned image carries no release callback.
+    /// </summary>
+    internal static NvRouterImage Turn(NvRouterImage source, int orientation)
+    {
+        var swapAxes = ExifOrientation.SwapsAxes(orientation);
+        var width = swapAxes ? source.Height : source.Width;
+        var height = swapAxes ? source.Width : source.Height;
+        var rowBytes = checked(width * 4);
+        var size = checked((long)rowBytes * height);
+        var pixels = Marshal.AllocHGlobal((nint)size);
+
+        try
+        {
+            var target = (byte*)pixels;
+            for (var y = 0; y < height; y++)
+            {
+                for (var x = 0; x < width; x++)
+                {
+                    int sx;
+                    int sy;
+                    SourcePoint(orientation, x, y, source.Width, source.Height, out sx, out sy);
+
+                    var from = (byte*)source.Pixels + (long)sy * source.Stride + (long)sx * 4;
+                    var to = target + (long)y * rowBytes + (long)x * 4;
+                    to[0] = from[0];
+                    to[1] = from[1];
+                    to[2] = from[2];
+                    to[3] = from[3];
+                }
+            }
+        }
+        catch
+        {
+            Marshal.FreeHGlobal(pixels);
+            throw;
+        }
+
+        return new NvRouterImage
+        {
+            StructSize = source.StructSize,
+            Width = width,
+            Height = height,
+            Stride = rowBytes,
+            PixelFormat = source.PixelFormat,
+            Pixels = pixels,
+            PixelsSize = (nuint)size,
+            FrameCount = source.FrameCount,
+            FrameDelayMs = source.FrameDelayMs,
+            SourceWidth = swapAxes ? source.SourceHeight : source.SourceWidth,
+            SourceHeight = swapAxes ? source.SourceWidth : source.SourceHeight,
+            // The buffer belongs to the managed side, so the codec must never
+            // release it.
+            PixelsRelease = IntPtr.Zero
+        };
+    }
+
+    /// <summary>
     /// True when every pixel is fully opaque, which makes premultiplication a
     /// no-op and removes a multiply per channel from the common path.
     /// </summary>

@@ -213,6 +213,13 @@
   <data name="Error.SaveFailed" xml:space="preserve">
     <value>Failed to save image: {0}</value>
   </data>
+  <data name="Notice.LimitedTitle" xml:space="preserve">
+    <value>Processed at the pixel ceiling</value>
+  </data>
+  <data name="Notice.LimitedResolution" xml:space="preserve">
+    <value>This image exceeds the {0} megapixel ceiling, so it was processed at {1} pixels on the long edge.</value>
+    <comment>{0} is the megapixel ceiling, {1} the long edge used.</comment>
+  </data>
   <data name="Error.DecodeUnsupported" xml:space="preserve">
     <value>Unsupported image format.</value>
   </data>
