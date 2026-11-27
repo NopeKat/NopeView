@@ -9,7 +9,7 @@
  * Copyright (C) 2014, MIPS Technologies, Inc., California.
  * Copyright (C) 2015, Google, Inc.
  * Copyright (C) 2019-2020, Arm Limited.
- * For conditions of distribution and use, see the accompanying README.ijg
+ * For conditions of distribution and use, see the accompanying README.md
  * file.
  *
  * This file contains upsampling routines.

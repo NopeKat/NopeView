@@ -5,7 +5,7 @@
  * Copyright (C) 1994-1996, Thomas G. Lane.
  * libjpeg-turbo Modifications:
  * Copyright (C) 2010, 2016, 2022, 2024, D. R. Commander.
- * For conditions of distribution and use, see the accompanying README.ijg
+ * For conditions of distribution and use, see the accompanying README.md
  * file.
  *
  * This file contains the main buffer controller for decompression.

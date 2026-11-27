@@ -8,7 +8,7 @@
  * Copyright (C) 1999, Ken Murchison.
  * libjpeg-turbo Modifications:
  * Copyright (C) 2014, 2017, 2021-2023, D. R. Commander.
- * For conditions of distribution and use, see the accompanying README.ijg
+ * For conditions of distribution and use, see the accompanying README.md
  * file.
  *
  * This file defines the error and message codes for the JPEG library.

@@ -6,7 +6,7 @@
  * Modification developed 2002-2018 by Guido Vollbeding.
  * libjpeg-turbo Modifications:
  * Copyright (C) 2015, 2020, 2022, D. R. Commander.
- * For conditions of distribution and use, see the accompanying README.ijg
+ * For conditions of distribution and use, see the accompanying README.md
  * file.
  *
  * This file contains a slower but more accurate integer implementation of the

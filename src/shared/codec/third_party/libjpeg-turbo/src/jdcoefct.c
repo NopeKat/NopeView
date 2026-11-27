@@ -7,7 +7,7 @@
  * Copyright 2009 Pierre Ossman <ossman@cendio.se> for Cendio AB
  * Copyright (C) 2010, 2015-2016, 2019-2020, 2022-2023, D. R. Commander.
  * Copyright (C) 2015, 2020, Google, Inc.
- * For conditions of distribution and use, see the accompanying README.ijg
+ * For conditions of distribution and use, see the accompanying README.md
  * file.
  *
  * This file contains the coefficient buffer controller for decompression.

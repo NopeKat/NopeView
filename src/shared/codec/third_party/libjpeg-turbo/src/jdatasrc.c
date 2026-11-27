@@ -6,7 +6,7 @@
  * Modified 2009-2011 by Guido Vollbeding.
  * libjpeg-turbo Modifications:
  * Copyright (C) 2013, 2016, 2022, D. R. Commander.
- * For conditions of distribution and use, see the accompanying README.ijg
+ * For conditions of distribution and use, see the accompanying README.md
  * file.
  *
  * This file contains decompression data source routines for the case of

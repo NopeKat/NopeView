@@ -61,7 +61,10 @@ The vendored tree is not a verbatim copy of the upstream releases:
    12 kinds of non-ASCII characters, mostly the copyright sign in dav1d's
    copyright headers, plus a plus-minus sign, superscripts, a multiplication
    sign, section signs, curly quotes, an en dash, and a few Cyrillic and Coptic
-   letters in comments and text data.
+   letters in comments and text data. libjpeg-turbo's IJG distribution terms
+   moved from `src/README.ijg` to `src/README.md` so every document in the
+   tree uses the Markdown suffix, and the headers that point at that file
+   were updated to the new name.
 4. Several generated headers are written by hand because the upstream build
    systems normally produce them: `opj_config.h` and `opj_config_private.h`,
    `heif_version.h`, `de265-version.h`, dav1d's `config.h`,

@@ -8,7 +8,7 @@
  * Copyright (C) 1999, Ken Murchison.
  * libjpeg-turbo Modifications:
  * Copyright (C) 2009, 2011, 2014-2015, 2018, 2020, 2022, D. R. Commander.
- * For conditions of distribution and use, see the accompanying README.ijg
+ * For conditions of distribution and use, see the accompanying README.md
  * file.
  *
  * This file contains additional configuration options that customize the

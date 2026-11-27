@@ -8,7 +8,7 @@
  * Copyright 2009 Pierre Ossman <ossman@cendio.se> for Cendio AB
  * Copyright (C) 2009, 2011-2012, 2014-2015, 2022, 2024, D. R. Commander.
  * Copyright (C) 2013, Linaro Limited.
- * For conditions of distribution and use, see the accompanying README.ijg
+ * For conditions of distribution and use, see the accompanying README.md
  * file.
  *
  * This file contains output colorspace conversion routines.

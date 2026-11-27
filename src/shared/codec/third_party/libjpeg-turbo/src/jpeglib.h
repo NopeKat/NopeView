@@ -10,7 +10,7 @@
  * Copyright (C) 2009-2011, 2013-2014, 2016-2017, 2020, 2022-2024,
              D. R. Commander.
  * Copyright (C) 2015, Google, Inc.
- * For conditions of distribution and use, see the accompanying README.ijg
+ * For conditions of distribution and use, see the accompanying README.md
  * file.
  *
  * This file defines the application interface for the JPEG library.

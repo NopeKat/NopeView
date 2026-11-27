@@ -6,7 +6,7 @@
  * Modifications:
  * Copyright (C) 2013, Linaro Limited.
  * Copyright (C) 2014-2015, 2022, D. R. Commander.
- * For conditions of distribution and use, see the accompanying README.ijg
+ * For conditions of distribution and use, see the accompanying README.md
  * file.
  *
  * This file contains output colorspace conversion routines.

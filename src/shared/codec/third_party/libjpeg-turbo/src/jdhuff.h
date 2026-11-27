@@ -8,7 +8,7 @@
  * libjpeg-turbo Modifications:
  * Copyright (C) 2010-2011, 2015-2016, 2021, D. R. Commander.
  * Copyright (C) 2018, Matthias Räncker.
- * For conditions of distribution and use, see the accompanying README.ijg
+ * For conditions of distribution and use, see the accompanying README.md
  * file.
  *
  * This file contains declarations for Huffman entropy decoding routines

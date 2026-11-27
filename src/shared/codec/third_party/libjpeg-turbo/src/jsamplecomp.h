@@ -2,7 +2,7 @@
  * jsamplecomp.h
  *
  * Copyright (C) 2022, D. R. Commander.
- * For conditions of distribution and use, see the accompanying README.ijg
+ * For conditions of distribution and use, see the accompanying README.md
  * file.
  */
 

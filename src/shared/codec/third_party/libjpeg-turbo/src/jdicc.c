@@ -3,7 +3,7 @@
  *
  * Copyright (C) 1997-1998, Thomas G. Lane, Todd Newman.
  * Copyright (C) 2017, D. R. Commander.
- * For conditions of distribution and use, see the accompanying README.ijg
+ * For conditions of distribution and use, see the accompanying README.md
  * file.
  *
  * This file provides code to read International Color Consortium (ICC) device

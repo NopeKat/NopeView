@@ -5,7 +5,7 @@
  * Copyright (C) 1991-1995, Thomas G. Lane.
  * libjpeg-turbo Modifications:
  * Copyright (C) 2016, D. R. Commander.
- * For conditions of distribution and use, see the accompanying README.ijg
+ * For conditions of distribution and use, see the accompanying README.md
  * file.
  *
  * This file contains master control structure for the JPEG compressor.

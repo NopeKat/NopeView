@@ -3,7 +3,7 @@
  * Copyright (C) 2014, Olle Liljenzin.
  * Copyright (C) 2020, Arm Limited.
  *
- * For conditions of distribution and use, see the accompanying README.ijg
+ * For conditions of distribution and use, see the accompanying README.md
  * file.
  */
 

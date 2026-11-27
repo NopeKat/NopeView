@@ -6,7 +6,7 @@
  * Modified 2019 by Guido Vollbeding.
  * libjpeg-turbo Modifications:
  * Copyright (C) 2017, 2019, 2021-2022, D. R. Commander.
- * For conditions of distribution and use, see the accompanying README.ijg
+ * For conditions of distribution and use, see the accompanying README.md
  * file.
  *
  * This file contains common declarations for the sample applications

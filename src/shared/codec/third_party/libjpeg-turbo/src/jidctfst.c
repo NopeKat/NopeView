@@ -5,7 +5,7 @@
  * Copyright (C) 1994-1998, Thomas G. Lane.
  * libjpeg-turbo Modifications:
  * Copyright (C) 2015, 2022, D. R. Commander.
- * For conditions of distribution and use, see the accompanying README.ijg
+ * For conditions of distribution and use, see the accompanying README.md
  * file.
  *
  * This file contains a fast, not so accurate integer implementation of the
@@ -20,7 +20,7 @@
  * This implementation is based on Arai, Agui, and Nakajima's algorithm for
  * scaled DCT.  Their original paper (Trans. IEICE E-71(11):1095) is in
  * Japanese, but the algorithm is described in the Pennebaker & Mitchell
- * JPEG textbook (see REFERENCES section in file README.ijg).  The following
+ * JPEG textbook (see REFERENCES section in file README.md).  The following
  * code is based directly on figure 4-8 in P&M.
  * While an 8-point DCT cannot be done in less than 11 multiplies, it is
  * possible to arrange the computation so that many of the multiplies are

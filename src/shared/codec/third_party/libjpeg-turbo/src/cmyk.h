@@ -2,7 +2,7 @@
  * cmyk.h
  *
  * Copyright (C) 2017-2018, 2022, 2024, D. R. Commander.
- * For conditions of distribution and use, see the accompanying README.ijg
+ * For conditions of distribution and use, see the accompanying README.md
  * file.
  *
  * This file contains convenience functions for performing quick & dirty

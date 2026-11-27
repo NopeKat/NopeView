@@ -5,7 +5,7 @@
  * Developed 1997-2015 by Guido Vollbeding.
  * libjpeg-turbo Modifications:
  * Copyright (C) 2015-2020, 2022, D. R. Commander.
- * For conditions of distribution and use, see the accompanying README.ijg
+ * For conditions of distribution and use, see the accompanying README.md
  * file.
  *
  * This file contains portable arithmetic entropy encoding routines for JPEG

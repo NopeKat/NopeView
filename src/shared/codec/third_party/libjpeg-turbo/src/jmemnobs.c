@@ -5,7 +5,7 @@
  * Copyright (C) 1992-1996, Thomas G. Lane.
  * libjpeg-turbo Modifications:
  * Copyright (C) 2017-2018, 2024, D. R. Commander.
- * For conditions of distribution and use, see the accompanying README.ijg
+ * For conditions of distribution and use, see the accompanying README.md
  * file.
  *
  * This file provides a really simple implementation of the system-
