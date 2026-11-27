@@ -8,7 +8,7 @@
 
 param(
     # Repository root to build from. The default is the root two levels above
-    # this bundle, which is where tools/native sits in the tree.
+    # this bundle, which is where tools/build sits in the tree.
     [string]$Repo,
     [switch]$Install
 )

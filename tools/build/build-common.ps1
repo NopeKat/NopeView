@@ -7,7 +7,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 # The scripts run from two layouts: <workspace>/.scripts, where the repository
-# sits under .repos, and <repo>/tools/native, which ships inside the repository.
+# sits under .repos, and <repo>/tools/build, which ships inside the repository.
 # Paths are passed in by the caller, so this file only holds shared helpers.
 
 # The APK cannot read the repository root, so the Android source tree keeps its

@@ -83,7 +83,7 @@ These changes were made in 2026, most recently on 2026-11-26.
 
 `libde265` and `libheif` are LGPL-3.0-or-later and are compiled into
 `heic_codec.dll` and `avif_codec.dll`. Their sources, the build script
-(`tools/native/build-native-windows.ps1`) and the compiler settings are in this
+(`tools/build/build-native-windows.ps1`) and the compiler settings are in this
 repository, so anyone who receives a binary can rebuild those DLLs with a
 modified version of either library and replace them next to the executable.
 
