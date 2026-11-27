@@ -27,6 +27,18 @@ is recorded here as well, under its own heading.
   contour.
 - The about expander keeps a 36 epx bottom inset, so the expanded last card
   stays clear of the page edge once the content scrolls.
+- JPEG previews decode through libjpeg-turbo instead of stb_image, which
+  decodes at the reduced IDCT size the requested edge allows, so a preview no
+  longer costs a full-resolution decode plus a box downsample.
+- JPEG XL decoding spreads its work across the logical cores, capped at eight
+  threads, where it previously ran on one.
+
+#### Fixed
+
+- Photos with an EXIF orientation now open the right way up. The direction is
+  read from JPEG, PNG, WebP and TIFF headers and applied while the pixel buffer
+  is copied, so the bitmap size, the fit and every copy or save made from it
+  agree with what the screen shows.
 
 #### Known limitations
 
