@@ -74,6 +74,9 @@ is recorded here as well, under its own heading.
   its own size and place for the next open.
 - Clipboard, shell and settings commands report their failures in the error
   bar instead of ending the process.
+- Closing the settings window hands input and the foreground back to the viewer
+  before the window is hidden, so the shell no longer activates the next window
+  in the z-order and another window no longer flashes in.
 
 #### Known limitations
 
