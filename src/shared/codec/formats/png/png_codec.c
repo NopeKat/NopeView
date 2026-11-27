@@ -136,16 +136,17 @@ static void cache_unlock(void)
 }
 #endif
 
-/* Decode stages are timed when NOPEVIEW_UI_PERF is set, the same switch the
- * managed side uses, so a slow open can be attributed to a stage instead of
- * the whole call. Lines are appended next to the managed probe log. */
+/* Decode stages are timed when NOPEVIEW_UI_PERF is 1, the same switch and
+ * the same value the managed side uses, so a slow open can be attributed to
+ * a stage instead of the whole call. Lines are appended next to the managed
+ * probe log. */
 static int png_perf_enabled(void)
 {
     static int cached = -1;
 
     if (cached < 0) {
         const char *flag = getenv("NOPEVIEW_UI_PERF");
-        cached = (flag != NULL && flag[0] != '\0' && flag[0] != '0') ? 1 : 0;
+        cached = (flag != NULL && strcmp(flag, "1") == 0) ? 1 : 0;
     }
     return cached;
 }
