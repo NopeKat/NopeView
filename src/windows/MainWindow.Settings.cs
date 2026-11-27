@@ -52,12 +52,16 @@ public sealed partial class MainWindow : Window
     {
         EnsureSettingsWindow();
 
-        // The viewer ignores mouse and keyboard until the settings window
-        // closes, the way the owner of a dialog does.
-        Win32Window.SetEnabled(Handle, false);
         var showClock = UiPerf.Start();
         _settingsWindow!.ShowAndFocus();
         UiPerf.Stop(showClock, "settings-show", "activate");
+
+        // The viewer ignores mouse and keyboard until the settings window
+        // closes, the way the owner of a dialog does. It is disabled after the
+        // settings window owns the activation: disabling the active window makes
+        // the shell activate whatever is next in the z-order, which the user
+        // sees as another window flashing in.
+        Win32Window.SetEnabled(Handle, false);
     }
 
     /// <summary>
@@ -86,7 +90,7 @@ public sealed partial class MainWindow : Window
             // first registered.
             Win32Window.SetOwner(settingsWindow.Handle, Handle);
             settingsWindow.Closed += SettingsWindow_Closed;
-            settingsWindow.Hidden += SettingsWindow_Hidden;
+            settingsWindow.Hiding += SettingsWindow_Hiding;
 
             _settingsWindow = settingsWindow;
         }
@@ -127,14 +131,16 @@ public sealed partial class MainWindow : Window
 
     // The settings window is hidden rather than closed, so input comes back
     // through the same path a close would take, just without a destroyed page.
-    private void SettingsWindow_Hidden()
+    // The event fires before the hide, so the foreground moves back to the
+    // viewer while the settings window is still on screen.
+    private void SettingsWindow_Hiding()
     {
         RestoreViewerInput();
     }
 
     /// <summary>
     /// Hands focus and input back to the viewer, the way a dialog does when it
-    /// goes away. Both the hidden and the closed path end here.
+    /// goes away. Both the hiding and the closed path end here.
     /// </summary>
     private void RestoreViewerInput()
     {

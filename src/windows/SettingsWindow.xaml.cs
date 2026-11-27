@@ -50,10 +50,11 @@ public sealed partial class SettingsWindow : Window
     private bool _hidden;
 
     /// <summary>
-    /// Raised after the window has been hidden instead of closed. The viewer
-    /// uses it to take its input back.
+    /// Raised right before the window is taken off the screen. The viewer takes
+    /// its input and activation back from here, so the foreground never has to
+    /// move to another window while the settings window goes away.
     /// </summary>
-    internal event Action? Hidden;
+    internal event Action? Hiding;
 
     // Opened when the viewer asked for the window, so the first load can be
     // reported as one span that runs from the request to ready content.
@@ -403,8 +404,15 @@ public sealed partial class SettingsWindow : Window
 
         PersistBounds();
         _hidden = true;
+
+        // The viewer takes its input and the foreground back while this window is
+        // still up. The settings window is the active one at this point, and
+        // hiding it while the viewer is still disabled leaves the shell to pick
+        // the next window in the z-order, which shows up as another window
+        // flashing in front of the user. Handing input back first means the
+        // foreground is already on the viewer when the hide happens.
+        Hiding?.Invoke();
         Win32Window.Hide(Handle);
-        Hidden?.Invoke();
     }
 
     /// <summary>
