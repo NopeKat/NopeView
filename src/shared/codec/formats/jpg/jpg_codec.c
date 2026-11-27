@@ -121,8 +121,18 @@ static unsigned char *jpg_read_file(const char *path, size_t *out_size)
         return NULL;
     }
 
+    /* ftell reports the position, not the length, so the stream has to be
+     * moved to the end first. */
+    if (fseek(file, 0L, SEEK_END) != 0) {
+        fclose(file);
+        return NULL;
+    }
     length = ftell(file);
     if (length <= 0L || (size_t)length > NV_MAX_DECODE_BYTES) {
+        fclose(file);
+        return NULL;
+    }
+    if (fseek(file, 0L, SEEK_SET) != 0) {
         fclose(file);
         return NULL;
     }
@@ -175,6 +185,8 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
     int stride;
     int source_width;
     int source_height;
+    int scaled_width;
+    int scaled_height;
     int components;
     int target_components;
     int32_t max_dimension;
@@ -325,10 +337,13 @@ nv_format_status nv_format_decode(const nv_format_decode_request *request, nv_fo
         }
 
         /* The preview bound is applied after the decode so the result lands
-         * exactly on the requested edge instead of on a power-of-two step. */
+         * exactly on the requested edge instead of on a power-of-two step.
+         * The scaled IDCT already shrank the image, so the size it reports to
+         * the caller is the one read from the file header, not this. */
         if (!nv_limit_decoded_size(
                 &decoded, &width, &height, &stride, 4, max_dimension,
-                free, malloc, &source_width, &source_height)) {
+                free, malloc, &scaled_width, &scaled_height)) {
+            free(decoded);
             return NV_FORMAT_ERR_OUT_OF_MEMORY;
         }
 
