@@ -32,6 +32,11 @@ public sealed partial class SettingsWindow : Window
 
     private const double WorkAreaRatio = 0.92;
 
+    // Frames the window waits before it is uncloaked, and the deadline that
+    // covers a window whose content stops changing and so stops producing them.
+    private const int RevealFrameCount = 2;
+    private const double RevealTimeoutMs = 120;
+
     private readonly SettingsService _settings;
     private readonly Action<AppTheme> _applyThemeToApp;
     private readonly SettingsPage _page;
@@ -48,6 +53,20 @@ public sealed partial class SettingsWindow : Window
     // allowed when the app itself is going away.
     private bool _allowClose;
     private bool _hidden;
+
+    // Set once the page inside has laid out. A window that is shown before that
+    // has nothing to paint, and the empty client area it shows up as reads as a
+    // white flash. See ShowAndFocus.
+    private bool _contentReady;
+    private bool _showDeferred;
+    private Action? _afterShow;
+
+    // Set while the window is shown but kept off the desktop until its content
+    // has rendered. See BeginReveal.
+    private bool _revealPending;
+    private int _revealFrames;
+    private DispatcherQueueTimer? _revealTimer;
+    private Stopwatch? _revealClock;
 
     /// <summary>
     /// Raised right before the window is taken off the screen. The viewer takes
@@ -180,8 +199,36 @@ public sealed partial class SettingsWindow : Window
     /// Brings the window forward. An already open window is restored instead of
     /// opened a second time, so the app never ends up with two settings windows.
     /// </summary>
-    internal void ShowAndFocus()
+    /// <param name="whenShown">
+    /// Runs once the window is actually on screen. A cold open builds the page on
+    /// this stack, and the window then has to wait for its content to lay out
+    /// before it is shown, so the caller cannot assume the show already happened.
+    /// </param>
+    internal void ShowAndFocus(Action? whenShown = null)
     {
+        if (!_contentReady)
+        {
+            // Showing here would put a window with an empty client area on screen
+            // for as long as the page takes to lay out, which the user sees as the
+            // window flashing white before the content arrives. The show moves to
+            // RootGrid_Loaded instead; a prewarmed window is ready and skips this.
+            _showDeferred = true;
+            _afterShow = whenShown;
+            return;
+        }
+
+        ShowLoadedWindow();
+        whenShown?.Invoke();
+    }
+
+    /// <summary>
+    /// Shows a window whose content is laid out, and brings it forward.
+    /// </summary>
+    private void ShowLoadedWindow()
+    {
+        // Cloaking has to be in place before the window can be seen at all.
+        BeginReveal();
+
         if (_hidden)
         {
             // The window was hidden instead of closed, so it comes back with the
@@ -204,6 +251,73 @@ public sealed partial class SettingsWindow : Window
 
         Activate();
         _page.FocusDefault();
+    }
+
+    /// <summary>
+    /// Keeps the window off the desktop until its content has rendered. A window
+    /// that is revealed before that is drawn from the desktop's own fill for the
+    /// few frames it has nothing to paint, which reads as a white flash even
+    /// though the page inside is laid out and dark. A cloaked window is skipped
+    /// by the desktop entirely while it keeps rendering, so the reveal can wait
+    /// for real frames at no cost.
+    /// </summary>
+    private void BeginReveal()
+    {
+        if (_revealPending)
+        {
+            return;
+        }
+
+        Win32Window.Cloak(Handle, true);
+        _revealPending = true;
+        _revealFrames = 0;
+        _revealClock = UiPerf.Start();
+        CompositionTarget.Rendering += Reveal_Rendering;
+
+        _revealTimer ??= CreateRevealTimer();
+        _revealTimer.Stop();
+        _revealTimer.Start();
+    }
+
+    private void Reveal_Rendering(object? sender, object e)
+    {
+        // The event ticks once per frame of the whole thread, so one tick does not
+        // prove that this window has been composed yet. Two covers the frame the
+        // content island needs to attach on, and is short enough to not be felt.
+        if (++_revealFrames < RevealFrameCount)
+        {
+            return;
+        }
+
+        Reveal("frame");
+    }
+
+    private DispatcherQueueTimer CreateRevealTimer()
+    {
+        var timer = DispatcherQueue.CreateTimer();
+        timer.Interval = TimeSpan.FromMilliseconds(RevealTimeoutMs);
+        timer.IsRepeating = false;
+        timer.Tick += (_, _) => Reveal("timeout");
+        return timer;
+    }
+
+    /// <summary>
+    /// Lets the desktop draw the window again. Every path that ends with the
+    /// window visible or hidden comes through here, so a window is never left
+    /// cloaked where the desktop would keep skipping it.
+    /// </summary>
+    private void Reveal(string reason)
+    {
+        if (!_revealPending)
+        {
+            return;
+        }
+
+        _revealPending = false;
+        CompositionTarget.Rendering -= Reveal_Rendering;
+        _revealTimer?.Stop();
+        Win32Window.Cloak(Handle, false);
+        UiPerf.Stop(_revealClock, "settings-reveal", reason);
     }
 
     private void ApplyTheme(AppTheme theme)
@@ -253,6 +367,21 @@ public sealed partial class SettingsWindow : Window
                 // not survive the content load.
                 presenter.Maximize();
             }
+        }
+
+        _contentReady = true;
+
+        // A show that was asked for before the page could paint waits here, so
+        // the first frame the user sees is the real one. This path runs while the
+        // window is still hidden on a prewarmed build, which is exactly why the
+        // wait is worth it: the layout work is done off screen either way.
+        if (_showDeferred)
+        {
+            _showDeferred = false;
+            var afterShow = _afterShow;
+            _afterShow = null;
+            ShowLoadedWindow();
+            afterShow?.Invoke();
         }
     }
 
@@ -412,6 +541,10 @@ public sealed partial class SettingsWindow : Window
         // flashing in front of the user. Handing input back first means the
         // foreground is already on the viewer when the hide happens.
         Hiding?.Invoke();
+
+        // A hide that lands before the reveal finished would leave the window
+        // cloaked, and the desktop would keep skipping it on every later open.
+        Reveal("hide");
         Win32Window.Hide(Handle);
     }
 

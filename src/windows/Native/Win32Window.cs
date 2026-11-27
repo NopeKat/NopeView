@@ -1,6 +1,8 @@
 // Copyright (c) 2026 NopeKat. All rights reserved.
 // Licensed under the GNU Affero General Public License v3.0; see LICENSE.
 
+using System.Runtime.InteropServices;
+
 namespace NopeView.App.Native;
 
 /// <summary>
@@ -14,6 +16,30 @@ internal static class Win32Window
     private const int SW_SHOW = 5;
     private const int SW_MAXIMIZE = 3;
     private const int GWLP_HWNDPARENT = -8;
+
+    // The desktop paints the frame and the client area it has no content for
+    // from its own palette; a cloaked window is skipped altogether.
+    private const int DwmaCloak = 13;
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(nint hWnd, int attribute, ref int value, int size);
+
+    /// <summary>
+    /// Hides one window from the desktop without hiding it from the application.
+    /// A window that is being prepared can be shown, activated and rendered while
+    /// cloaked, and the desktop starts drawing it only once it is uncloaked, so
+    /// the frames before its content is ready never reach the screen.
+    /// </summary>
+    internal static void Cloak(nint hWnd, bool cloak)
+    {
+        if (hWnd == 0)
+        {
+            return;
+        }
+
+        int value = cloak ? 1 : 0;
+        DwmSetWindowAttribute(hWnd, DwmaCloak, ref value, sizeof(int));
+    }
 
     /// <summary>
     /// Makes one window the owner of another. An owned window stays above the

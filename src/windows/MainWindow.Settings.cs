@@ -56,16 +56,19 @@ public sealed partial class MainWindow : Window
     {
         EnsureSettingsWindow();
 
-        var showClock = UiPerf.Start();
-        _settingsWindow!.ShowAndFocus();
-        UiPerf.Stop(showClock, "settings-show", "activate");
-
         // The viewer ignores mouse and keyboard until the settings window
-        // closes, the way the owner of a dialog does. It is disabled after the
-        // settings window owns the activation: disabling the active window makes
-        // the shell activate whatever is next in the z-order, which the user
-        // sees as another window flashing in.
-        Win32Window.SetEnabled(Handle, false);
+        // closes, the way the owner of a dialog does. It is blocked only once the
+        // settings window is actually on screen: a cold open defers the show
+        // until the page has laid out, and blocking the viewer before that would
+        // leave the whole app looking dead. Disabling the active window also
+        // makes the shell activate whatever is next in the z-order, which the
+        // user sees as another window flashing in.
+        var showClock = UiPerf.Start();
+        _settingsWindow!.ShowAndFocus(() =>
+        {
+            UiPerf.Stop(showClock, "settings-show", "activate");
+            Win32Window.SetEnabled(Handle, false);
+        });
     }
 
     /// <summary>
