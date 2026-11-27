@@ -198,12 +198,9 @@ public sealed partial class MainWindow : Window
             return session;
         });
 
-        // Mica is the Fluent window backdrop. The content layer uses a low
-        // opacity fill so the material shows through the title bar and the
-        // viewer surface, which keeps both areas in one continuous plane.
-        var backdropClock = UiPerf.Start();
-        SystemBackdrop = new MicaBackdrop();
-        UiPerf.Stop(backdropClock, "ctor-backdrop", "mica");
+        // The project keeps Mica and acrylic off, so the window paints itself:
+        // the title bar and the content layer share one layer fill and there is
+        // no system backdrop behind them.
 
         // The viewport receives pointer events for panning and touch pinch
         // tracking, including events already handled by child elements.

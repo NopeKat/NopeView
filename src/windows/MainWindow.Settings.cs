@@ -188,7 +188,7 @@ public sealed partial class MainWindow : Window
 
     // The caption buttons are drawn by the system, outside the XAML theme.
     // WindowChrome pins their colors so a forced dark theme cannot leave
-    // light-theme black glyphs on a dark Mica bar.
+    // light-theme black glyphs on a dark bar.
     private void ApplyTitleBarColors(AppTheme theme)
     {
         WindowChrome.ApplyTitleBarColors(this, RootGrid, theme);

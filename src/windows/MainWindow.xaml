@@ -280,7 +280,7 @@
 
     <!-- Command layer. The official CommandBar owns the surface, button
          metrics, overflow behavior and keyboard handling. It is docked
-         to the top of the content area, so the acrylic surface runs
+         to the top of the content area, so the layer fill runs
          edge to edge and the canvas keeps its full height. -->
     <CommandBar x:Name="ViewerCommandBar"
                 Grid.Row="0"

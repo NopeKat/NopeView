@@ -1,7 +1,6 @@
 // Copyright (c) 2026 NopeKat. All rights reserved.
 // Licensed under the GNU Affero General Public License v3.0; see LICENSE.
 
-using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -154,15 +153,13 @@ public sealed partial class SettingsWindow : Window
             Win32Window.Maximize(initialHandle);
         }
 
-        SystemBackdrop = new MicaBackdrop();
-
         _page = new SettingsPage();
         _page.Initialize(new SettingsPageParameter(
             settings, ApplyTheme, applyLanguage, applyImageFrame));
         SettingsHost.Content = _page;
 
         // Same chrome as the main window: the official TitleBar occupies the
-        // caption area and the layer fill carries the Mica through it.
+        // caption area and the layer fill paints it, with no system backdrop.
         ExtendsContentIntoTitleBar = true;
         ApplyLocalization();
         ThemeApplication.Apply(RootGrid, settings.Theme);
