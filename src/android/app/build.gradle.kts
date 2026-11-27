@@ -1,6 +1,7 @@
 // Copyright (c) 2026 NopeKat. All rights reserved.
 // Licensed under the GNU Affero General Public License v3.0; see LICENSE.
 
+import java.io.File
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -78,6 +79,46 @@ kotlin {
 }
 
 layout.buildDirectory.set(file("${rootDir}/../../build/android/app"))
+
+// The APK carries its own copy of the licence files, because the package cannot
+// read the repository root. A copy that falls behind the root would ship a
+// stale notice, so any Gradle build, an IDE build included, fails before the
+// packaging steps.
+val licenceAssetNames = listOf("LICENSE", "THIRD-PARTY-NOTICES.md")
+val licenceAssetDirectory = file("src/main/assets/licenses")
+val licenceRepoRoot = rootDir.parentFile.parentFile
+
+val verifyLicenceAssets by tasks.registering {
+    group = "verification"
+    description = "Checks that the Android licence assets match the repository root."
+    inputs.files(licenceAssetNames.map { File(licenceRepoRoot, it) })
+    inputs.files(licenceAssetNames.map { File(licenceAssetDirectory, it) })
+    doLast {
+        licenceAssetNames.forEach { name ->
+            val root = File(licenceRepoRoot, name)
+            val copy = File(licenceAssetDirectory, name)
+            if (!root.isFile) {
+                throw GradleException(
+                    "The licence file is missing from the repository root: ${root.absolutePath}",
+                )
+            }
+            if (!copy.isFile) {
+                throw GradleException(
+                    "The Android licence asset is missing: ${copy.absolutePath}. " +
+                        "Copy it from the repository root before building.",
+                )
+            }
+            if (!root.readBytes().contentEquals(copy.readBytes())) {
+                throw GradleException(
+                    "The Android licence asset is out of date: ${copy.absolutePath}. " +
+                        "Copy ${root.absolutePath} over it before building.",
+                )
+            }
+        }
+    }
+}
+
+tasks.named("preBuild").configure { dependsOn(verifyLicenceAssets) }
 
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2025.12.00"))
