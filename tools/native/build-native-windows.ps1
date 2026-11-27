@@ -1,10 +1,15 @@
 #!/usr/bin/env pwsh
+# Copyright (c) 2026 NopeKat. All rights reserved.
+# Licensed under the GNU Affero General Public License v3.0; see LICENSE.
 # Builds the native libraries the Windows app loads: the codec router, the file
 # list service and one dynamic library per image format. Output goes to
 # build/windows/native/x64; -Install copies it to src/windows/Native/x64, which
 # is where the project keeps the binaries it ships.
 
 param(
+    # Repository root to build from. The default is the root two levels above
+    # this bundle, which is where tools/native sits in the tree.
+    [string]$Repo,
     [switch]$Install
 )
 
@@ -13,11 +18,13 @@ $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'build-common.ps1')
 
-$workspace = Get-WorkspaceRoot -ScriptRoot $PSScriptRoot
-$repo = Join-Path $workspace '.repos\NopeView'
-if (-not (Test-Path -LiteralPath $repo)) {
-    throw "Repository not found: $repo"
+if (-not $Repo) {
+    $Repo = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 }
+if (-not (Test-Path -LiteralPath (Join-Path $Repo 'src\shared\codec\abi'))) {
+    throw "Not a NopeView repository root: $Repo"
+}
+$Repo = (Resolve-Path -LiteralPath $Repo).Path
 
 function Resolve-Msvc {
     $installations = @()

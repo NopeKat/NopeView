@@ -1,23 +1,14 @@
+# Copyright (c) 2026 NopeKat. All rights reserved.
+# Licensed under the GNU Affero General Public License v3.0; see LICENSE.
 # Shared helpers for the NopeView build scripts.
 # Every entry script dot-sources this file; do not run it directly.
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-function Get-WorkspaceRoot {
-    param([Parameter(Mandatory)][string]$ScriptRoot)
-    return (Split-Path -Parent $ScriptRoot)
-}
-
-function Get-RepoRoot {
-    param([Parameter(Mandatory)][string]$ScriptRoot)
-    $workspace = Get-WorkspaceRoot -ScriptRoot $ScriptRoot
-    $repo = Join-Path $workspace '.repos\NopeView'
-    if (-not (Test-Path -LiteralPath $repo)) {
-        throw "Repository not found: $repo"
-    }
-    return $repo
-}
+# The scripts run from two layouts: <workspace>/.scripts, where the repository
+# sits under .repos, and <repo>/tools/native, which ships inside the repository.
+# Paths are passed in by the caller, so this file only holds shared helpers.
 
 # The APK cannot read the repository root, so the Android source tree keeps its
 # own copy of the licence files under src/main/assets/licenses. A copy that lags
