@@ -39,6 +39,21 @@ is recorded here as well, under its own heading.
   read from JPEG, PNG, WebP and TIFF headers and applied while the pixel buffer
   is copied, so the bitmap size, the fit and every copy or save made from it
   agree with what the screen shows.
+- Saving or copying such a photo now writes the turned pixels too, so the saved
+  file matches the screen instead of keeping the raw sensor order.
+- A JPEG preview reports the file's own size again, so the zoom upgrade still
+  knows when the bitmap on screen is smaller than the image.
+- An EXIF block behind the image data is found in PNG and WebP. The orientation
+  cache is keyed on the file's length and timestamp, so a replaced file no
+  longer reuses the old direction.
+- A damaged TIFF directory can no longer throw while an image opens. Offsets are
+  bounds-checked in 64-bit arithmetic and a bad tag falls back to no orientation.
+- A decode whose downscale fails releases the decoded buffer before returning.
+- Opening a JPEG by path seeks to the end before reading the length, so the
+  decoder no longer starts from a stale position.
+- Full-resolution zoom, clipboard copy and save as stop at 64 megapixels, and
+  the status bar says when an image was handled at reduced size instead of
+  spending gigabytes on a scan that large.
 
 #### Known limitations
 
