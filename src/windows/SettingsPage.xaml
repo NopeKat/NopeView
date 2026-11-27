@@ -107,9 +107,15 @@
                                           Margin="0,0,0,36"
                                           AutomationProperties.AutomationId="AboutExpander">
                     <toolkit:SettingsExpander.HeaderIcon>
-                        <ImageIcon Width="20"
-                                   Height="20"
-                                   Source="ms-appx:///assets/nopeview-title.png" />
+                        <!-- Official info drawing from Fluent UI System Icons
+                             (regular, 20 grid). Its ink measures 16 x 16 px with
+                             a 2 px margin, so it is scaled 1.09375 about (10, 10)
+                             to keep the 17.5 px long edge the other cards use.
+                             The ring's inner contour is pulled to r 7.75 so the
+                             band lands back on 1 px, and the dot and the stem are
+                             redrawn at the same scale with cubic circles.
+                             Source: assets/Info/SVG/ic_fluent_info_20_regular.svg -->
+                        <PathIcon Data="F1 M 10 1.25 C 14.8325 1.25 18.75 5.1675 18.75 10 C 18.75 14.8325 14.8325 18.75 10 18.75 C 5.1675 18.75 1.25 14.8325 1.25 10 C 1.25 5.1675 5.1675 1.25 10 1.25 Z M 10 2.25 C 5.7198 2.25 2.25 5.7198 2.25 10 C 2.25 14.2802 5.7198 17.75 10 17.75 C 14.2802 17.75 17.75 14.2802 17.75 10 C 17.75 5.7198 14.2802 2.25 10 2.25 Z M 10 5.625 C 10.453 5.625 10.8203 5.9923 10.8203 6.4453 C 10.8203 6.8983 10.453 7.2656 10 7.2656 C 9.547 7.2656 9.1797 6.8983 9.1797 6.4453 C 9.1797 5.9923 9.547 5.625 10 5.625 Z M 9.5 8.8594 C 9.5 8.5833 9.7761 8.3594 10 8.3594 C 10.2239 8.3594 10.5 8.5833 10.5 8.8594 L 10.5 13.875 C 10.5 14.1511 10.2239 14.375 10 14.375 C 9.7761 14.375 9.5 14.1511 9.5 13.875 Z" Width="20" Height="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </toolkit:SettingsExpander.HeaderIcon>
                     <toolkit:SettingsExpander.Items>
                         <toolkit:SettingsCard x:Name="RepositoryCard">
