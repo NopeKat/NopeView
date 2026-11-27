@@ -68,6 +68,10 @@ public sealed partial class SettingsWindow : Window
     private DispatcherQueueTimer? _revealTimer;
     private Stopwatch? _revealClock;
 
+    // Set between a show and the activation that follows it, so the focus that
+    // the page claims can be confirmed once the window is really active.
+    private bool _focusOnActivate;
+
     /// <summary>
     /// Raised right before the window is taken off the screen. The viewer takes
     /// its input and activation back from here, so the foreground never has to
@@ -181,6 +185,11 @@ public sealed partial class SettingsWindow : Window
         AppWindow.Changed += AppWindow_Changed;
         AppWindow.Closing += SettingsWindow_Closing;
         Closed += SettingsWindow_BoundsClosing;
+
+        // The first activation of a window whose content holds no focus picks
+        // the caption close button, so the page claims the focus again as soon
+        // as the window reports that it is active.
+        Activated += SettingsWindow_Activated;
     }
 
     /// <summary>
@@ -249,7 +258,27 @@ public sealed partial class SettingsWindow : Window
             }
         }
 
+        // The page claims the focus before the activation, so the window's first
+        // activation pass already finds a focused element and does not fall back
+        // to the caption close button.
+        _focusOnActivate = true;
+        _page.FocusDefault();
         Activate();
+    }
+
+    private void SettingsWindow_Activated(object sender, WindowActivatedEventArgs args)
+    {
+        if (!_focusOnActivate ||
+            args.WindowActivationState == WindowActivationState.Deactivated)
+        {
+            return;
+        }
+
+        // Activation runs after Activate returns, so the element focused before it
+        // can still be replaced. Claiming it once more here makes the page the
+        // owner either way, and the flag keeps that from happening on every later
+        // activation.
+        _focusOnActivate = false;
         _page.FocusDefault();
     }
 
