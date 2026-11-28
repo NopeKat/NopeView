@@ -18,10 +18,11 @@ internal sealed class SettingsService
 
     // Bumped when a stored field changes shape. A missing or older value is
     // treated as version zero and rewritten as the current version on save.
-    private const int CurrentSchemaVersion = 1;
+    private const int CurrentSchemaVersion = 2;
 
-    // A zero or absurd rectangle is treated like no stored value, so a
-    // hand-edited or truncated file cannot open a window nothing can show.
+    // Edge length limits for a stored window rectangle. Anything outside them
+    // is rejected on load, so a truncated or hand-edited file cannot open a
+    // window nothing can show.
     private const int MinWindowEdge = 200;
     private const int MaxWindowEdge = 4000;
 
@@ -52,6 +53,13 @@ internal sealed class SettingsService
     /// Stored language preference, or an empty string to follow Windows.
     /// </summary>
     internal string Language { get; private set; } = Localization.SystemPreference;
+
+    /// <summary>
+    /// Last size and position of the viewer window, or null before it has been
+    /// closed once. The viewer reopens where the last session ended instead of
+    /// always starting centred and maximized.
+    /// </summary>
+    internal WindowBounds? MainWindowBounds { get; private set; }
 
     /// <summary>
     /// Last size and position of the settings window, or null before the window
@@ -98,9 +106,12 @@ internal sealed class SettingsService
                 ImageFrame = frame;
             }
 
-            if (document?.SettingsWindow is { } bounds &&
-                bounds.Width >= MinWindowEdge && bounds.Height >= MinWindowEdge &&
-                bounds.Width <= MaxWindowEdge && bounds.Height <= MaxWindowEdge)
+            if (document?.MainWindow is { } mainBounds && IsUsableBounds(mainBounds))
+            {
+                MainWindowBounds = mainBounds;
+            }
+
+            if (document?.SettingsWindow is { } bounds && IsUsableBounds(bounds))
             {
                 SettingsWindowBounds = bounds;
             }
@@ -128,6 +139,22 @@ internal sealed class SettingsService
         Update(() => ImageFrame = frame);
     }
 
+    /// <summary>
+    /// Whether a stored rectangle has an edge length any display could show.
+    /// A zero or absurd value is treated like no stored value, so a hand-edited
+    /// or truncated file cannot open a window nothing can show.
+    /// </summary>
+    private static bool IsUsableBounds(WindowBounds bounds)
+    {
+        return bounds.Width >= MinWindowEdge && bounds.Height >= MinWindowEdge &&
+            bounds.Width <= MaxWindowEdge && bounds.Height <= MaxWindowEdge;
+    }
+
+    internal void SetMainWindowBounds(WindowBounds bounds)
+    {
+        Update(() => MainWindowBounds = bounds);
+    }
+
     internal void SetSettingsWindowBounds(WindowBounds bounds)
     {
         Update(() => SettingsWindowBounds = bounds);
@@ -146,7 +173,8 @@ internal sealed class SettingsService
     private void Save()
     {
         var document = new SettingsDocument(
-            CurrentSchemaVersion, Theme.ToString(), Language, ImageFrame.ToString(), SettingsWindowBounds);
+            CurrentSchemaVersion, Theme.ToString(), Language, ImageFrame.ToString(),
+            MainWindowBounds, SettingsWindowBounds);
 
         lock (_pendingGate)
         {

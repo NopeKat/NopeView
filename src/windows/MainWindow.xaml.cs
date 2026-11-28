@@ -157,6 +157,13 @@ public sealed partial class MainWindow : Window
     private bool _isFullScreen;
     private bool _wasMaximizedBeforeFullScreen;
 
+    // The rectangle the window returns to when it is un-maximized, and whether
+    // it should open maximized again. Both are seeded at startup and kept
+    // current while the window is an ordinary overlapped window, then written
+    // back on close so the next session reopens where this one ended.
+    private RectInt32 _restoreBounds;
+    private bool _restoreMaximized = true;
+
     // The clipboard reads the stream after SetContent returns, so it must
     // outlive the call.
     private InMemoryRandomAccessStream? _clipboardImage;
@@ -286,11 +293,13 @@ public sealed partial class MainWindow : Window
         _settingsPrewarmTimer.Start();
 
         Closed += MainWindow_Closed;
+        AppWindow.Changed += AppWindow_Changed;
     }
 
     private void MainWindow_Closed(object sender, WindowEventArgs args)
     {
         _closing = true;
+        AppWindow.Changed -= AppWindow_Changed;
         CompositionTarget.Rendering -= CompositionTarget_Rendering;
         if (_settingsWindow is { } settingsWindow)
         {
@@ -306,6 +315,7 @@ public sealed partial class MainWindow : Window
         _decodeCancellation?.Cancel();
         DiscardPrefetch();
         UiPerf.Flush();
+        PersistMainWindowBounds();
         _settings.Flush(300);
 
         // The router may still be loading when the window closes. The session
@@ -455,41 +465,150 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Centers the window at the preferred size, then maximizes it so the
-    /// content gets the whole work area. The centered size stays as the restore
-    /// size. Running this before the window is shown means it opens maximized
-    /// with no visible resize flash.
+    /// Opens the window at the rectangle and maximize state it closed with, or
+    /// at the centered default when nothing usable is stored. Running this
+    /// before the window is shown means it opens maximized with no visible
+    /// resize flash, and the centered or restored size stays as the size an
+    /// un-maximize returns to.
     /// </summary>
     private void ConfigureStartupWindow()
     {
         var appWindow = AppWindow;
         var scale = Scale;
-        var workArea = DisplayArea
-            .GetFromWindowId(appWindow.Id, DisplayAreaFallback.Primary)
-            .WorkArea;
+        var saved = _settings.MainWindowBounds;
 
-        // Keep the restore size comfortably inside the work area: on a high-DPI
-        // display the preferred size can match the full screen, which would make
-        // un-maximizing look like nothing changed.
+        // A stored rectangle also picks the display the window opens on: the
+        // one it was left on, or the primary display when that one is gone.
+        // Without a stored rectangle the window follows the display it was
+        // created on.
+        var display = saved is { } stored
+            ? DisplayArea.GetFromRect(
+                new RectInt32(stored.X, stored.Y, stored.Width, stored.Height),
+                DisplayAreaFallback.Primary)
+            : DisplayArea.GetFromWindowId(appWindow.Id, DisplayAreaFallback.Primary);
+        var workArea = display.WorkArea;
+
+        var minWidth = (int)Math.Round(PreferredMinimumWidth * scale);
+        var minHeight = (int)Math.Round(PreferredMinimumHeight * scale);
+        var bounds = saved is { } storedBounds
+            ? ClampBounds(storedBounds, workArea, minWidth, minHeight)
+            : DefaultBounds(workArea, scale);
+        var openMaximized = saved?.Maximized ?? true;
+
+        if (appWindow.Presenter is OverlappedPresenter presenter)
+        {
+            presenter.PreferredMinimumWidth = minWidth;
+            presenter.PreferredMinimumHeight = minHeight;
+        }
+
+        appWindow.MoveAndResize(bounds);
+        _restoreBounds = bounds;
+        _restoreMaximized = openMaximized;
+
+        if (openMaximized && appWindow.Presenter is OverlappedPresenter maximizedPresenter)
+        {
+            maximizedPresenter.Maximize();
+        }
+    }
+
+    /// <summary>
+    /// The centered default rectangle used before a window state has ever been
+    /// stored. The restore size is capped to a fraction of the work area so
+    /// that un-maximizing always produces a visibly smaller window, even on a
+    /// display where the preferred size would cover the whole screen.
+    /// </summary>
+    private static RectInt32 DefaultBounds(RectInt32 workArea, double scale)
+    {
         var widthDip = Math.Min(PreferredWidth, workArea.Width / scale * RestoreAreaRatio);
         var heightDip = Math.Min(PreferredHeight, workArea.Height / scale * RestoreAreaRatio);
         var width = (int)Math.Round(widthDip * scale);
         var height = (int)Math.Round(heightDip * scale);
 
-        appWindow.MoveAndResize(new RectInt32(
+        return new RectInt32(
             workArea.X + ((workArea.Width - width) / 2),
             workArea.Y + ((workArea.Height - height) / 2),
             width,
-            height));
+            height);
+    }
 
-        if (appWindow.Presenter is OverlappedPresenter presenter)
+    /// <summary>
+    /// Reuses a stored rectangle, but pulls it back inside the work area the
+    /// window opens on, so a window left on a monitor that is gone cannot reopen
+    /// where nothing can show it. The values are already physical pixels, so
+    /// only the bounds are clamped and the size is not scaled again.
+    /// </summary>
+    private static RectInt32 ClampBounds(
+        WindowBounds stored, RectInt32 workArea, int minWidth, int minHeight)
+    {
+        var width = Math.Clamp(stored.Width, minWidth, Math.Max(minWidth, workArea.Width));
+        var height = Math.Clamp(stored.Height, minHeight, Math.Max(minHeight, workArea.Height));
+        var x = Math.Clamp(
+            stored.X,
+            workArea.X,
+            Math.Max(workArea.X, workArea.X + workArea.Width - width));
+        var y = Math.Clamp(
+            stored.Y,
+            workArea.Y,
+            Math.Max(workArea.Y, workArea.Y + workArea.Height - height));
+
+        return new RectInt32(x, y, width, height);
+    }
+
+    /// <summary>
+    /// Keeps the rectangle and the maximize state the window would restore to.
+    /// A minimized or full-screen window does not report the rectangle the user
+    /// left, so only an ordinary overlapped state is recorded.
+    /// </summary>
+    private void AppWindow_Changed(AppWindow sender, AppWindowChangedEventArgs args)
+    {
+        if (!args.DidPositionChange && !args.DidSizeChange && !args.DidPresenterChange)
         {
-            presenter.PreferredMinimumWidth =
-                (int)Math.Round(PreferredMinimumWidth * scale);
-            presenter.PreferredMinimumHeight =
-                (int)Math.Round(PreferredMinimumHeight * scale);
-            presenter.Maximize();
+            return;
         }
+
+        if (_isFullScreen ||
+            (sender.Presenter is { } windowPresenter &&
+                windowPresenter.Kind == AppWindowPresenterKind.FullScreen) ||
+            Win32Window.IsMinimized(Handle))
+        {
+            return;
+        }
+
+        var maximized =
+            sender.Presenter is OverlappedPresenter presenter &&
+            presenter.State == OverlappedPresenterState.Maximized;
+        _restoreMaximized = maximized;
+        if (maximized)
+        {
+            // A maximized window reports the work area as its own size, so its
+            // rectangle is not the one an un-maximize returns to.
+            return;
+        }
+
+        var position = sender.Position;
+        var size = sender.Size;
+        if (size.Width > 0 && size.Height > 0)
+        {
+            _restoreBounds = new RectInt32(position.X, position.Y, size.Width, size.Height);
+        }
+    }
+
+    /// <summary>
+    /// Stores the rectangle and maximize state the window closes with, so the
+    /// next start reopens where this session ended. A window without a usable
+    /// rectangle keeps whatever was stored last time instead of writing zeros.
+    /// </summary>
+    private void PersistMainWindowBounds()
+    {
+        if (_restoreBounds.Width <= 0 || _restoreBounds.Height <= 0)
+        {
+            return;
+        }
+
+        _settings.SetMainWindowBounds(new WindowBounds(
+            _restoreBounds.X, _restoreBounds.Y,
+            _restoreBounds.Width, _restoreBounds.Height,
+            _restoreMaximized));
     }
 
     private void RootGrid_Loaded(object sender, RoutedEventArgs e)

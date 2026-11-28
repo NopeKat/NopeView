@@ -34,12 +34,13 @@ internal sealed record SettingsDocument(
     [property: JsonPropertyName("theme")] string Theme,
     [property: JsonPropertyName("language")] string? Language,
     [property: JsonPropertyName("imageFrame")] string? ImageFrame,
+    [property: JsonPropertyName("mainWindow")] WindowBounds? MainWindow,
     [property: JsonPropertyName("settingsWindow")] WindowBounds? SettingsWindow);
 
 /// <summary>
-/// Pixel rectangle of the settings window, in the same units the windowing
+/// Pixel rectangle of a top level window, in the same units the windowing
 /// APIs report. The values are stored as they were measured so the window
-/// reopens at the size and place the user left it. The flags say whether the
+/// reopens at the size and place the user left it. The flag says whether the
 /// window was maximized on top of that rectangle, because a maximized window
 /// has no rectangle of its own worth remembering.
 /// </summary>
