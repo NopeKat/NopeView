@@ -14,8 +14,13 @@ internal static class Win32Window
     private const uint SWP_NOACTIVATE = 0x0010;
     private const int SW_HIDE = 0;
     private const int SW_SHOW = 5;
+    private const int SW_RESTORE = 9;
     private const int SW_MAXIMIZE = 3;
     private const int GWLP_HWNDPARENT = -8;
+
+    // Lets any process take the foreground. Only the process Windows just
+    // activated may grant this, which is exactly the launch that hands over.
+    private const int AsfwAny = -1;
 
     // The desktop paints the frame and the client area it has no content for
     // from its own palette; a cloaked window is skipped altogether.
@@ -103,6 +108,40 @@ internal static class Win32Window
         if (hWnd != 0)
         {
             NativeMethods.ShowWindow(hWnd, SW_SHOW);
+        }
+    }
+
+    /// <summary>
+    /// Restores a minimized window to the state it had before it was minimized.
+    /// </summary>
+    internal static void Restore(nint hWnd)
+    {
+        if (hWnd != 0)
+        {
+            NativeMethods.ShowWindow(hWnd, SW_RESTORE);
+        }
+    }
+
+    /// <summary>
+    /// Grants the right to set the foreground window to another process.
+    /// Windows gives that right only to the process the user just activated,
+    /// so a launch that hands over has to pass it on first.
+    /// </summary>
+    internal static void AllowForeground()
+    {
+        NativeMethods.AllowSetForegroundWindow(AsfwAny);
+    }
+
+    /// <summary>
+    /// Brings one window to the front. The call only takes effect while the
+    /// calling process holds the foreground right, which AllowForeground
+    /// grants ahead of a handover.
+    /// </summary>
+    internal static void BringToForeground(nint hWnd)
+    {
+        if (hWnd != 0)
+        {
+            NativeMethods.SetForegroundWindow(hWnd);
         }
     }
 

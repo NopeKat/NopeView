@@ -13,7 +13,11 @@ public partial class App : Application
     // read once and the window only consumes the values it was handed.
     internal static SettingsService Settings { get; set; } = null!;
 
-    private Window? _window;
+    // Assigned by Program when this process owns the single instance name.
+    // A launch that handed over never gets one, because it has no window.
+    internal static SingleInstanceService? Instance { get; set; }
+
+    private MainWindow? _window;
 
     public App()
     {
@@ -37,5 +41,9 @@ public partial class App : Application
 
         _window.Activate();
         UiPerf.RecordSinceStart("startup-activated", "window shown");
+
+        // Handovers wait until the window exists, so requests that arrived
+        // while it was being built are drained here, on its own thread.
+        Instance?.BeginListening(_window.DispatcherQueue, _window.AcceptSingleInstanceRequest);
     }
 }

@@ -29,14 +29,10 @@ public sealed partial class MainWindow : Window
 
     private void OpenImageFromCommandLine()
     {
-        var args = Environment.GetCommandLineArgs();
-        for (var index = 1; index + 1 < args.Length; index++)
+        var path = LaunchArguments.OpenPath();
+        if (path is not null)
         {
-            if (args[index] == "--open")
-            {
-                _ = OpenImageAsync(args[index + 1]);
-                return;
-            }
+            _ = OpenImageAsync(path);
         }
     }
 

@@ -611,6 +611,33 @@ public sealed partial class MainWindow : Window
             _restoreMaximized));
     }
 
+    /// <summary>
+    /// Takes one request from a later launch: brings this window forward and
+    /// opens the file the launch asked for, so a second copy lands here instead
+    /// of in a window of its own. The path may be empty, which only asks for
+    /// the window. Called on the window thread.
+    /// </summary>
+    internal void AcceptSingleInstanceRequest(string? path)
+    {
+        if (_closing)
+        {
+            return;
+        }
+
+        if (Win32Window.IsMinimized(_windowHandle))
+        {
+            Win32Window.Restore(_windowHandle);
+        }
+
+        Activate();
+        Win32Window.BringToForeground(_windowHandle);
+
+        if (path is { Length: > 0 })
+        {
+            _ = RunCommandAsync(() => OpenImageAsync(path), Strings.OpenTitle);
+        }
+    }
+
     private void RootGrid_Loaded(object sender, RoutedEventArgs e)
     {
         // The span a user feels as "the app opening": from the process starting

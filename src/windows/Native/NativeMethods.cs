@@ -28,6 +28,14 @@ internal static partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool ShowWindow(nint hWnd, int command);
 
+    [LibraryImport("user32.dll", EntryPoint = "SetForegroundWindow")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool SetForegroundWindow(nint hWnd);
+
+    [LibraryImport("user32.dll", EntryPoint = "AllowSetForegroundWindow")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool AllowSetForegroundWindow(int processId);
+
     [LibraryImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
     internal static partial nint SetWindowLongPtrW(nint hWnd, int index, nint value);
 

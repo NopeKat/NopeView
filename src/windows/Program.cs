@@ -12,6 +12,28 @@ public static class Program
     [STAThread]
     private static void Main()
     {
+        // Claim the viewer before anything else costs time. A launch that finds
+        // the name taken hands its arguments to the running copy and leaves,
+        // so a second window never opens.
+        var instance = SingleInstanceService.Claim();
+        if (instance.IsPrimary)
+        {
+            global::NopeView.App.App.Instance = instance;
+        }
+        else if (instance.Forward(LaunchArguments.OpenPath()))
+        {
+            // The running viewer took the request, so this launch has no work
+            // left and leaves without building a window.
+            instance.Dispose();
+            return;
+        }
+        else
+        {
+            // The running viewer did not answer. Opening a second window with
+            // the requested image is better than dropping the launch.
+            instance.Dispose();
+        }
+
         UiPerf.MarkStart();
 
         // The framework resolves the language of its own strings (window
