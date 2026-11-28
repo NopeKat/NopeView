@@ -2,8 +2,10 @@
 
 ## [0.0.3.0] - nightly
 
-Windows x64 nightly. The Android codec work that did not ship in this release
-is recorded here as well, under its own heading.
+Windows x64 nightly, published 2026-11-25. The Android codec work that did not
+ship in this release is recorded here as well, under its own heading. The
+Windows entries under "After the 0.0.3.0 package" landed after that package
+and ship with the next nightly.
 
 ### Windows
 
@@ -27,13 +29,28 @@ is recorded here as well, under its own heading.
   contour.
 - The about expander keeps a 36 epx bottom inset, so the expanded last card
   stays clear of the page edge once the content scrolls.
+
+#### Known limitations
+
+- JPEG XL cannot rebuild the original JPEG bitstream, because the decoder-only
+  build drops the reconstruction path.
+- HEIC / HEIF and AVIF were verified on still images only; animation and depth
+  maps are untested.
+
+#### After the 0.0.3.0 package
+
+These entries landed after the 2026-11-25 tag and are not part of the
+published 0.0.3.0 package; they ship with the next nightly.
+
+##### Changed
+
 - JPEG previews decode through libjpeg-turbo instead of stb_image, which
   decodes at the reduced IDCT size the requested edge allows, so a preview no
   longer costs a full-resolution decode plus a box downsample.
 - JPEG XL decoding spreads its work across the logical cores, capped at eight
   threads, where it previously ran on one.
 
-#### Fixed
+##### Fixed
 
 - Photos with an EXIF orientation now open the right way up. The direction is
   read from JPEG, PNG, WebP and TIFF headers and applied while the pixel buffer
@@ -77,13 +94,6 @@ is recorded here as well, under its own heading.
 - Closing the settings window hands input and the foreground back to the viewer
   before the window is hidden, so the shell no longer activates the next window
   in the z-order and another window no longer flashes in.
-
-#### Known limitations
-
-- JPEG XL cannot rebuild the original JPEG bitstream, because the decoder-only
-  build drops the reconstruction path.
-- HEIC / HEIF and AVIF were verified on still images only; animation and depth
-  maps are untested.
 
 ### Android
 

@@ -2,7 +2,7 @@
 
 A fast, lightweight, and extensible cross-platform image viewer.
 
-> **Status: early development.** The Windows viewer is published as a nightly `0.0.2.0` build; Android last shipped with `0.0.1.0`. The Windows app opens 18 image formats through the router; Android opens 15 of them, with HEIC/HEIF, AVIF, and JPEG XL still Windows-only. It supports three themes and an English/Chinese UI, and ships as self-contained portable packages. MSIX, signing, and file association are not in place yet.
+> **Status: early development.** The Windows viewer is published as a nightly `0.0.3.0` build; Android last shipped with `0.0.1.0`. The Windows app opens 18 image formats through the router; Android opens 15 of them, with HEIC/HEIF, AVIF, and JPEG XL still Windows-only. It supports three themes and an English/Chinese UI, and ships as self-contained portable packages. MSIX, signing, and file association are not in place yet.
 
 ## Highlights
 
@@ -22,7 +22,7 @@ A fast, lightweight, and extensible cross-platform image viewer.
 
 | Platform | Minimum version | UI toolkit | Status |
 | --- | --- | --- | --- |
-| Windows | Windows 10 | WinUI 3 (Windows App SDK) | Viewer MVP; 0.0.2.0 nightly |
+| Windows | Windows 10 | WinUI 3 (Windows App SDK) | Viewer MVP; 0.0.3.0 nightly |
 | Android | Android 8 | Jetpack Compose | Viewer MVP; last released in 0.0.1.0 |
 | Mac | macOS 12 | SwiftUI | Not started |
 | Linux | kernel 4.x and later | GTK 4 | Not started |
@@ -67,7 +67,7 @@ File opening through the picker and drag and drop, previous/next navigation, and
 ## Known limitations
 
 - MSIX and code signing are not enabled; unsigned Windows packages trigger SmartScreen warnings. File association is planned with MSIX.
-- The current Windows package is x64 only and self-contained; the zip is about 96 MB. A smaller framework-dependent build is possible with `-Runtime framework`.
+- The current Windows package is x64 only and self-contained; the `0.0.3.0` zip is 99.8 MB. A smaller framework-dependent build is possible with `-Runtime framework`.
 - Encoding is limited to PNG, JPG, and BMP. GIF and the other formats decode only.
 - Android is `arm64-v8a` only; x86/x86_64 emulator support is not available yet. The `0.0.1.0` release APK was unsigned, and current main has not produced a new package.
 - Android instrumented tests compile today, but the new decode cases have not run on a device or emulator yet.
@@ -87,15 +87,16 @@ File opening through the picker and drag and drop, previous/next navigation, and
 
 ### Nightlies
 
+- `0.0.3.0` nightly, 2026-11-25: Windows x64 only. Portable zip and 7-Zip self-extracting exe, both self-contained; tagged `0.0.3.nightly` and not marked as a pre-release. Adds HEIC/HEIF, AVIF, and JPEG XL decoding. No MSIX, no symbols package, no Android build.
 - `0.0.2.0` nightly, 2026-11-22: Windows x64 only. Portable zip and 7-Zip self-extracting exe, both self-contained; tagged `0.0.2.nightly` and marked as a pre-release. No MSIX, no symbols package, no Android build; Android codec progress is tracked under Unreleased above.
 - `0.0.1.0` nightly, 2026-11-18: Windows portable packages plus an unsigned Android arm64 APK; tagged `0.0.1.nightly` and marked as a pre-release.
 
 ## Building
 
-- The repository contains no build scripts. The working workspace keeps them in `.scripts/`; run all commands with PowerShell from the repository root.
+- The repository keeps the native build script in `tools/build/`; the working workspace keeps the full build and packaging scripts in `.scripts/`. Run the workspace scripts from the workspace root and the native script from the repository root, with PowerShell in both cases.
 - Windows app: requires the .NET SDK and the Windows App SDK; build `src/windows/NopeView.App.csproj`.
 - Android app: requires JDK 17 and the Android SDK; build `src/android` with Gradle.
-- C codecs, the router core, and the file list service: compile them with MSVC into DLLs, place them in `src/windows/native/x64/`, and the app loads them from there.
+- C codecs, the router core, and the file list service: `tools/build/build-native-windows.ps1` compiles them with MSVC. Output goes to `build/windows/native/x64`; add `-Install` to copy the DLLs into `src/windows/Native/x64`, where the app loads them.
 - `global.json` pins .NET SDK 10.0.404 with `rollForward: disable`. The file is gitignored, so a fresh clone needs it placed locally before building.
 - Build scripts clean `build/windows/` and the app's `bin/` / `obj/` first, then build from scratch. Android scripts clean `build/android/`, `src/android/app/build/`, and `src/android/app/.cxx/`. A build with any warning or error is treated as failed. All output goes to the repository's `build/` directory (`windows/`, `android/`, `package/`); it is regenerable and gitignored.
 - Android release builds still produce an unsigned APK until a keystore is configured.
