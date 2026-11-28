@@ -106,6 +106,43 @@
                                           IsExpanded="False"
                                           Margin="0,0,0,36"
                                           AutomationProperties.AutomationId="AboutExpander">
+                    <!-- The toolkit header is a ToggleButton whose fill is swapped
+                         with a discrete key frame on hover, press and checked,
+                         so the whole card jumps 37 -> 24 -> 37 in one frame over
+                         about 50 ms. Aliasing the fill and border keys in this
+                         expander's own scope pins every state to the resting
+                         colors; the chevron animation is left as the only
+                         feedback. -->
+                    <toolkit:SettingsExpander.Resources>
+                        <ResourceDictionary>
+                            <ResourceDictionary.ThemeDictionaries>
+                                <ResourceDictionary x:Key="Default">
+                                    <StaticResource x:Key="SettingsCardBackground" ResourceKey="CardBackgroundFillColorDefaultBrush" />
+                                    <StaticResource x:Key="SettingsCardBackgroundPointerOver" ResourceKey="CardBackgroundFillColorDefaultBrush" />
+                                    <StaticResource x:Key="SettingsCardBackgroundPressed" ResourceKey="CardBackgroundFillColorDefaultBrush" />
+                                    <StaticResource x:Key="SettingsCardBorderBrush" ResourceKey="CardStrokeColorDefaultBrush" />
+                                    <StaticResource x:Key="SettingsCardBorderBrushPointerOver" ResourceKey="CardStrokeColorDefaultBrush" />
+                                    <StaticResource x:Key="SettingsCardBorderBrushPressed" ResourceKey="CardStrokeColorDefaultBrush" />
+                                </ResourceDictionary>
+                                <ResourceDictionary x:Key="Light">
+                                    <StaticResource x:Key="SettingsCardBackground" ResourceKey="CardBackgroundFillColorDefaultBrush" />
+                                    <StaticResource x:Key="SettingsCardBackgroundPointerOver" ResourceKey="CardBackgroundFillColorDefaultBrush" />
+                                    <StaticResource x:Key="SettingsCardBackgroundPressed" ResourceKey="CardBackgroundFillColorDefaultBrush" />
+                                    <StaticResource x:Key="SettingsCardBorderBrush" ResourceKey="CardStrokeColorDefaultBrush" />
+                                    <StaticResource x:Key="SettingsCardBorderBrushPointerOver" ResourceKey="CardStrokeColorDefaultBrush" />
+                                    <StaticResource x:Key="SettingsCardBorderBrushPressed" ResourceKey="CardStrokeColorDefaultBrush" />
+                                </ResourceDictionary>
+                                <ResourceDictionary x:Key="HighContrast">
+                                    <StaticResource x:Key="SettingsCardBackground" ResourceKey="SystemColorButtonFaceColorBrush" />
+                                    <StaticResource x:Key="SettingsCardBackgroundPointerOver" ResourceKey="SystemColorButtonFaceColorBrush" />
+                                    <StaticResource x:Key="SettingsCardBackgroundPressed" ResourceKey="SystemColorButtonFaceColorBrush" />
+                                    <StaticResource x:Key="SettingsCardBorderBrush" ResourceKey="SystemColorButtonTextColorBrush" />
+                                    <StaticResource x:Key="SettingsCardBorderBrushPointerOver" ResourceKey="SystemColorButtonTextColorBrush" />
+                                    <StaticResource x:Key="SettingsCardBorderBrushPressed" ResourceKey="SystemColorButtonTextColorBrush" />
+                                </ResourceDictionary>
+                            </ResourceDictionary.ThemeDictionaries>
+                        </ResourceDictionary>
+                    </toolkit:SettingsExpander.Resources>
                     <toolkit:SettingsExpander.HeaderIcon>
                         <!-- Official info drawing from Fluent UI System Icons
                              (regular, 20 grid). Its ink measures 16 x 16 px with
