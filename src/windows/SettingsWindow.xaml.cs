@@ -190,6 +190,16 @@ public sealed partial class SettingsWindow : Window
     }
 
     /// <summary>
+    /// Builds the about content while the window is still hidden. Only the idle
+    /// prewarm calls this: on a visible window the expander would be seen
+    /// opening and closing.
+    /// </summary>
+    internal void PrewarmAboutContent()
+    {
+        _page?.PrewarmAboutContent();
+    }
+
+    /// <summary>
     /// Writes the strings this window owns. The page refreshes its own labels
     /// when the language changes, so this only covers the caption.
     /// </summary>

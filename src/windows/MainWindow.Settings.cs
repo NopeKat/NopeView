@@ -126,8 +126,15 @@ public sealed partial class MainWindow : Window
         }
 
         var clock = UiPerf.Start();
-        EnsureSettingsWindow();
+        var window = EnsureSettingsWindow();
         UiPerf.Stop(clock, "settings-prewarm", "hidden build");
+
+        // The about card is built the first time it is laid out, which used to
+        // land on the first expand and drop a frame there. Paying for it here
+        // keeps the expand free.
+        var aboutClock = UiPerf.Start();
+        window.PrewarmAboutContent();
+        UiPerf.Stop(aboutClock, "settings-prewarm-about", "hidden build");
     }
 
     // A modal window has to hand input back, and an owned window is closed

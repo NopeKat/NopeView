@@ -35,6 +35,11 @@ public sealed partial class SettingsPage : Page
     // held until Loaded; a control that is not in the tree cannot take focus.
     private bool _focusOnLoad;
 
+    // The about card is built on its first layout, and the expander only lays
+    // it out once it is opened. Prewarming pays that cost while the window is
+    // still hidden instead of on the first expand.
+    private bool _aboutPrewarmed;
+
     public SettingsPage()
     {
         InitializeComponent();
@@ -106,6 +111,27 @@ public sealed partial class SettingsPage : Page
         }
 
         _focusOnLoad = true;
+    }
+
+    /// <summary>
+    /// Builds the about card once while the settings window is still hidden.
+    /// The expander skips its content until it is opened, so this opens and
+    /// closes it in the same pass and forces the layout in between: the card,
+    /// its icon and its link are built here, and the first real expand finds
+    /// them already in place instead of dropping a frame to build them.
+    /// </summary>
+    internal void PrewarmAboutContent()
+    {
+        if (_aboutPrewarmed)
+        {
+            return;
+        }
+
+        _aboutPrewarmed = true;
+        AboutExpander.IsExpanded = true;
+        UpdateLayout();
+        AboutExpander.IsExpanded = false;
+        UpdateLayout();
     }
 
     private void SettingsPage_Loaded(object sender, RoutedEventArgs e)
