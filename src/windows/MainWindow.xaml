@@ -16,6 +16,7 @@
          buttons carry the shortcut text instead. -->
     <Grid x:Name="RootGrid" Loaded="RootGrid_Loaded"
           KeyboardAcceleratorPlacementMode="Hidden"
+          Background="{ThemeResource SolidBackgroundFillColorBaseBrush}"
           AllowDrop="True" DragOver="RootGrid_DragOver" Drop="RootGrid_Drop">
         <Grid.KeyboardAccelerators>
             <KeyboardAccelerator Key="Escape" Invoked="EscapeAccelerator_Invoked" />
@@ -90,8 +91,7 @@
         <!-- The viewer is the only surface in this window: settings and the
              about content live in the settings window, so this window has no
              navigation pane. -->
-        <Grid Grid.Row="1"
-              Background="{ThemeResource LayerFillColorDefaultBrush}">
+        <Grid Grid.Row="1">
     <Grid.RowDefinitions>
         <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
